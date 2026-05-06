@@ -252,8 +252,10 @@ namespace Simulation.Mission
                 if (unit == null || !unit.gameObject.activeSelf) continue;
                 if (unit.Data == null) continue;
 
-                // นับชิ้นส่วนทุกประเภทที่ระบุระดับชั้นได้ (Floor, Wall, Door, Normal)
-                // เพื่อให้การคำนวณความสูงของตึกแม่นยำแม้ไม่มีแผ่นพื้นในบางชั้น
+                // กรอง: นับเฉพาะ Floor หรือ Normal (เสา) เป็นตัวระบุชั้น
+                // ไม่นับกำแพงหรือประตูเป็นชั้น เพื่อไม่ให้ใช้กำแพงแทนเสาในการผ่านเงื่อนไขด่าน
+                if (unit.Data.structureType != Simulation.Data.StructureType.Floor && 
+                    unit.Data.structureType != Simulation.Data.StructureType.Normal) continue;
                 
                 float y = unit.transform.position.y;
                 // ถ้า Pivot อยู่ตรงกลาง ให้ขยับลงมาที่ฐานก่อนคำนวณชั้น
@@ -375,6 +377,7 @@ namespace Simulation.Mission
             foreach (var unit in units)
             {
                 if (unit == null || !unit.gameObject.activeSelf) continue;
+
                 var stress = unit.GetComponent<StructuralStress>();
                 if (stress == null || !stress.IsBroken)
                 {

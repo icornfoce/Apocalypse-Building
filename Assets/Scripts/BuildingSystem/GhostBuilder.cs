@@ -13,51 +13,60 @@ namespace Simulation.Building
         [SerializeField] private Color validColor = new Color(0f, 1f, 0f, 0.5f);
         [SerializeField] private Color invalidColor = new Color(1f, 0f, 0f, 0.5f);
 
-        private GameObject _ghostObject;
+        private List<GameObject> _ghostTemplates = new List<GameObject>();
+        private List<Vector3> _templateOffsets = new List<Vector3>();
+        private List<float> _templateRotations = new List<float>();
         private List<GameObject> _ghostInstances = new List<GameObject>();
         private List<Renderer> _ghostRenderers = new List<Renderer>();
         private List<Material> _ghostMaterials = new List<Material>();
         private float _currentRotation = 0f;
         private bool _isValid = true;
 
-        public bool HasGhost => _ghostObject != null;
+        public bool HasGhost => _ghostTemplates.Count > 0;
         public float CurrentRotation => _currentRotation;
-        public GameObject GhostObject => _ghostObject;
 
         /// <summary>
         /// Create a ghost preview from a prefab.
-        /// This serves as the template for multiple instances.
         /// </summary>
         public void CreateGhost(GameObject prefab)
         {
             DestroyGhost();
+            AddTemplate(prefab, Vector3.zero, 0f);
+            UpdateGhosts(new List<Vector3> { Vector3.zero }, 0f, true);
+        }
 
-            // Instantiate template at origin, hidden
-            _ghostObject = Instantiate(prefab, Vector3.zero, Quaternion.identity);
-            _ghostObject.name = "Ghost_Template";
-            _ghostObject.SetActive(false);
-            _currentRotation = 0f;
+        /// <summary>
+        /// Create a group ghost from multiple units.
+        /// </summary>
+        public void CreateGroupGhost(List<GameObject> prefabs, List<Vector3> offsets, List<float> rotations)
+        {
+            DestroyGhost();
+            for (int i = 0; i < prefabs.Count; i++)
+            {
+                AddTemplate(prefabs[i], offsets[i], rotations[i]);
+            }
+            UpdateGroupGhosts(Vector3.zero, 0f, true);
+        }
 
-            SetupGhost(_ghostObject);
+        private void AddTemplate(GameObject prefab, Vector3 offset, float rotation)
+        {
+            GameObject template = Instantiate(prefab, Vector3.zero, Quaternion.identity);
+            template.name = "Ghost_Template";
+            template.SetActive(false);
+            SetupGhost(template);
             
-            // Add the first instance immediately
-            AddInstance(Vector3.zero);
-            SetValid(true);
+            _ghostTemplates.Add(template);
+            _templateOffsets.Add(offset);
+            _templateRotations.Add(rotation);
         }
 
         private void SetupGhost(GameObject obj)
         {
             // Disable all colliders
-            foreach (var col in obj.GetComponentsInChildren<Collider>())
-            {
-                col.enabled = false;
-            }
+            foreach (var col in obj.GetComponentsInChildren<Collider>()) col.enabled = false;
 
             // Disable all Rigidbodies
-            foreach (var rb in obj.GetComponentsInChildren<Rigidbody>())
-            {
-                rb.isKinematic = true;
-            }
+            foreach (var rb in obj.GetComponentsInChildren<Rigidbody>()) rb.isKinematic = true;
 
             // Remove logic components
             Destroy(obj.GetComponent<StructureUnit>());
@@ -69,9 +78,9 @@ namespace Simulation.Building
             foreach (var j in obj.GetComponentsInChildren<Joint>()) Destroy(j);
         }
 
-        private void AddInstance(Vector3 pos)
+        private void AddInstance(GameObject template, Vector3 pos, float rotation)
         {
-            GameObject inst = Instantiate(_ghostObject, pos, Quaternion.Euler(0f, _currentRotation, 0f));
+            GameObject inst = Instantiate(template, pos, Quaternion.Euler(0f, rotation, 0f));
             inst.name = "Ghost_Instance";
             inst.SetActive(true);
             _ghostInstances.Add(inst);
@@ -81,7 +90,6 @@ namespace Simulation.Building
                 _ghostRenderers.Add(rend);
                 foreach (var mat in rend.materials)
                 {
-                    // Apply transparency settings to new materials
                     SetupTransparentMaterial(mat);
                     _ghostMaterials.Add(mat);
                 }
@@ -101,34 +109,26 @@ namespace Simulation.Building
         }
 
         /// <summary>
-        /// Syncs ghost instances to a list of positions.
+        /// Update ghosts for single-prefab mode (e.g. dragging to place multiple items of same type).
         /// </summary>
         public void UpdateGhosts(List<Vector3> positions, float rotation, bool isValid)
         {
-            if (_ghostObject == null) return;
+            if (_ghostTemplates.Count == 0) return;
             _currentRotation = rotation;
 
-            // Adjust instance count
-            while (_ghostInstances.Count < positions.Count)
-            {
-                AddInstance(Vector3.zero);
-            }
+            GameObject template = _ghostTemplates[0];
+
+            // Sync instance count
+            while (_ghostInstances.Count < positions.Count) AddInstance(template, Vector3.zero, rotation);
             while (_ghostInstances.Count > positions.Count)
             {
                 GameObject last = _ghostInstances[_ghostInstances.Count - 1];
                 _ghostInstances.RemoveAt(_ghostInstances.Count - 1);
-                
-                // Cleanup materials and renderers for this instance
                 Renderer[] rends = last.GetComponentsInChildren<Renderer>();
                 foreach(var r in rends) _ghostRenderers.Remove(r);
-                // Note: material cleanup is harder without tracking which mat belongs to which instance, 
-                // but SetValid will handle it as long as we clear the list and rebuild if needed.
-                // For performance, we'll just clear and rebuild the mat list in SetValid.
-                
                 Destroy(last);
             }
 
-            // Update positions and rotations
             for (int i = 0; i < positions.Count; i++)
             {
                 _ghostInstances[i].transform.position = positions[i];
@@ -139,58 +139,80 @@ namespace Simulation.Building
         }
 
         /// <summary>
-        /// Rotate the ghost by 90 degrees clockwise.
+        /// Update ghosts for group mode (different prefabs with relative offsets).
         /// </summary>
+        public void UpdateGroupGhosts(Vector3 anchorPos, float groupRotation, bool isValid)
+        {
+            if (_ghostTemplates.Count == 0) return;
+            _currentRotation = groupRotation;
+
+            // Sync instance count to template count
+            while (_ghostInstances.Count < _ghostTemplates.Count)
+            {
+                int idx = _ghostInstances.Count;
+                AddInstance(_ghostTemplates[idx], Vector3.zero, 0f);
+            }
+
+            Quaternion groupRotQ = Quaternion.Euler(0, groupRotation, 0);
+
+            for (int i = 0; i < _ghostTemplates.Count; i++)
+            {
+                // Apply group rotation to the offset
+                Vector3 rotatedOffset = groupRotQ * _templateOffsets[i];
+                _ghostInstances[i].transform.position = anchorPos + rotatedOffset;
+                
+                // Apply both group rotation and original template rotation
+                _ghostInstances[i].transform.rotation = groupRotQ * Quaternion.Euler(0, _templateRotations[i], 0);
+            }
+
+            SetValid(isValid);
+        }
+
         public void Rotate()
         {
             SetRotation((_currentRotation + 90f) % 360f);
         }
 
-        /// <summary>
-        /// Set rotation to a specific angle.
-        /// </summary>
         public void SetRotation(float angle)
         {
             _currentRotation = angle;
-            foreach (var inst in _ghostInstances)
+            if (_ghostTemplates.Count == 1 && _ghostInstances.Count > 1)
             {
-                if (inst != null) inst.transform.rotation = Quaternion.Euler(0f, _currentRotation, 0f);
+                // Multi-instance single template mode
+                foreach (var inst in _ghostInstances) inst.transform.rotation = Quaternion.Euler(0f, _currentRotation, 0f);
+            }
+            else
+            {
+                // Re-run UpdateGroupGhosts to handle offset rotation
+                // We'll let BuildingSystem call UpdateGroupGhosts properly
             }
         }
 
-        /// <summary>
-        /// Update the ghost position (compatibility for single placement).
-        /// </summary>
         public void UpdatePosition(Vector3 snappedPosition)
         {
-            List<Vector3> pos = new List<Vector3> { snappedPosition };
-            UpdateGhosts(pos, _currentRotation, _isValid);
+            if (_ghostTemplates.Count > 1) UpdateGroupGhosts(snappedPosition, _currentRotation, _isValid);
+            else UpdateGhosts(new List<Vector3> { snappedPosition }, _currentRotation, _isValid);
         }
 
-        /// <summary>
-        /// Destroy the current ghost object and all instances.
-        /// </summary>
         public void DestroyGhost()
         {
-            if (_ghostObject != null) Destroy(_ghostObject);
+            foreach (var t in _ghostTemplates) if (t != null) Destroy(t);
             foreach (var inst in _ghostInstances) if (inst != null) Destroy(inst);
             
+            _ghostTemplates.Clear();
+            _templateOffsets.Clear();
+            _templateRotations.Clear();
             _ghostInstances.Clear();
-            _ghostObject = null;
             _ghostRenderers.Clear();
             _ghostMaterials.Clear();
             _currentRotation = 0f;
         }
 
-        /// <summary>
-        /// Set validity state — changes all ghost instances' color.
-        /// </summary>
         public void SetValid(bool isValid)
         {
             _isValid = isValid;
             Color targetColor = isValid ? validColor : invalidColor;
 
-            // Re-collect materials if list is empty or inconsistent
             if (_ghostMaterials.Count == 0 && _ghostRenderers.Count > 0)
             {
                 foreach(var rend in _ghostRenderers)

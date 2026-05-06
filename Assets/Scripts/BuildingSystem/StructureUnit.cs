@@ -107,14 +107,15 @@ namespace Simulation.Building
         /// <summary>
         /// Highlight this structure (e.g. when hovered in idle mode).
         /// </summary>
-        public void SetHighlight(bool highlighted)
+        public void SetHighlight(bool highlighted, Color? color = null)
         {
-            if (_isHighlighted == highlighted) return;
+            if (_isHighlighted == highlighted && color == null) return;
             _isHighlighted = highlighted;
 
             if (_renderers.Count == 0) CacheRenderers();
 
             var stress = GetComponent<Simulation.Physics.StructuralStress>();
+            Color targetColor = color ?? highlightColor;
 
             for (int i = 0; i < _renderers.Count; i++)
             {
@@ -123,7 +124,7 @@ namespace Simulation.Building
                 if (highlighted)
                 {
                     // ผสมสี Highlight เข้าไป (หรือใช้สี Highlight ไปเลย)
-                    _renderers[i].material.color = highlightColor;
+                    _renderers[i].material.color = targetColor;
                 }
                 else
                 {

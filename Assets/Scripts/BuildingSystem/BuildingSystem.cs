@@ -64,6 +64,15 @@ namespace Simulation.Building
         private List<StructureUnit> _placedStructures = new List<StructureUnit>();
         private StructureUnit _movingUnit;
         private StructureUnit _hoveredUnit;
+        private HashSet<StructureUnit> _dragSelectedUnits = new HashSet<StructureUnit>();
+        private bool _isDraggingMove = false;
+
+        // Group Moving
+        private List<StructureUnit> _movingGroup = new List<StructureUnit>();
+        private List<Vector3> _groupOffsets = new List<Vector3>();
+        private List<float> _groupRotations = new List<float>();
+        private struct GroupOriginalState { public StructureUnit unit; public Vector3 pos; public float rot; }
+        private List<GroupOriginalState> _groupOriginalStates = new List<GroupOriginalState>();
 
         // Placement Temp Data
         private Vector3 _currentHitPos;
@@ -71,6 +80,11 @@ namespace Simulation.Building
         private Collider _currentHitCollider;
         private float _pivotToBottomOffset = 0f;
         private bool _hasValidTarget;
+
+        // Pickup Temp Data
+        private float _pickupStartTime;
+        private Vector3 _pickupStartMousePos;
+        private bool _isHoldingPickup = false;
 
         // Frame cooldown: prevents the same click that selects a structure from also placing it
         private bool _justEnteredPlacing = false;
@@ -106,6 +120,11 @@ namespace Simulation.Building
         public int GridRows => gridRows;
         public float GetGridSize => gridSize;
         public float HeightStep => heightStep > 0f ? heightStep : gridSize;
+
+        // Batch Command System
+        private bool _isBatching = false;
+        private List<System.Action> _batchUndos = new List<System.Action>();
+        private List<System.Action> _batchRedos = new List<System.Action>();
 
         /// <summary>
         /// ตั้งงบประมาณจากภายนอก (เช่น MissionManager)
@@ -151,7 +170,7 @@ namespace Simulation.Building
                     HandlePlacementMode();
                     break;
                 case BuildMode.Moving:
-                    if (_movingUnit != null)
+                    if (_movingUnit != null || _movingGroup.Count > 0)
                         HandleMovingMode();
                     else
                         HandlePickupMode();
@@ -194,8 +213,44 @@ namespace Simulation.Building
         private void ExecuteCommand(System.Action execute, System.Action undo)
         {
             execute();
-            _undoStack.Push(new BuildAction { Undo = undo, Redo = execute });
-            _redoStack.Clear(); // Any new action clears the redo history
+            
+            if (_isBatching)
+            {
+                _batchUndos.Add(undo);
+                _batchRedos.Add(execute);
+            }
+            else
+            {
+                _undoStack.Push(new BuildAction { Undo = undo, Redo = execute });
+                _redoStack.Clear(); // Any new action clears the redo history
+            }
+        }
+
+        private void BeginBatch()
+        {
+            _isBatching = true;
+            _batchUndos.Clear();
+            _batchRedos.Clear();
+        }
+
+        private void EndBatch()
+        {
+            if (!_isBatching) return;
+            _isBatching = false;
+
+            if (_batchUndos.Count > 0)
+            {
+                // Create copies to capture in the closure
+                var undos = new List<System.Action>(_batchUndos);
+                var redos = new List<System.Action>(_batchRedos);
+
+                _undoStack.Push(new BuildAction
+                {
+                    Undo = () => { for (int i = undos.Count - 1; i >= 0; i--) undos[i]?.Invoke(); },
+                    Redo = () => { for (int i = 0; i < redos.Count; i++) redos[i]?.Invoke(); }
+                });
+                _redoStack.Clear();
+            }
         }
 
         public void Undo()
@@ -335,7 +390,7 @@ namespace Simulation.Building
 
             // ใช้ SphereCastAll (รัศมีเล็กๆ เพื่อจับขอบ Floor บางได้)
             float castRadius = gridSize * 0.15f;
-            RaycastHit[] hits = UnityEngine.Physics.SphereCastAll(ray, castRadius, 500f, combinedMask);
+            RaycastHit[] hits = UnityEngine.Physics.SphereCastAll(ray, castRadius, 500f, combinedMask, QueryTriggerInteraction.Collide);
             System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
 
             // อ่านชุด occluded colliders จากกล้อง (ถ้ามี)
@@ -395,7 +450,7 @@ namespace Simulation.Building
             }
 
             Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
-            if (UnityEngine.Physics.Raycast(ray, out RaycastHit hit, 500f, structureLayer))
+            if (UnityEngine.Physics.Raycast(ray, out RaycastHit hit, 500f, structureLayer, QueryTriggerInteraction.Collide))
             {
                 // Find StructureUnit on this object or any parent
                 StructureUnit unit = hit.collider.GetComponentInParent<StructureUnit>();
@@ -457,11 +512,12 @@ namespace Simulation.Building
                 {
                     _isDragging = true;
                     _dragStartPos = currentPos;
+                    BeginBatch();
                 }
 
                 if (_isDragging)
                 {
-                    _dragPositions = CalculateDragPositions(_dragStartPos, currentPos);
+                    _dragPositions = CalculateDragPositions(_dragStartPos, currentPos, _selectedData.size.x, _selectedData.size.z, ghostBuilder.CurrentRotation, _selectedData.structureType);
                 }
                 else
                 {
@@ -532,6 +588,7 @@ namespace Simulation.Building
                         }
                     }
                     _dragPositions.Clear();
+                    EndBatch();
                 }
             }
         }
@@ -540,20 +597,13 @@ namespace Simulation.Building
         /// คำนวณตำแหน่งวางทั้งหมดจากการลาก
         /// - Normal: เติมเต็ม 2D พื้นที่สี่เหลี่ยม (X, Z)
         /// - Wall/Door: สร้างเป็นเส้นตรง 1D ตามแกนที่ลากยาวที่สุด
-        /// ใช้ size ของ StructureData เป็น step เพื่อไม่ให้ชิ้นซ้อนกัน
-        /// รองรับ rotation (สลับแกน size เมื่อหมุน 90/270)
         /// </summary>
-        private List<Vector3> CalculateDragPositions(Vector3 start, Vector3 end)
+        private List<Vector3> CalculateDragPositions(Vector3 start, Vector3 end, float sizeX, float sizeZ, float rotation, StructureType type)
         {
             List<Vector3> positions = new List<Vector3>();
 
-            // ── คำนวณ step จาก size ของ structure ──
-            float sizeX = Mathf.Max(1f, _selectedData.size.x);
-            float sizeZ = Mathf.Max(1f, _selectedData.size.z);
-            float rot = ghostBuilder != null ? ghostBuilder.CurrentRotation : 0f;
-
             // สลับแกนเมื่อหมุน 90 หรือ 270 องศา
-            if (Mathf.Abs(rot % 180f) > 45f)
+            if (Mathf.Abs(rotation % 180f) > 45f)
             {
                 float tmp = sizeX;
                 sizeX = sizeZ;
@@ -566,9 +616,9 @@ namespace Simulation.Building
             float dx = end.x - start.x;
             float dz = end.z - start.z;
 
-            if (_selectedData.structureType == StructureType.Normal || 
-                _selectedData.structureType == StructureType.Floor ||
-                _selectedData.structureType == StructureType.Wall)
+            if (type == StructureType.Normal || 
+                type == StructureType.Floor ||
+                type == StructureType.Wall)
             {
                 // ── เติมเต็มพื้นที่สี่เหลี่ยม (2D fill) สำหรับพื้นและโครงสร้างทั่วไป ──
                 int stepsX = Mathf.Max(0, Mathf.FloorToInt(Mathf.Abs(dx) / stepX + 0.5f));
@@ -581,40 +631,26 @@ namespace Simulation.Building
                 {
                     for (int iz = 0; iz <= stepsZ; iz++)
                     {
-                        Vector3 pos = new Vector3(
-                            start.x + (ix * stepX * signX),
-                            start.y,
-                            start.z + (iz * stepZ * signZ)
-                        );
-                        positions.Add(pos);
+                        positions.Add(new Vector3(start.x + (ix * stepX * signX), start.y, start.z + (iz * stepZ * signZ)));
                     }
                 }
             }
             else
             {
-                // ── สร้างเป็นเส้นตรง (1D line) สำหรับกำแพง/ประตู ให้ล็อคแกนตามการหัน ──
-                float wallRot = ghostBuilder != null ? ghostBuilder.CurrentRotation : 0f;
-                bool alignsWithX = Mathf.Abs(wallRot % 180f) < 45f;
+                // ── สร้างเป็นเส้นตรง (1D line) ──
+                bool alignsWithX = Mathf.Abs(rotation % 180f) < 45f;
 
                 if (alignsWithX)
                 {
-                    // ลากตามแกน X
                     int steps = Mathf.Max(0, Mathf.FloorToInt(Mathf.Abs(dx) / stepX + 0.5f));
                     float signX = dx >= 0 ? 1f : -1f;
-                    for (int i = 0; i <= steps; i++)
-                    {
-                        positions.Add(new Vector3(start.x + (i * stepX * signX), start.y, start.z));
-                    }
+                    for (int i = 0; i <= steps; i++) positions.Add(new Vector3(start.x + (i * stepX * signX), start.y, start.z));
                 }
                 else
                 {
-                    // ลากตามแกน Z
                     int steps = Mathf.Max(0, Mathf.FloorToInt(Mathf.Abs(dz) / stepZ + 0.5f));
                     float signZ = dz >= 0 ? 1f : -1f;
-                    for (int i = 0; i <= steps; i++)
-                    {
-                        positions.Add(new Vector3(start.x, start.y, start.z + (i * stepZ * signZ)));
-                    }
+                    for (int i = 0; i <= steps; i++) positions.Add(new Vector3(start.x, start.y, start.z + (i * stepZ * signZ)));
                 }
             }
 
@@ -629,10 +665,131 @@ namespace Simulation.Building
         {
             if (Input.GetMouseButtonDown(1)) { ExitMode(); return; }
 
-            if (Input.GetMouseButtonDown(0) && _hoveredUnit != null)
+            if (_hasValidTarget)
             {
-                EnterMovingSubmode(_hoveredUnit);
+                Vector3 currentPos = CalculatePlacementPosition(_currentHitPos);
+
+                if (Input.GetMouseButtonDown(0))
+                {
+                    if (_hoveredUnit != null)
+                    {
+                        // Start tracking for Click vs Drag
+                        _isHoldingPickup = true;
+                        _pickupStartTime = Time.time;
+                        _pickupStartMousePos = Input.mousePosition;
+                    }
+                    else
+                    {
+                        // Start area selection for group moving
+                        _isDragging = true;
+                        _dragStartPos = currentPos;
+                        _dragSelectedUnits.Clear();
+                    }
+                }
+
+                if (_isHoldingPickup)
+                {
+                    float holdTime = Time.time - _pickupStartTime;
+                    float mouseDist = Vector3.Distance(Input.mousePosition, _pickupStartMousePos);
+
+                    // If they move the mouse or hold it long enough, it's a drag
+                    if (holdTime > 0.25f || mouseDist > 15f)
+                    {
+                        List<StructureUnit> building = FindConnectedUnits(_hoveredUnit);
+                        EnterGroupMoveMode(building);
+                        _isDraggingMove = true; // Drag mode: place on release
+                        _isHoldingPickup = false;
+                    }
+                    // If they release quickly without moving, it's a click-to-pick
+                    else if (Input.GetMouseButtonUp(0))
+                    {
+                        List<StructureUnit> building = FindConnectedUnits(_hoveredUnit);
+                        EnterGroupMoveMode(building);
+                        _isDraggingMove = false; // Click mode: stick to mouse, place on next click
+                        _isHoldingPickup = false;
+                    }
+                }
+
+                if (_isDragging)
+                {
+                    _dragPositions = CalculateDragPositions(_dragStartPos, currentPos, 1f, 1f, 0f, StructureType.Normal);
+                    
+                    foreach (var unit in _dragSelectedUnits) if (unit != null) unit.SetHighlight(false);
+                    _dragSelectedUnits.Clear();
+
+                    foreach (var pos in _dragPositions)
+                    {
+                        // Raycast from high above to support multiple floors
+                        Vector3 rayStart = pos + Vector3.up * 50.0f;
+                        RaycastHit[] selectionHits = UnityEngine.Physics.RaycastAll(rayStart, Vector3.down, 100.0f, structureLayer, QueryTriggerInteraction.Collide);
+                        foreach (var hit in selectionHits)
+                        {
+                            StructureUnit unit = hit.collider.GetComponentInParent<StructureUnit>();
+                            if (unit != null)
+                            {
+                                _dragSelectedUnits.Add(unit);
+                                unit.SetHighlight(true, Color.cyan);
+                            }
+                        }
+                    }
+                    ghostBuilder.UpdateGhosts(_dragPositions, 0f, true);
+                }
             }
+
+            if (Input.GetMouseButtonUp(0) && _isDragging)
+            {
+                _isDragging = false;
+                if (_dragSelectedUnits.Count > 0)
+                {
+                    EnterGroupMoveMode(new List<StructureUnit>(_dragSelectedUnits));
+                }
+                _dragSelectedUnits.Clear();
+                // Removed ghostBuilder.DestroyGhost() here - it was causing selected groups to disappear
+            }
+        }
+
+        private void EnterGroupMoveMode(List<StructureUnit> units)
+        {
+            ClearHover();
+            _movingGroup = units;
+            _groupOffsets.Clear();
+            _groupRotations.Clear();
+            _groupOriginalStates.Clear();
+
+            // Use the first unit or selection center as anchor? 
+            // Let's use the average position.
+            // Calculate horizontal center and vertical bottom
+            Vector3 centerSum = Vector3.zero;
+            float minBottomY = float.MaxValue;
+            
+            foreach (var u in units) 
+            {
+                centerSum += u.transform.position;
+                
+                // Calculate bottom of this unit
+                float bottomY = u.transform.position.y;
+                if (u.Data.pivotAtCenter) bottomY -= u.Data.size.y * 0.5f;
+                if (bottomY < minBottomY) minBottomY = bottomY;
+            }
+            
+            Vector3 center = centerSum / units.Count;
+            center.y = minBottomY; // Use the absolute lowest point as vertical anchor
+
+            // Snap center to grid
+            center = CalculatePlacementPosition(center);
+
+            List<GameObject> prefabs = new List<GameObject>();
+            foreach (var unit in units)
+            {
+                _groupOriginalStates.Add(new GroupOriginalState { unit = unit, pos = unit.transform.position, rot = unit.Rotation });
+                _groupOffsets.Add(unit.transform.position - center);
+                _groupRotations.Add(unit.Rotation);
+                prefabs.Add(unit.Data.prefab);
+                unit.gameObject.SetActive(false);
+            }
+
+            ghostBuilder.CreateGroupGhost(prefabs, _groupOffsets, _groupRotations);
+            _isDraggingMove = false; // Area selection move is click-to-place, not hold-to-drag
         }
 
         private void EnterMovingSubmode(StructureUnit unit)
@@ -671,20 +828,67 @@ namespace Simulation.Building
                 Vector3 placePos = CalculatePlacementPosition(_currentHitPos);
                 ghostBuilder.UpdatePosition(placePos);
                 
-                bool isClear = IsAreaClear(placePos, ghostBuilder.CurrentRotation, _movingUnit.Data);
-                bool hasSupport = HasStructuralSupport(placePos, ghostBuilder.CurrentRotation, _movingUnit.Data);
-                StructureUnit hitUnit = _currentHitCollider != null ? _currentHitCollider.GetComponentInParent<StructureUnit>() : null;
-                bool isFloor = hitUnit != null && hitUnit.Data.structureType == StructureType.Floor;
-                bool isTopSurface = _currentHitNormal.y > 0.9f;
-                bool isOnStructure = !_movingUnit.Data.placeOnStructureOnly || (isFloor && isTopSurface);
-                
-                ghostBuilder.SetValid(isClear && hasSupport && isOnStructure);
-            }
+                bool allValid = true;
+                if (_movingGroup.Count > 0)
+                {
+                    // Check validity for entire group
+                    Quaternion groupRotQ = Quaternion.Euler(0, ghostBuilder.CurrentRotation, 0);
+                    
+                    // 1. Calculate all projected positions and check if at least one piece has world support
+                    bool groupHasSupport = false;
+                    List<Vector3> projectedPositions = new List<Vector3>();
+                    List<float> projectedRotations = new List<float>();
 
-            if (Input.GetMouseButtonDown(0) && _hasValidTarget)
-            {
-                Vector3 placePos = CalculatePlacementPosition(_currentHitPos);
-                ConfirmMove(placePos, ghostBuilder.CurrentRotation, _currentHitCollider);
+                    for (int j = 0; j < _movingGroup.Count; j++)
+                    {
+                        Vector3 pPos = placePos + (groupRotQ * _groupOffsets[j]);
+                        float pRot = (groupRotQ * Quaternion.Euler(0, _groupRotations[j], 0)).eulerAngles.y;
+                        projectedPositions.Add(pPos);
+                        projectedRotations.Add(pRot);
+
+                        if (IsSupportedByWorld(pPos, pRot, _movingGroup[j].Data))
+                        {
+                            groupHasSupport = true;
+                        }
+                    }
+
+                    // 2. Validate collision and support for each piece
+                    for (int i = 0; i < _movingGroup.Count; i++)
+                    {
+                        StructureUnit unit = _movingGroup[i];
+                        Vector3 piecePos = projectedPositions[i];
+                        float pieceRot = projectedRotations[i];
+
+                        bool isClear = IsAreaClear(piecePos, pieceRot, unit.Data);
+                        // A group is supported if at least one of its members touches a support
+                        bool hasSupport = groupHasSupport;
+
+                        if (!isClear || !hasSupport) { allValid = false; break; }
+                    }
+                }
+                else
+                {
+                    // Single unit validity
+                    bool isClear = IsAreaClear(placePos, ghostBuilder.CurrentRotation, _movingUnit.Data);
+                    bool hasSupport = HasStructuralSupport(placePos, ghostBuilder.CurrentRotation, _movingUnit.Data);
+                    StructureUnit hitUnit = _currentHitCollider != null ? _currentHitCollider.GetComponentInParent<StructureUnit>() : null;
+                    bool isFloor = hitUnit != null && hitUnit.Data.structureType == StructureType.Floor;
+                    bool isTopSurface = _currentHitNormal.y > 0.9f;
+                    bool isOnStructure = !_movingUnit.Data.placeOnStructureOnly || (isFloor && isTopSurface);
+                    allValid = isClear && hasSupport && isOnStructure;
+                }
+                
+                ghostBuilder.SetValid(allValid);
+
+                if (Input.GetMouseButtonDown(0) || (Input.GetMouseButtonUp(0) && _isDraggingMove))
+                {
+                    if (ghostBuilder.IsValid)
+                    {
+                        if (_movingGroup.Count > 0) ConfirmGroupMove(placePos, ghostBuilder.CurrentRotation);
+                        else ConfirmMove(placePos, ghostBuilder.CurrentRotation, _currentHitCollider);
+                        _isDraggingMove = false;
+                    }
+                }
             }
         }
 
@@ -696,9 +900,60 @@ namespace Simulation.Building
         {
             if (Input.GetMouseButtonDown(1)) { ExitMode(); return; }
 
-            if (Input.GetMouseButtonDown(0) && _hoveredUnit != null)
+            if (_hasValidTarget)
             {
-                TrySellStructure(_hoveredUnit);
+                Vector3 currentPos = CalculatePlacementPosition(_currentHitPos);
+
+                if (Input.GetMouseButtonDown(0))
+                {
+                    _isDragging = true;
+                    _dragStartPos = currentPos;
+                    BeginBatch();
+                    _dragSelectedUnits.Clear();
+                }
+
+                if (_isDragging)
+                {
+                    _dragPositions = CalculateDragPositions(_dragStartPos, currentPos, 1f, 1f, 0f, StructureType.Normal);
+
+                    // Clear old selection highlights
+                    foreach (var unit in _dragSelectedUnits)
+                    {
+                        if (unit != null) unit.SetHighlight(false);
+                    }
+                    _dragSelectedUnits.Clear();
+
+                    // Find units in area
+                    foreach (var pos in _dragPositions)
+                    {
+                        // Raycast down to find units at this grid position
+                        Vector3 rayStart = pos + Vector3.up * 0.5f;
+                        if (UnityEngine.Physics.Raycast(rayStart, Vector3.down, out RaycastHit hit, 1.0f, structureLayer, QueryTriggerInteraction.Collide))
+                        {
+                            StructureUnit unit = hit.collider.GetComponentInParent<StructureUnit>();
+                            if (unit != null)
+                            {
+                                _dragSelectedUnits.Add(unit);
+                                unit.SetHighlight(true, Color.red);
+                            }
+                        }
+                    }
+
+                    ghostBuilder.UpdateGhosts(_dragPositions, 0f, false);
+                }
+            }
+
+            if (Input.GetMouseButtonUp(0) && _isDragging)
+            {
+                _isDragging = false;
+                foreach (var unit in _dragSelectedUnits)
+                {
+                    if (unit != null) TrySellStructure(unit);
+                }
+                _dragSelectedUnits.Clear();
+                _dragPositions.Clear();
+                ghostBuilder.DestroyGhost();
+                EndBatch();
             }
         }
 
@@ -710,9 +965,19 @@ namespace Simulation.Building
         {
             if (Input.GetMouseButtonDown(1)) { ExitMode(); return; }
 
-            if (Input.GetMouseButtonDown(0) && _hoveredUnit != null && _selectedMaterial != null)
+            if (Input.GetMouseButtonDown(0))
+            {
+                BeginBatch();
+            }
+
+            if (Input.GetMouseButton(0) && _hoveredUnit != null && _selectedMaterial != null)
             {
                 ApplyMaterialToStructure(_hoveredUnit, _selectedMaterial);
+            }
+
+            if (Input.GetMouseButtonUp(0))
+            {
+                EndBatch();
             }
         }
 
@@ -763,14 +1028,22 @@ namespace Simulation.Building
         public void ExitMode()
         {
             if (_movingUnit != null) _movingUnit.gameObject.SetActive(true);
+            foreach (var u in _movingGroup) if (u != null) u.gameObject.SetActive(true);
             _movingUnit = null;
+            _movingGroup.Clear();
+            _groupOffsets.Clear();
+            _groupRotations.Clear();
+            _groupOriginalStates.Clear();
             _selectedData = null;
             // Material persists across mode changes — don't clear it here
             _currentMode = BuildMode.Idle;
             _justEnteredPlacing = false;
             // Reset drag state to prevent carry-over when switching structures
-            _isDragging = false;
+            _isDraggingMove = false;
+            _isHoldingPickup = false;
             _dragPositions.Clear();
+            _dragSelectedUnits.Clear();
+            EndBatch();
             ghostBuilder.DestroyGhost();
             ClearHover();
         }
@@ -914,6 +1187,53 @@ namespace Simulation.Building
             RecalculateMaxFloor();
         }
 
+        private void ConfirmGroupMove(Vector3 anchorPos, float groupRotation)
+        {
+            List<GroupOriginalState> oldStates = new List<GroupOriginalState>(_groupOriginalStates);
+            List<StructureUnit> group = new List<StructureUnit>(_movingGroup);
+            List<Vector3> offsets = new List<Vector3>(_groupOffsets);
+            List<float> rots = new List<float>(_groupRotations);
+
+            ExecuteCommand(
+                execute: () => {
+                    Quaternion groupRotQ = Quaternion.Euler(0, groupRotation, 0);
+                    for (int i = 0; i < group.Count; i++)
+                    {
+                        Vector3 rotatedOffset = groupRotQ * offsets[i];
+                        Vector3 piecePos = anchorPos + rotatedOffset;
+                        float pieceRot = (groupRotQ * Quaternion.Euler(0, rots[i], 0)).eulerAngles.y;
+
+                        group[i].transform.position = piecePos;
+                        group[i].transform.rotation = Quaternion.Euler(0, pieceRot, 0);
+                        group[i].SetRotation(pieceRot);
+                        group[i].gameObject.SetActive(true);
+                        group[i].SetHighlight(false);
+                        AttachJoint(group[i].gameObject, null); // Group move uses generic attachment
+                        AttachSideJoints(group[i].gameObject);
+                        IgnoreOverlappingCollisions(group[i]);
+                    }
+                },
+                undo: () => {
+                    foreach (var state in oldStates)
+                    {
+                        state.unit.transform.position = state.pos;
+                        state.unit.transform.rotation = Quaternion.Euler(0, state.rot, 0);
+                        state.unit.SetRotation(state.rot);
+                        state.unit.gameObject.SetActive(true);
+                        state.unit.SetHighlight(false);
+                        AttachJoint(state.unit.gameObject, null);
+                        AttachSideJoints(state.unit.gameObject);
+                        IgnoreOverlappingCollisions(state.unit);
+                    }
+                }
+            );
+
+            _movingGroup.Clear();
+            _movingUnit = null;
+            ghostBuilder.DestroyGhost();
+            RecalculateMaxFloor();
+        }
+
         private void ConfirmMove(Vector3 position, float rotation, Collider targetCollider = null)
         {
             Vector3 oldPos = _moveOriginalPos;
@@ -928,6 +1248,7 @@ namespace Simulation.Building
                     unit.SetRotation(rotation);
                     unit.name = $"{unit.Data.prefab.name} {GetGridPositionString(position)}";
                     unit.gameObject.SetActive(true);
+                    unit.SetHighlight(false);
                     AttachJoint(unit.gameObject, targetCollider);
                     AttachSideJoints(unit.gameObject);
                     IgnoreOverlappingCollisions(unit);
@@ -943,6 +1264,7 @@ namespace Simulation.Building
                     unit.SetRotation(oldRot);
                     unit.name = $"{unit.Data.prefab.name} {GetGridPositionString(oldPos)}";
                     unit.gameObject.SetActive(true);
+                    unit.SetHighlight(false);
                     AttachJoint(unit.gameObject, oldTarget);
                     AttachSideJoints(unit.gameObject);
                     IgnoreOverlappingCollisions(unit);
@@ -1155,9 +1477,24 @@ namespace Simulation.Building
 
         private void CancelCurrentMove()
         {
-            if (_movingUnit != null) _movingUnit.gameObject.SetActive(true);
+            if (_movingUnit != null)
+            {
+                _movingUnit.gameObject.SetActive(true);
+                _movingUnit.SetHighlight(false);
+            }
+            foreach (var u in _movingGroup)
+            {
+                if (u != null)
+                {
+                    u.gameObject.SetActive(true);
+                    u.SetHighlight(false);
+                }
+            }
             _movingUnit = null;
+            _movingGroup.Clear();
+            _isDraggingMove = false;
             ghostBuilder.DestroyGhost();
+            ClearHover();
         }
 
         private void TrySellStructure(StructureUnit unit)
@@ -1254,10 +1591,65 @@ namespace Simulation.Building
         /// Determine the active StructureData for placement calculations.
         /// In Placing mode use _selectedData, in Moving mode use _movingUnit.Data.
         /// </summary>
+        private List<StructureUnit> FindConnectedUnits(StructureUnit start)
+        {
+            if (start == null) return new List<StructureUnit>();
+
+            HashSet<StructureUnit> connected = new HashSet<StructureUnit>();
+            Stack<StructureUnit> toVisit = new Stack<StructureUnit>();
+            
+            toVisit.Push(start);
+            connected.Add(start);
+
+            while (toVisit.Count > 0)
+            {
+                StructureUnit current = toVisit.Pop();
+                Rigidbody currentRb = current.GetComponent<Rigidbody>();
+                
+                // 1. Find all units this structure is connected to via its own Joints
+                Joint[] joints = current.GetComponents<Joint>();
+                foreach (var j in joints)
+                {
+                    if (j.connectedBody != null)
+                    {
+                        StructureUnit other = j.connectedBody.GetComponent<StructureUnit>();
+                        if (other != null && !connected.Contains(other))
+                        {
+                            connected.Add(other);
+                            toVisit.Push(other);
+                        }
+                    }
+                }
+
+                // 2. Find all units that have Joints pointing to THIS structure
+                if (currentRb != null)
+                {
+                    foreach (var unit in _placedStructures)
+                    {
+                        if (unit == null || connected.Contains(unit)) continue;
+                        
+                        Joint[] otherJoints = unit.GetComponents<Joint>();
+                        foreach (var oj in otherJoints)
+                        {
+                            if (oj != null && oj.connectedBody == currentRb)
+                            {
+                                connected.Add(unit);
+                                toVisit.Push(unit);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return new List<StructureUnit>(connected);
+        }
+
         private StructureData GetActiveStructureData()
         {
             if (_selectedData != null) return _selectedData;
             if (_movingUnit != null) return _movingUnit.Data;
+            if (_movingGroup.Count > 0) return _movingGroup[0].Data;
             return null;
         }
 
@@ -1643,7 +2035,7 @@ namespace Simulation.Building
 
             foreach (var unit in _placedStructures)
             {
-                if (unit == _movingUnit || unit == null) continue;
+                if (unit == null || unit == _movingUnit || _movingGroup.Contains(unit)) continue;
 
                 // Check for exact duplicate placements regardless of allowOverlap
                 float dist = Vector3.Distance(position, unit.transform.position);
@@ -1756,7 +2148,7 @@ namespace Simulation.Building
         /// ตรวจสอบว่าตำแหน่งที่จะวางมี "ฐานรองรับ" หรือไม่ (พื้น หรือ สิ่งก่อสร้างข้างเคียง)
         /// ป้องกันการวางลอยกลางอากาศโดยไม่มีจุดยึด
         /// </summary>
-        private bool HasStructuralSupport(Vector3 position, float rotation, StructureData data)
+        private bool HasStructuralSupport(Vector3 position, float rotation, StructureData data, List<Vector3> groupPositions = null)
         {
             if (data == null || data.prefab == null) return true;
 
@@ -1791,6 +2183,30 @@ namespace Simulation.Building
                 }
             }
 
+            // 3. Group support (for moving an existing building)
+            if (groupPositions != null && groupPositions.Count > 1)
+            {
+                // Similar logic to drag placement: if any piece in group has world support, they can support each other
+                bool groupHasWorldSupport = false;
+                foreach (var p in groupPositions)
+                {
+                    if (IsSupportedByWorld(p, rotation, data))
+                    {
+                        groupHasWorldSupport = true;
+                        break;
+                    }
+                }
+
+                if (groupHasWorldSupport)
+                {
+                    foreach (var otherPos in groupPositions)
+                    {
+                        if (otherPos == position) continue;
+                        if (Vector3.Distance(position, otherPos) < gridSize * 1.5f) return true;
+                    }
+                }
+            }
+
             return false;
         }
 
@@ -1806,14 +2222,26 @@ namespace Simulation.Building
             Ray downRay = new Ray(bottomCenter + Vector3.up * 0.1f, Vector3.down);
             
             // ตรวจสอบทั้งพื้นดิน (groundLayer) และโครงสร้างอื่น (structureLayer)
-            if (UnityEngine.Physics.Raycast(downRay, 0.4f, groundLayer | structureLayer)) return true;
+            RaycastHit[] hits = UnityEngine.Physics.RaycastAll(downRay, 0.4f, groundLayer | structureLayer);
+            foreach (var hit in hits)
+            {
+                StructureUnit unit = hit.collider.GetComponentInParent<StructureUnit>();
+                if (unit != null && (unit == _movingUnit || _movingGroup.Contains(unit))) continue;
+                return true;
+            }
 
             // 2. ตรวจสอบการสัมผัสกับสิ่งก่อสร้างอื่น หรือพื้นผิวข้างเคียง (Adjacency)
             Bounds b = GetGridBounds(position, rotation, data);
             Vector3 checkSize = b.size + new Vector3(0.2f, 0.2f, 0.2f);
             
-            // เช็คว่า Bounds ที่ขยายออกไปชนกับ Ground หรือ Structure อื่นหรือไม่
-            return UnityEngine.Physics.CheckBox(b.center, checkSize * 0.5f, Quaternion.Euler(0, rotation, 0), groundLayer | structureLayer);
+            Collider[] overlaps = UnityEngine.Physics.OverlapBox(b.center, checkSize * 0.5f, Quaternion.Euler(0, rotation, 0), groundLayer | structureLayer);
+            foreach (var col in overlaps)
+            {
+                StructureUnit colUnit = col.GetComponentInParent<StructureUnit>();
+                if (colUnit != null && (colUnit == _movingUnit || _movingGroup.Contains(colUnit))) continue;
+                return true;
+            }
+            return false;
         }
 
         // --------------------------------------------------------------------------------

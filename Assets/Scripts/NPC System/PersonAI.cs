@@ -136,11 +136,23 @@ namespace Simulation.Character
                 {
                     _agent.SetDestination(_target.position);
                     
-                    // เช็คว่าถึงเป้าหมายหรือยัง
-                    if (!_agent.pathPending && _agent.remainingDistance <= arrivalDistance)
+                    // เช็คว่าถึงเป้าหมายหรือยัง (ใช้ Distance จะชัวร์กว่า remainingDistance ในบางกรณี)
+                    float distanceToTarget = Vector3.Distance(transform.position, _target.position);
+                    if (!_agent.pathPending && distanceToTarget <= arrivalDistance + 0.3f)
                     {
                         HasReachedTarget = true;
                         _wanderTarget = _target.position; // เริ่มเดินวนจากจุดนี้
+
+                        // แจ้งเตือนให้ Target Marker ค่อยๆ จางหายไป
+                        if (_target != null)
+                        {
+                            PersonTarget pt = _target.GetComponent<PersonTarget>();
+                            if (pt != null) 
+                            {
+                                pt.StartFadeOut();
+                                Debug.Log($"<color=cyan>[PersonAI]</color> Reached target {_target.name}, triggering fade out.");
+                            }
+                        }
                     }
                 }
             }

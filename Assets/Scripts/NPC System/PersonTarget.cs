@@ -10,8 +10,9 @@ namespace Simulation.Character
     {
         [Header("Transparency")]
         [SerializeField] private float alpha = 0.15f;
-        [SerializeField] private float fadeSpeed = 5f;
+        [SerializeField] private float fadeSpeed = 2f;
 
+        private bool _shouldFade = false;
         private Material[] _materials;
         private float _currentAlpha;
 
@@ -25,21 +26,30 @@ namespace Simulation.Character
             {
                 if (r.material != null)
                 {
-                    // เปลี่ยน Rendering Mode เป็น Transparent (เฉพาะ Standard Shader)
-                    r.material.SetFloat("_Mode", 3);
-                    r.material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                    r.material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                    r.material.SetInt("_ZWrite", 0);
-                    r.material.DisableKeyword("_ALPHATEST_ON");
-                    r.material.EnableKeyword("_ALPHABLEND_ON");
-                    r.material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
-                    r.material.renderQueue = 3000;
+                    Material mat = r.material; // สร้าง instance ของ material
+                    
+                    // --- พยายามตั้งค่าให้เป็น Transparent (สำหรับ Standard Shader) ---
+                    mat.SetFloat("_Mode", 3);
+                    mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                    mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                    mat.SetInt("_ZWrite", 0);
+                    mat.DisableKeyword("_ALPHATEST_ON");
+                    mat.EnableKeyword("_ALPHABLEND_ON");
+                    mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+                    mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
 
-                    Color c = r.material.color;
+                    // --- สำหรับ URP Lit Shader ---
+                    if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1); // 1 = Transparent
+                    if (mat.HasProperty("_Blend")) mat.SetFloat("_Blend", 0);     // 0 = Alpha
+                    mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+
+                    // ตั้งค่าสีเริ่มต้น
+                    Color c = mat.color;
                     c.a = _currentAlpha;
-                    r.material.color = c;
+                    mat.color = c;
+                    if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", c);
 
-                    mats.Add(r.material);
+                    mats.Add(mat);
                 }
             }
             _materials = mats.ToArray();
@@ -52,16 +62,30 @@ namespace Simulation.Character
             }
         }
 
+        public void StartFadeOut()
+        {
+            if (!_shouldFade)
+            {
+                _shouldFade = true;
+                Debug.Log($"<color=yellow>[PersonTarget]</color> {gameObject.name} starting fade out.");
+            }
+        }
+
         private void Update()
         {
             // หาเป้าหมายความทึบตามสถานะของการจำลอง
             bool isSimulating = Simulation.Physics.SimulationManager.Instance != null && Simulation.Physics.SimulationManager.Instance.IsSimulating;
-            float targetAlpha = isSimulating ? 0f : alpha;
+            
+            // รีเซ็ตการ Fade หากไม่ได้จำลอง
+            if (!isSimulating) _shouldFade = false;
 
-            // ค่อยๆ Fade สี
+            // Fade เป็น 0 เฉพาะเมื่อมีการสั่ง Fade (เช่น NPC เดินไปถึง)
+            float targetAlpha = _shouldFade ? 0f : alpha;
+
+            // ค่อยๆ Fade สี (ใช้ MoveTowards เพื่อความแม่นยำในการวิ่งเข้าหาค่าเป้าหมาย)
             if (Mathf.Abs(_currentAlpha - targetAlpha) > 0.001f)
             {
-                _currentAlpha = Mathf.Lerp(_currentAlpha, targetAlpha, Time.deltaTime * fadeSpeed);
+                _currentAlpha = Mathf.MoveTowards(_currentAlpha, targetAlpha, Time.deltaTime * fadeSpeed);
                 
                 foreach (var mat in _materials)
                 {
@@ -70,6 +94,12 @@ namespace Simulation.Character
                         Color c = mat.color;
                         c.a = _currentAlpha;
                         mat.color = c;
+
+                        // รองรับ URP/HDRP ที่ใช้ชื่อตัวแปรต่างออกไป
+                        if (mat.HasProperty("_BaseColor"))
+                        {
+                            mat.SetColor("_BaseColor", c);
+                        }
                     }
                 }
             }

@@ -333,7 +333,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: eef06f850a877ac4d93eec974979f3ad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BuildingSimulation.Camera.BlenderCameraController
-  rotateSpeed: 60
+  mouseRotateSensitivity: 2
+  keyboardRotateSpeed: 60
   minPitch: 10
   maxPitch: 85
   zoomSensitivity: 2

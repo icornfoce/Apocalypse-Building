@@ -268,8 +268,16 @@ namespace Simulation.Building
             _maxOccupiedFloor = 1;
             foreach (var unit in _placedStructures)
             {
-                if (unit == null) continue;
-                int floor = GetFloorFromY(unit.transform.position.y);
+                if (unit == null || unit.Data == null) continue;
+                
+                float y = unit.transform.position.y;
+                // ถ้า Pivot อยู่ตรงกลาง ให้ขยับลงมาที่ฐานก่อนคำนวณชั้น เพื่อความแม่นยำสูงสุด
+                if (unit.Data.pivotAtCenter)
+                {
+                    y -= unit.Data.size.y * 0.5f;
+                }
+
+                int floor = Mathf.FloorToInt(y / HeightStep + 0.1f) + 1;
                 if (floor > _maxOccupiedFloor) _maxOccupiedFloor = floor;
             }
         }
@@ -280,8 +288,10 @@ namespace Simulation.Building
         /// </summary>
         public int GetFloorFromY(float worldY)
         {
-            float step = heightStep > 0f ? heightStep : gridSize;
-            return Mathf.Max(1, Mathf.RoundToInt(worldY / step) + 1);
+            float step = HeightStep;
+            // ใช้ FloorToInt + epsilon เพื่อเลี่ยงปัญหา Bankers Rounding ที่ทำให้ชั้นกระโดด
+            // และรองรับทั้ง Bottom-pivot (y=0) และ Center-pivot (y=0.5*step)
+            return Mathf.Max(1, Mathf.FloorToInt(worldY / step + 0.1f) + 1);
         }
 
         /// <summary>

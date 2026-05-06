@@ -250,10 +250,20 @@ namespace Simulation.Mission
             foreach (var unit in units)
             {
                 if (unit == null || !unit.gameObject.activeSelf) continue;
-                // กรอง: นับชิ้นส่วนประเภท Floor หรือ Normal (เช่น เสา) เป็นตัวระบุชั้น
-                if (unit.Data != null && unit.Data.structureType != Simulation.Data.StructureType.Floor && unit.Data.structureType != Simulation.Data.StructureType.Normal) continue;
+                if (unit.Data == null) continue;
 
-                int floor = Mathf.RoundToInt(unit.transform.position.y / heightStep) + 1;
+                // นับชิ้นส่วนทุกประเภทที่ระบุระดับชั้นได้ (Floor, Wall, Door, Normal)
+                // เพื่อให้การคำนวณความสูงของตึกแม่นยำแม้ไม่มีแผ่นพื้นในบางชั้น
+                
+                float y = unit.transform.position.y;
+                // ถ้า Pivot อยู่ตรงกลาง ให้ขยับลงมาที่ฐานก่อนคำนวณชั้น
+                if (unit.Data.pivotAtCenter)
+                {
+                    y -= unit.Data.size.y * 0.5f;
+                }
+
+                // ใช้ FloorToInt + epsilon เพื่อเลี่ยงปัญหา Bankers Rounding ที่ทำให้ชั้นกระโดด
+                int floor = Mathf.FloorToInt(y / heightStep + 0.1f) + 1;
                 floorLevels.Add(floor);
             }
 
@@ -282,7 +292,13 @@ namespace Simulation.Mission
                 // นับเฉพาะ Floor structures
                 if (unit.Data.structureType != Simulation.Data.StructureType.Floor) continue;
 
-                int floor = Mathf.RoundToInt(unit.transform.position.y / heightStep) + 1;
+                float y = unit.transform.position.y;
+                if (unit.Data.pivotAtCenter)
+                {
+                    y -= unit.Data.size.y * 0.5f;
+                }
+
+                int floor = Mathf.FloorToInt(y / heightStep + 0.1f) + 1;
                 if (!floorAreas.ContainsKey(floor))
                 {
                     floorAreas[floor] = new HashSet<Vector2Int>();

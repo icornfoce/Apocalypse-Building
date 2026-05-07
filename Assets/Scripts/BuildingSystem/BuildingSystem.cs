@@ -1526,6 +1526,7 @@ namespace Simulation.Building
                 undo: () => {
                     _currentBudget -= sellPrice;
                     unit.gameObject.SetActive(true);
+                    unit.SetHighlight(false); // Reset visual after undoing delete
                     AttachJoint(unit.gameObject, targetCol);
                     _placedStructures.Add(unit);
                     IgnoreOverlappingCollisions(unit);

@@ -1399,6 +1399,7 @@ namespace Simulation.Building
                 Collider[] myColliders = structureObj.GetComponentsInChildren<Collider>();
                 Collider[] targetColliders = actualTarget.transform.root.GetComponentsInChildren<Collider>();
                 
+/*
                 foreach (var col in myColliders)
                 {
                     foreach (var tCol in targetColliders)
@@ -1407,7 +1408,7 @@ namespace Simulation.Building
                             UnityEngine.Physics.IgnoreCollision(col, tCol, true);
                     }
                 }
-            }
+*/            }
         }
 
         /// <summary>
@@ -2135,6 +2136,7 @@ namespace Simulation.Building
                 if (unit == null || unit == newUnit) continue;
                 
                 Collider[] otherColliders = unit.GetComponentsInChildren<Collider>(true);
+/*
                 foreach (var myCol in myColliders)
                 {
                     foreach (var otherCol in otherColliders)
@@ -2143,7 +2145,7 @@ namespace Simulation.Building
                             UnityEngine.Physics.IgnoreCollision(myCol, otherCol, true);
                     }
                 }
-            }
+*/            }
         }
 
         /// <summary>

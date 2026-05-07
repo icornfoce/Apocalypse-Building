@@ -47,6 +47,11 @@ namespace Simulation.Physics
         [Tooltip("Time (seconds) of continuous low-stress before recovery begins.")]
         [SerializeField] private float recoveryCooldown = 0.5f;
 
+        [Header("Impact → Damage Conversion")]
+        [Tooltip("Impulse below this magnitude cause zero damage (N·s).")]
+        [SerializeField] private float impactDamageThreshold = 50f;
+        [SerializeField] private float impactDamageMultiplier = 0.05f;
+
         [Header("Physical Limits")]
         [SerializeField] private float maxCompression = 1000f;
         [SerializeField] private float maxTension = 1000f;
@@ -75,6 +80,8 @@ namespace Simulation.Physics
         private Rigidbody _rb;
         private Collider[] _colliders;
         private bool _isBroken;
+        private bool _isDetached;
+        private int _originalLayer;
 
         // Recovery cooldown timer — counts how long stress has been below thresholds
         private float _lowStressTimer;
@@ -177,11 +184,11 @@ namespace Simulation.Physics
                 _joint = GetComponent<Joint>();
                 if (_joint == null)
                 {
-                    // Joint was destroyed externally
-                    // เฉพาะตอน Simulate เท่านั้นถึงจะ Break (กันจอสั่นตอนลบของใน Build Mode)
+                    // Joint was destroyed externally (support failed)
+                    // If simulating, make it fall but keep it "alive" (non-zero HP) so it can bounce
                     if (SimulationManager.Instance != null && SimulationManager.Instance.IsSimulating)
                     {
-                        Break();
+                        Detach();
                     }
                     return;
                 }
@@ -281,11 +288,27 @@ namespace Simulation.Physics
 
         private void OnCollisionEnter(Collision collision)
         {
-            // ── Impact effect เมื่อชิ้นส่วนที่พังแล้วกระแทกพื้น/ของอื่น ──
-            if (_isBroken && collision.impulse.magnitude > 20f)
+            float impact = collision.impulse.magnitude;
+
+            // ── 1. Impact Damage: If THIS structure is stable, but something hits it hard ──
+            if (!_isBroken && impact > impactDamageThreshold) 
+            {
+                // Convert impulse to direct HP damage
+                float damage = (impact - impactDamageThreshold) * impactDamageMultiplier;
+                if (damage > 1f)
+                {
+                    ApplyExternalDamage(damage);
+                    
+                    if (showDebugLogs)
+                        Debug.Log($"[Stress] {name} took {damage:F1} impact damage from {collision.gameObject.name} (Impulse: {impact:F1})");
+                }
+            }
+
+            // ── 2. Visual/Camera Effects for broken pieces ──
+            if (_isBroken && impact > 20f)
             {
                 Building.BuildingSystem.Instance?.TriggerCameraShake(
-                    Mathf.Clamp(collision.impulse.magnitude * 0.01f, 0.3f, 2f));
+                    Mathf.Clamp(impact * 0.01f, 0.3f, 2f));
 
                 var unit = GetComponent<Building.StructureUnit>();
                 if (unit != null && unit.CurrentMaterial != null)
@@ -301,10 +324,10 @@ namespace Simulation.Physics
                 return;
             }
 
-            // If the impact is strong enough, trigger a small camera shake
-            if (collision.impulse.magnitude > 50f)
+            // Generic camera shake for heavy impacts
+            if (impact > 100f)
             {
-                Building.BuildingSystem.Instance?.TriggerCameraShake(Mathf.Clamp(collision.impulse.magnitude * 0.005f, 0.2f, 1.5f));
+                Building.BuildingSystem.Instance?.TriggerCameraShake(Mathf.Clamp(impact * 0.005f, 0.2f, 1.5f));
             }
         }
 
@@ -314,15 +337,64 @@ namespace Simulation.Physics
         // Breaking Logic
         // ────────────────────────────────────────────────────────────────
 
+        // ────────────────────────────────────────────────────────────────
+        // Breaking Logic
+        // ────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Disconnects the structure from the grid/neighbours and enables physics,
+        /// but does NOT mark it as "broken" or zero out HP. This allows pieces
+        /// to fall and bounce while still being "alive".
+        /// </summary>
+        private void Detach()
+        {
+            if (_isDetached) return;
+            _isDetached = true;
+
+            // 1. Destroy ALL joints
+            Joint[] allJoints = GetComponents<Joint>();
+            foreach (var j in allJoints) Destroy(j);
+            _joint = null;
+
+            // 2. Enable physics collisions and ensure NOT triggers
+            RestorePhysicsCollisions();
+            if (_colliders != null)
+            {
+                foreach (var col in _colliders)
+                {
+                    if (col != null) col.isTrigger = false;
+                }
+            }
+
+            // 3. Move to Default layer (0) so it collides with the Structure layer
+            //    (Structure layer อาจไม่ชนกับตัวเอง ใน Layer Collision Matrix)
+            _originalLayer = gameObject.layer;
+            SetLayerRecursive(gameObject, 0); // Default layer collides with everything
+
+            // 4. Make Rigidbody dynamic
+            if (_rb != null)
+            {
+                foreach (var meshCol in GetComponentsInChildren<MeshCollider>())
+                {
+                    meshCol.convex = true;
+                }
+
+                _rb.isKinematic = false;
+                _rb.useGravity = true;
+                _rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+                _rb.WakeUp();
+                
+                // Add a tiny random bump for realism
+                _rb.AddTorque(Random.insideUnitSphere * 0.5f, ForceMode.Impulse);
+            }
+        }
+
         /// <summary>
         /// Immediately breaks this structural element:
-        ///  1. Destroys ALL Joints (main + side — disconnects completely)
-        ///  2. Keeps Colliders ENABLED so the piece collides with the ground
-        ///  3. Restores physics collisions so pieces scatter instead of clumping
-        ///  4. Adds random scatter force for visual impact
-        ///  5. Fires the OnBreak event
-        ///  6. Plays break VFX / SFX
-        ///  7. Deactivates after a delay (5s) so SimulationManager can still Rewind
+        ///  1. Detaches it (if not already)
+        ///  2. Marks as broken and zero out HP
+        ///  3. Plays break VFX / SFX
+        ///  4. Deactivates after a delay (5s)
         /// </summary>
         private void Break()
         {
@@ -330,12 +402,14 @@ namespace Simulation.Physics
             _isBroken = true;
             _currentHP = 0f;
 
+            Detach();
+
             if (showDebugLogs)
             {
                 Debug.Log($"[StructuralStress] *** BREAK *** {name}", this);
             }
 
-            // Trigger camera shake and sound when a structure breaks
+            // Trigger camera shake and sound
             var unit = GetComponent<Building.StructureUnit>();
             float shakeIntensity = 2.0f;
             if (unit != null && unit.Data != null)
@@ -347,38 +421,7 @@ namespace Simulation.Physics
             
             Building.BuildingSystem.Instance?.TriggerCameraShake(shakeIntensity);
 
-            // 1. Destroy ALL joints (main + side joints) so pieces fully separate
-            Joint[] allJoints = GetComponents<Joint>();
-            foreach (var j in allJoints) Destroy(j);
-            _joint = null;
-
-            // 2. KEEP colliders enabled — let pieces collide with ground and each other
-            //    (เดิมปิด Collider ทั้งหมด ทำให้ทะลุพื้น)
-
-            // 3. Re-enable physics collisions with other structures
-            //    (IgnoreOverlappingCollisions ที่เรียกตอนวาง ทำให้ชิ้นส่วนทะลุกัน)
-            RestorePhysicsCollisions();
-
-            // 4. Ensure the Rigidbody is non-kinematic so it falls freely
-            if (_rb != null)
-            {
-                // Ensure all mesh colliders are convex before making dynamic
-                foreach (var meshCol in GetComponentsInChildren<MeshCollider>())
-                {
-                    meshCol.convex = true;
-                }
-
-                _rb.isKinematic = false;
-                _rb.useGravity = true;
-
-                // เพิ่มแรงสุ่มเล็กน้อยให้กระเด็นออก ไม่ตกเป็นก้อนเดียว
-                Vector3 scatter = Random.insideUnitSphere * 2f;
-                scatter.y = Mathf.Abs(scatter.y); // ดันขึ้นเล็กน้อย
-                _rb.AddForce(scatter, ForceMode.Impulse);
-                _rb.AddTorque(Random.insideUnitSphere * 1f, ForceMode.Impulse);
-            }
-
-            // 5. Play break effects via StructureUnit if available
+            // Play break effects
             if (unit != null)
             {
                 if (unit.CurrentMaterial != null)
@@ -396,11 +439,10 @@ namespace Simulation.Physics
                 }
             }
 
-            // 6. Fire event
+            // Fire event
             OnBreak?.Invoke(this);
 
-            // 7. ซ่อนหลัง delay แทนซ่อนทันที เพื่อให้เห็นชิ้นส่วนร่วงลงพื้น
-            //    ใช้ SetActive(false) ไม่ใช่ Destroy เพื่อให้ SimulationManager Rewind ได้
+            // Deactivate after delay
             StartCoroutine(DeactivateAfterDelay(5f));
         }
 
@@ -410,24 +452,25 @@ namespace Simulation.Physics
         /// </summary>
         private void RestorePhysicsCollisions()
         {
-            Collider[] myColliders = GetComponentsInChildren<Collider>();
+            Collider[] myColliders = GetComponentsInChildren<Collider>(true);
             if (myColliders.Length == 0) return;
 
-            Building.StructureUnit[] allUnits =
-                FindObjectsByType<Building.StructureUnit>(FindObjectsSortMode.None);
+            // IgnoreOverlappingCollisions ใน BuildingSystem สั่ง IgnoreCollision(true) กับ
+            // Collider ของ Structure ทุกตัวที่วางแล้ว — ต้อง restore ทั้งหมดจึงจะชนได้
+            // ใช้ FindObjectsByType<Collider> เพื่อหา Collider ทุกตัวในฉาก (รวม inactive)
+            Collider[] allSceneColliders = FindObjectsByType<Collider>(
+                FindObjectsInactive.Include, FindObjectsSortMode.None);
 
-            foreach (var unit in allUnits)
+            foreach (var otherCol in allSceneColliders)
             {
-                if (unit == null || unit.gameObject == gameObject) continue;
+                if (otherCol == null) continue;
+                // ข้าม Collider ที่เป็นของตัวเอง
+                if (otherCol.transform.root == transform.root) continue;
 
-                Collider[] otherCols = unit.GetComponentsInChildren<Collider>();
                 foreach (var myCol in myColliders)
                 {
-                    foreach (var otherCol in otherCols)
-                    {
-                        if (myCol != null && otherCol != null)
-                            UnityEngine.Physics.IgnoreCollision(myCol, otherCol, false);
-                    }
+                    if (myCol != null)
+                        UnityEngine.Physics.IgnoreCollision(myCol, otherCol, false);
                 }
             }
         }
@@ -571,11 +614,16 @@ namespace Simulation.Physics
             StopAllCoroutines();
 
             _isBroken = false;
+            _isDetached = false;
             _currentHP = baseHP;
             _lowStressTimer = 0f;
             _settlementTimer = SETTLEMENT_DURATION;
             LastForceMagnitude = 0f;
             LastTorqueMagnitude = 0f;
+
+            // Restore original layer
+            if (_originalLayer != 0)
+                SetLayerRecursive(gameObject, _originalLayer);
 
             // Re-cache colliders (in case array was stale)
             _colliders = GetComponentsInChildren<Collider>();
@@ -590,6 +638,15 @@ namespace Simulation.Physics
             _joint = GetComponent<Joint>();
 
             UpdateVisualStress();
+        }
+
+        private void SetLayerRecursive(GameObject obj, int layer)
+        {
+            obj.layer = layer;
+            foreach (Transform child in obj.transform)
+            {
+                SetLayerRecursive(child.gameObject, layer);
+            }
         }
 
 #if UNITY_EDITOR

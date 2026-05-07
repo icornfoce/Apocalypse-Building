@@ -489,10 +489,8 @@ namespace Simulation.Building
         {
             if (Input.GetMouseButtonDown(1)) { ExitMode(); return; }
             
-            // Walls and Doors auto-rotate based on grid edge, so skip manual rotation
-            if (Input.GetKeyDown(KeyCode.R) && _selectedData != null
-                && _selectedData.structureType != StructureType.Wall
-                && _selectedData.structureType != StructureType.Door)
+            // Manual rotation for all structures
+            if (Input.GetKeyDown(KeyCode.R) && _selectedData != null)
             {
                 ghostBuilder.Rotate();
             }
@@ -511,13 +509,16 @@ namespace Simulation.Building
                 if (Input.GetMouseButtonDown(0))
                 {
                     _isDragging = true;
-                    _dragStartPos = currentPos;
+                    _dragStartPos = _currentHitPos; // Use raw hit position as stable anchor
                     BeginBatch();
                 }
 
                 if (_isDragging)
                 {
-                    _dragPositions = CalculateDragPositions(_dragStartPos, currentPos, _selectedData.size.x, _selectedData.size.z, ghostBuilder.CurrentRotation, _selectedData.structureType);
+                    // Recalculate snapped start and end every frame based on current rotation
+                    // This allows walls to pivot between vertical/horizontal edges correctly when R is pressed.
+                    Vector3 snappedStart = CalculatePlacementPosition(_dragStartPos);
+                    _dragPositions = CalculateDragPositions(snappedStart, currentPos, _selectedData.size.x, _selectedData.size.z, ghostBuilder.CurrentRotation, _selectedData.structureType);
                 }
                 else
                 {
@@ -616,41 +617,56 @@ namespace Simulation.Building
             float dx = end.x - start.x;
             float dz = end.z - start.z;
 
-            if (type == StructureType.Normal || 
-                type == StructureType.Floor ||
-                type == StructureType.Wall)
+            if (type == StructureType.Normal || type == StructureType.Floor)
             {
-                // ── เติมเต็มพื้นที่สี่เหลี่ยม (2D fill) สำหรับพื้นและโครงสร้างทั่วไป ──
-                int stepsX = Mathf.Max(0, Mathf.FloorToInt(Mathf.Abs(dx) / stepX + 0.5f));
-                int stepsZ = Mathf.Max(0, Mathf.FloorToInt(Mathf.Abs(dz) / stepZ + 0.5f));
+                // ── 2D Fill in local space (Rotates the whole rectangle like Move Mode) ──
+                Quaternion q = Quaternion.Euler(0, rotation, 0);
+                Vector3 rel = end - start;
+                Vector3 localRel = Quaternion.Inverse(q) * rel;
 
-                float signX = dx >= 0 ? 1f : -1f;
-                float signZ = dz >= 0 ? 1f : -1f;
+                int stepsX = Mathf.Max(0, Mathf.FloorToInt(Mathf.Abs(localRel.x) / stepX + 0.5f));
+                int stepsZ = Mathf.Max(0, Mathf.FloorToInt(Mathf.Abs(localRel.z) / stepZ + 0.5f));
+
+                float signX = localRel.x >= 0 ? 1f : -1f;
+                float signZ = localRel.z >= 0 ? 1f : -1f;
 
                 for (int ix = 0; ix <= stepsX; ix++)
                 {
                     for (int iz = 0; iz <= stepsZ; iz++)
                     {
-                        positions.Add(new Vector3(start.x + (ix * stepX * signX), start.y, start.z + (iz * stepZ * signZ)));
+                        Vector3 localPos = new Vector3(ix * stepX * signX, 0, iz * stepZ * signZ);
+                        positions.Add(start + (q * localPos));
                     }
                 }
             }
             else
             {
-                // ── สร้างเป็นเส้นตรง (1D line) ──
-                bool alignsWithX = Mathf.Abs(rotation % 180f) < 45f;
+                // ── 1D Line in local space (Rotates the whole line like Move Mode) ──
+                Quaternion q = Quaternion.Euler(0, rotation, 0);
+                Vector3 rel = end - start;
+                Vector3 localRel = Quaternion.Inverse(q) * rel;
 
-                if (alignsWithX)
+                // Determine which local axis to extend along based on mouse position relative to rotation
+                int stepsX = Mathf.Max(0, Mathf.FloorToInt(Mathf.Abs(localRel.x) / stepX + 0.5f));
+                int stepsZ = Mathf.Max(0, Mathf.FloorToInt(Mathf.Abs(localRel.z) / stepZ + 0.5f));
+
+                if (stepsX >= stepsZ)
                 {
-                    int steps = Mathf.Max(0, Mathf.FloorToInt(Mathf.Abs(dx) / stepX + 0.5f));
-                    float signX = dx >= 0 ? 1f : -1f;
-                    for (int i = 0; i <= steps; i++) positions.Add(new Vector3(start.x + (i * stepX * signX), start.y, start.z));
+                    float signX = localRel.x >= 0 ? 1f : -1f;
+                    for (int i = 0; i <= stepsX; i++)
+                    {
+                        Vector3 localPos = new Vector3(i * stepX * signX, 0, 0);
+                        positions.Add(start + (q * localPos));
+                    }
                 }
                 else
                 {
-                    int steps = Mathf.Max(0, Mathf.FloorToInt(Mathf.Abs(dz) / stepZ + 0.5f));
-                    float signZ = dz >= 0 ? 1f : -1f;
-                    for (int i = 0; i <= steps; i++) positions.Add(new Vector3(start.x, start.y, start.z + (i * stepZ * signZ)));
+                    float signZ = localRel.z >= 0 ? 1f : -1f;
+                    for (int i = 0; i <= stepsZ; i++)
+                    {
+                        Vector3 localPos = new Vector3(0, 0, i * stepZ * signZ);
+                        positions.Add(start + (q * localPos));
+                    }
                 }
             }
 
@@ -700,11 +716,11 @@ namespace Simulation.Building
                         _isDraggingMove = true; // Drag mode: place on release
                         _isHoldingPickup = false;
                     }
-                    // If they release quickly without moving, it's a click-to-pick
+                    // If they release quickly without moving, it's a click-to-pick (SINGLE PIECE ONLY)
                     else if (Input.GetMouseButtonUp(0))
                     {
-                        List<StructureUnit> building = FindConnectedUnits(_hoveredUnit);
-                        EnterGroupMoveMode(building);
+                        List<StructureUnit> singleUnit = new List<StructureUnit> { _hoveredUnit };
+                        EnterGroupMoveMode(singleUnit);
                         _isDraggingMove = false; // Click mode: stick to mouse, place on next click
                         _isHoldingPickup = false;
                     }
@@ -775,8 +791,8 @@ namespace Simulation.Building
             Vector3 center = centerSum / units.Count;
             center.y = minBottomY; // Use the absolute lowest point as vertical anchor
 
-            // Snap center to grid
-            center = CalculatePlacementPosition(center);
+            // Use absolute calculated center as anchor (no snapping here to preserve exact relative offsets)
+            // center = CalculatePlacementPosition(center); 
 
             List<GameObject> prefabs = new List<GameObject>();
             foreach (var unit in units)
@@ -1686,14 +1702,55 @@ namespace Simulation.Building
 
             // ── X / Z Snapping based on StructureType ──
             float x, z;
-
             if (placementType == StructureType.Wall || placementType == StructureType.Door)
             {
                 // Wall / Door: snap to grid EDGES (lines between cells)
-                // One axis snaps to cell center, the other to the grid line,
-                // depending on which edge is closer.
-                bool snappedToXLine;
-                x = SnapWallAxis(rawX, rawZ, out z, out snappedToXLine);
+                // We snap based on the current rotation (manual via 'R' key)
+                // The wall revolves around the cell center in 4 directions
+                float currentRot = ghostBuilder != null ? ghostBuilder.CurrentRotation : 0f;
+                
+                float leftEdge = Mathf.Floor(rawX / gridSize) * gridSize;
+                float rightEdge = leftEdge + gridSize;
+                float bottomEdge = Mathf.Floor(rawZ / gridSize) * gridSize;
+                float topEdge = bottomEdge + gridSize;
+
+                float centerX = leftEdge + gridSize * 0.5f;
+                float centerZ = bottomEdge + gridSize * 0.5f;
+
+                // Base position is the cell center
+                float baseStartX = centerX;
+                float baseStartZ = centerZ;
+
+                // Offset to the edges based on 4 directions
+                // 0: Left (-X), 90: Top (+Z), 180: Right (+X), 270: Bottom (-Z)
+                float rot = Mathf.Round(currentRot / 90f) * 90f;
+                float modRot = rot % 360f;
+                if (modRot < 0) modRot += 360f;
+
+                if (Mathf.Abs(modRot - 0f) < 1f || Mathf.Abs(modRot - 360f) < 1f)
+                {
+                    // Left Edge
+                    x = leftEdge; 
+                    z = centerZ;
+                }
+                else if (Mathf.Abs(modRot - 90f) < 1f)
+                {
+                    // Top Edge
+                    x = centerX;
+                    z = topEdge; 
+                }
+                else if (Mathf.Abs(modRot - 180f) < 1f)
+                {
+                    // Right Edge
+                    x = rightEdge;
+                    z = centerZ;
+                }
+                else // 270
+                {
+                    // Bottom Edge
+                    x = centerX;
+                    z = bottomEdge;
+                }
 
                 // สำหรับ Door: ให้ลองหา Wall ที่ใกล้ที่สุดเพื่อ Snap เข้าหาโดยตรง (ช่วยให้วางง่ายขึ้น)
                 if (placementType == StructureType.Door)
@@ -1718,20 +1775,9 @@ namespace Simulation.Building
                         z = nearbyWall.transform.position.z;
                         float snappedY = nearbyWall.transform.position.y; // Lock แกน Y ตาม Wall
 
-                        if (ghostBuilder != null && !_isDragging)
-                        {
-                            ghostBuilder.SetRotation(nearbyWall.Rotation);
-                        }
+                        // Manual rotation only
                         return new Vector3(x, snappedY, z); // Snap จบตรงนี้เลย (ใช้ Y ของ Wall โดยตรง)
                     }
-                }
-
-                // Auto-rotate: wall on X-line faces Z (rotation=0), wall on Z-line faces X (rotation=90)
-                // ล็อคการหมุนเมื่อกำลังลากสร้าง (ไม่ให้กำแพงเปลี่ยนด้านไปมา)
-                if (ghostBuilder != null && !_isDragging)
-                {
-                    float autoRot = snappedToXLine ? 0f : 90f;
-                    ghostBuilder.SetRotation(autoRot);
                 }
             }
             else

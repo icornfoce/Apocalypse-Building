@@ -561,7 +561,8 @@ namespace Simulation.Building
                 
                 foreach (var pos in _dragPositions)
                 {
-                    bool isClear = IsAreaClear(pos, ghostBuilder.CurrentRotation, _selectedData);
+                    bool isOccupiedBySame = IsAlreadyOccupiedBySame(pos, ghostBuilder.CurrentRotation, _selectedData);
+                    bool isClear = isOccupiedBySame || IsAreaClear(pos, ghostBuilder.CurrentRotation, _selectedData);
                     
                     // For dragging, pieces support each other if the group is supported somewhere
                     bool hasSupport = _isDragging ? groupHasWorldSupport : HasStructuralSupport(pos, ghostBuilder.CurrentRotation, _selectedData);
@@ -583,7 +584,12 @@ namespace Simulation.Building
                     {
                         allValid = false;
                     }
-                    totalCost += itemPrice;
+
+                    // Only count cost for items that aren't already placed there
+                    if (!isOccupiedBySame)
+                    {
+                        totalCost += itemPrice;
+                    }
                 }
 
                 bool canAfford = _currentBudget >= totalCost;
@@ -597,7 +603,11 @@ namespace Simulation.Building
                     {
                         foreach (var pos in _dragPositions)
                         {
-                            PlaceStructure(pos, ghostBuilder.CurrentRotation, _currentHitCollider);
+                            // Only place if there isn't already the exact same structure there
+                            if (!IsAlreadyOccupiedBySame(pos, ghostBuilder.CurrentRotation, _selectedData))
+                            {
+                                PlaceStructure(pos, ghostBuilder.CurrentRotation, _currentHitCollider);
+                            }
                         }
                     }
                     _dragPositions.Clear();
@@ -1946,7 +1956,26 @@ namespace Simulation.Building
         }
 
         /// <summary>
-        /// Find an existing Wall-type StructureUnit at the given position and rotation.
+        /// Check if a specific structure is already placed at this position and rotation.
+        /// </summary>
+        private bool IsAlreadyOccupiedBySame(Vector3 position, float rotation, StructureData data)
+        {
+            float tolerance = 0.1f;
+            float rotTolerance = 1f;
+
+            foreach (var unit in _placedStructures)
+            {
+                if (unit == null || unit.Data != data) continue;
+
+                float dist = Vector3.Distance(position, unit.transform.position);
+                float rotDiff = Quaternion.Angle(Quaternion.Euler(0, rotation, 0), Quaternion.Euler(0, unit.Rotation, 0));
+
+                if (dist < tolerance && rotDiff < rotTolerance) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Used by Door placement to find which wall to replace.
         /// </summary>
         private StructureUnit FindWallAtPosition(Vector3 position, float rotation)

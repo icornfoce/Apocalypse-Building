@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using Simulation.Data;
+using Simulation.Physics;
 
 namespace Simulation.Building
 {
@@ -160,6 +161,13 @@ namespace Simulation.Building
 
         private void Update()
         {
+            // ปิดระบบสร้างทั้งหมดถ้ากำลังเริ่มการจำลองฟิสิกส์ (ป้องกันการวางของขณะร่วง)
+            if (SimulationManager.Instance != null && SimulationManager.Instance.IsSimulating)
+            {
+                if (_currentMode != BuildMode.Idle) ExitMode();
+                return;
+            }
+
             UpdateRaycast();
             HandleHoverHighlight();
             HandleFloorSwitch();
@@ -1017,6 +1025,8 @@ namespace Simulation.Building
 
         public void SelectStructure(StructureData data)
         {
+            if (!CanEnterBuildMode()) return;
+
             // Save current material before ExitMode clears it
             MaterialData savedMaterial = _selectedMaterial;
             ExitMode();
@@ -1034,20 +1044,33 @@ namespace Simulation.Building
 
         public void EnterMoveMode()
         {
+            if (!CanEnterBuildMode()) return;
             ExitMode();
             _currentMode = BuildMode.Moving;
         }
 
         public void EnterDeleteMode()
         {
+            if (!CanEnterBuildMode()) return;
             ExitMode();
             _currentMode = BuildMode.Deleting;
         }
 
         public void EnterPaintMode()
         {
+            if (!CanEnterBuildMode()) return;
             ExitMode();
             _currentMode = BuildMode.Painting;
+        }
+
+        private bool CanEnterBuildMode()
+        {
+            if (SimulationManager.Instance != null && SimulationManager.Instance.IsSimulating)
+            {
+                Debug.LogWarning("[BuildingSystem] Cannot enter build mode while simulation is running.");
+                return false;
+            }
+            return true;
         }
 
         public void SelectMaterial(MaterialData material)

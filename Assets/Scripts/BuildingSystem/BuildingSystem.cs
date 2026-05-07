@@ -1039,6 +1039,8 @@ namespace Simulation.Building
             _currentMode = BuildMode.Idle;
             _justEnteredPlacing = false;
             // Reset drag state to prevent carry-over when switching structures
+            foreach (var unit in _dragSelectedUnits) if (unit != null) unit.SetHighlight(false);
+            _isDragging = false;
             _isDraggingMove = false;
             _isHoldingPickup = false;
             _dragPositions.Clear();

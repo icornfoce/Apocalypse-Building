@@ -791,8 +791,8 @@ namespace Simulation.Building
             Vector3 center = centerSum / units.Count;
             center.y = minBottomY; // Use the absolute lowest point as vertical anchor
 
-            // Use absolute calculated center as anchor (no snapping here to preserve exact relative offsets)
-            // center = CalculatePlacementPosition(center); 
+            // Snap center to grid to ensure relative offsets are grid-aligned
+            center = CalculatePlacementPosition(center);
 
             List<GameObject> prefabs = new List<GameObject>();
             foreach (var unit in units)

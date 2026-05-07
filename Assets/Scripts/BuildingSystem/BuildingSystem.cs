@@ -483,6 +483,8 @@ namespace Simulation.Building
         // Drag building state
         private bool _isDragging = false;
         private Vector3 _dragStartPos;
+        private Vector3 _dragStartNormal;
+        private Collider _dragStartCollider;
         private List<Vector3> _dragPositions = new List<Vector3>();
 
         private void HandlePlacementMode()
@@ -504,12 +506,14 @@ namespace Simulation.Building
 
             if (_hasValidTarget && ghostBuilder.HasGhost)
             {
-                Vector3 currentPos = CalculatePlacementPosition(_currentHitPos);
+                Vector3 currentPos = CalculatePlacementPosition(_currentHitPos, _currentHitNormal, _currentHitCollider);
                 
                 if (Input.GetMouseButtonDown(0))
                 {
                     _isDragging = true;
                     _dragStartPos = _currentHitPos; // Use raw hit position as stable anchor
+                    _dragStartNormal = _currentHitNormal;
+                    _dragStartCollider = _currentHitCollider;
                     BeginBatch();
                 }
 
@@ -517,7 +521,7 @@ namespace Simulation.Building
                 {
                     // Recalculate snapped start and end every frame based on current rotation
                     // This allows walls to pivot between vertical/horizontal edges correctly when R is pressed.
-                    Vector3 snappedStart = CalculatePlacementPosition(_dragStartPos);
+                    Vector3 snappedStart = CalculatePlacementPosition(_dragStartPos, _dragStartNormal, _dragStartCollider);
                     _dragPositions = CalculateDragPositions(snappedStart, currentPos, _selectedData.size.x, _selectedData.size.z, ghostBuilder.CurrentRotation, _selectedData.structureType);
                 }
                 else
@@ -683,7 +687,7 @@ namespace Simulation.Building
 
             if (_hasValidTarget)
             {
-                Vector3 currentPos = CalculatePlacementPosition(_currentHitPos);
+                Vector3 currentPos = CalculatePlacementPosition(_currentHitPos, _currentHitNormal, _currentHitCollider);
 
                 if (Input.GetMouseButtonDown(0))
                 {
@@ -792,7 +796,7 @@ namespace Simulation.Building
             center.y = minBottomY; // Use the absolute lowest point as vertical anchor
 
             // Snap center to grid to ensure relative offsets are grid-aligned
-            center = CalculatePlacementPosition(center);
+            center = CalculatePlacementPosition(center, Vector3.up, null);
 
             List<GameObject> prefabs = new List<GameObject>();
             foreach (var unit in units)
@@ -841,7 +845,7 @@ namespace Simulation.Building
 
             if (_hasValidTarget && ghostBuilder.HasGhost)
             {
-                Vector3 placePos = CalculatePlacementPosition(_currentHitPos);
+                Vector3 placePos = CalculatePlacementPosition(_currentHitPos, _currentHitNormal, _currentHitCollider);
                 ghostBuilder.UpdatePosition(placePos);
                 
                 bool allValid = true;
@@ -915,7 +919,6 @@ namespace Simulation.Building
         private void HandleDeleteMode()
         {
             if (Input.GetMouseButtonDown(1)) { ExitMode(); return; }
-
             if (_hasValidTarget)
             {
                 // Instant single-click deletion if hovering over a unit
@@ -926,12 +929,14 @@ namespace Simulation.Building
                     return; // Done
                 }
 
-                Vector3 currentPos = CalculatePlacementPosition(_currentHitPos);
+                Vector3 currentPos = CalculatePlacementPosition(_currentHitPos, _currentHitNormal, _currentHitCollider);
 
                 if (Input.GetMouseButtonDown(0))
                 {
                     _isDragging = true;
                     _dragStartPos = currentPos;
+                    _dragStartNormal = _currentHitNormal;
+                    _dragStartCollider = _currentHitCollider;
                     BeginBatch();
                     _dragSelectedUnits.Clear();
                 }
@@ -1682,7 +1687,7 @@ namespace Simulation.Building
             return null;
         }
 
-        private Vector3 CalculatePlacementPosition(Vector3 hitPoint)
+        private Vector3 CalculatePlacementPosition(Vector3 hitPoint, Vector3 hitNormal, Collider hitCollider)
         {
             StructureData activeData = GetActiveStructureData();
             StructureType placementType = activeData != null ? activeData.structureType : StructureType.Normal;
@@ -1692,20 +1697,20 @@ namespace Simulation.Building
 
             // เมื่อคลิกด้านข้างของ Structure ให้เลื่อนตำแหน่งไปตาม normal
             // เพื่อบังคับให้ snap ไปช่องถัดไปแทนช่องเดิม
-            bool isSideHit = Mathf.Abs(_currentHitNormal.y) < 0.5f;
-            if (isSideHit && _currentHitCollider != null
-                && _currentHitCollider.GetComponentInParent<StructureUnit>() != null)
+            bool isSideHit = Mathf.Abs(hitNormal.y) < 0.5f;
+            if (isSideHit && hitCollider != null
+                && hitCollider.GetComponentInParent<StructureUnit>() != null)
             {
-                float absX = Mathf.Abs(_currentHitNormal.x);
-                float absZ = Mathf.Abs(_currentHitNormal.z);
+                float absX = Mathf.Abs(hitNormal.x);
+                float absZ = Mathf.Abs(hitNormal.z);
 
                 if (absX > absZ && absX > 0.3f)
                 {
-                    rawX += Mathf.Sign(_currentHitNormal.x) * gridSize * 0.51f;
+                    rawX += Mathf.Sign(hitNormal.x) * gridSize * 0.51f;
                 }
                 else if (absZ > 0.3f)
                 {
-                    rawZ += Mathf.Sign(_currentHitNormal.z) * gridSize * 0.51f;
+                    rawZ += Mathf.Sign(hitNormal.z) * gridSize * 0.51f;
                 }
             }
 

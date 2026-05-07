@@ -926,9 +926,10 @@ namespace Simulation.Building
                     // Find units in area
                     foreach (var pos in _dragPositions)
                     {
-                        // Raycast down to find units at this grid position
-                        Vector3 rayStart = pos + Vector3.up * 0.5f;
-                        if (UnityEngine.Physics.Raycast(rayStart, Vector3.down, out RaycastHit hit, 1.0f, structureLayer, QueryTriggerInteraction.Collide))
+                        // Raycast from high above to find all units at this grid position across all floors
+                        Vector3 rayStart = pos + Vector3.up * 50.0f;
+                        RaycastHit[] hits = UnityEngine.Physics.RaycastAll(rayStart, Vector3.down, 100.0f, structureLayer, QueryTriggerInteraction.Collide);
+                        foreach (var hit in hits)
                         {
                             StructureUnit unit = hit.collider.GetComponentInParent<StructureUnit>();
                             if (unit != null)

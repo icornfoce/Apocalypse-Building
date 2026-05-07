@@ -15,7 +15,7 @@ MonoBehaviour:
   disasterName: 
   disasterType: 2
   duration: 5
-  intensity: 2
+  intensity: 10
   radius: 0
   centerOffset: {x: 0, y: 0, z: 0}
   damagePerSecond: 5

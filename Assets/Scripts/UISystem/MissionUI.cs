@@ -32,6 +32,7 @@ namespace Simulation.UI
 
         [Header("Results UI")]
         [SerializeField] private GameObject resultsPanel;
+        [SerializeField] private Button restartButton;
         [SerializeField] private TextMeshProUGUI resultTitleText;
         [SerializeField] private GameObject[] starIcons; // ลากรูปดาว 3 ดวงมาใส่
 
@@ -59,6 +60,11 @@ namespace Simulation.UI
             if (startSimButton != null)
             {
                 startSimButton.onClick.AddListener(OnStartButtonClick);
+            }
+
+            if (restartButton != null)
+            {
+                restartButton.onClick.AddListener(OnRestartClick);
             }
 
             if (resultsPanel != null) resultsPanel.SetActive(false);
@@ -201,6 +207,16 @@ namespace Simulation.UI
         private void HideError()
         {
             if (errorText != null) errorText.gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// เรียกใช้งานโดยปุ่ม Restart บน Results Panel หรือปุ่มอื่นๆ
+        /// ทำหน้าที่แค่ปิดหน้าต่างสรุปผล เพื่อให้ผู้เล่นแก้สิ่งก่อสร้างต่อได้
+        /// </summary>
+        public void OnRestartClick()
+        {
+            if (resultsPanel != null) resultsPanel.SetActive(false);
+            if (startButtonText != null) startButtonText.text = "START";
         }
     }
 }

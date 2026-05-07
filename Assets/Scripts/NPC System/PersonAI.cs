@@ -116,20 +116,31 @@ namespace Simulation.Character
                     _wanderTimer -= Time.deltaTime;
                     if (_wanderTimer <= 0f || (_agent.remainingDistance <= 0.5f && !_agent.pathPending))
                     {
-                        Vector2 randomCircle = Random.insideUnitCircle * 3f;
-                        Vector3 randomPos = _target.position + new Vector3(randomCircle.x, 0, randomCircle.y);
-                        
-                        if (UnityEngine.AI.NavMesh.SamplePosition(randomPos, out UnityEngine.AI.NavMeshHit hit, 3f, UnityEngine.AI.NavMesh.AllAreas))
+                        // Try to find a random position on a FLOOR nearby
+                        bool foundValidWanderPos = false;
+                        for (int attempt = 0; attempt < 5; attempt++) // Try 5 times to find a floor
                         {
-                            _wanderTarget = hit.position;
+                            Vector2 randomCircle = Random.insideUnitCircle * 5f;
+                            Vector3 randomPos = _target.position + new Vector3(randomCircle.x, 0, randomCircle.y);
+                            
+                            if (UnityEngine.AI.NavMesh.SamplePosition(randomPos, out UnityEngine.AI.NavMeshHit hit, 3f, UnityEngine.AI.NavMesh.AllAreas))
+                            {
+                                if (IsOnFloor(hit.position))
+                                {
+                                    _wanderTarget = hit.position;
+                                    foundValidWanderPos = true;
+                                    break;
+                                }
+                            }
                         }
-                        else
+
+                        if (!foundValidWanderPos)
                         {
                             _wanderTarget = _target.position;
                         }
                         
                         _agent.SetDestination(_wanderTarget);
-                        _wanderTimer = Random.Range(2f, 5f); // สุ่มจุดเดินใหม่ทุกๆ 2-5 วินาที
+                        _wanderTimer = Random.Range(2f, 5f); // Randomize next wander interval
                     }
                 }
                 else
@@ -225,6 +236,19 @@ namespace Simulation.Character
             
             // ลบตัวละครทิ้ง
             Destroy(gameObject);
+        }
+        private bool IsOnFloor(Vector3 position)
+        {
+            // Raycast down to find a StructureUnit
+            if (UnityEngine.Physics.Raycast(position + Vector3.up * 0.5f, Vector3.down, out RaycastHit hit, 1.0f))
+            {
+                var unit = hit.collider.GetComponentInParent<Simulation.Building.StructureUnit>();
+                if (unit != null && unit.Data != null && unit.Data.structureType == Simulation.Data.StructureType.Floor)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }

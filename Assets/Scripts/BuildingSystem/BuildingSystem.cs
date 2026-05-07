@@ -918,6 +918,14 @@ namespace Simulation.Building
 
             if (_hasValidTarget)
             {
+                // Instant single-click deletion if hovering over a unit
+                if (Input.GetMouseButtonDown(0) && _hoveredUnit != null)
+                {
+                    TrySellStructure(_hoveredUnit);
+                    _hoveredUnit = null; 
+                    return; // Done
+                }
+
                 Vector3 currentPos = CalculatePlacementPosition(_currentHitPos);
 
                 if (Input.GetMouseButtonDown(0))

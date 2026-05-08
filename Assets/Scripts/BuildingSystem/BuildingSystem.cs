@@ -493,6 +493,7 @@ namespace Simulation.Building
         private Vector3 _dragStartPos;
         private Vector3 _dragStartNormal;
         private Collider _dragStartCollider;
+        private Vector3 _dragSnappedStart; // Cached snapped origin
         private List<Vector3> _dragPositions = new List<Vector3>();
 
         private void HandlePlacementMode()
@@ -503,6 +504,12 @@ namespace Simulation.Building
             if (Input.GetKeyDown(KeyCode.R) && _selectedData != null)
             {
                 ghostBuilder.Rotate();
+                
+                // If we are currently dragging, update the snapped start point to match the new rotation
+                if (_isDragging)
+                {
+                    _dragSnappedStart = CalculatePlacementPosition(_dragStartPos, _dragStartNormal, _dragStartCollider);
+                }
             }
 
             // Skip the frame where we just entered placing mode (prevents UI click from placing)
@@ -514,26 +521,29 @@ namespace Simulation.Building
 
             if (_hasValidTarget && ghostBuilder.HasGhost)
             {
-                Vector3 currentPos = CalculatePlacementPosition(_currentHitPos, _currentHitNormal, _currentHitCollider);
-                
                 if (Input.GetMouseButtonDown(0))
                 {
                     _isDragging = true;
-                    _dragStartPos = _currentHitPos; // Use raw hit position as stable anchor
+                    _dragStartPos = _currentHitPos; // Raw hit
                     _dragStartNormal = _currentHitNormal;
                     _dragStartCollider = _currentHitCollider;
+                    
+                    // Lock the snapped origin immediately on press
+                    _dragSnappedStart = CalculatePlacementPosition(_dragStartPos, _dragStartNormal, _dragStartCollider);
+                    
                     BeginBatch();
                 }
 
                 if (_isDragging)
                 {
-                    // Recalculate snapped start and end every frame based on current rotation
-                    // This allows walls to pivot between vertical/horizontal edges correctly when R is pressed.
-                    Vector3 snappedStart = CalculatePlacementPosition(_dragStartPos, _dragStartNormal, _dragStartCollider);
-                    _dragPositions = CalculateDragPositions(snappedStart, currentPos, _selectedData.size.x, _selectedData.size.z, ghostBuilder.CurrentRotation, _selectedData.structureType);
+                    // Use the locked start info to calculate current position to prevent height jumps
+                    Vector3 currentPos = CalculatePlacementPosition(_currentHitPos, _dragStartNormal, _dragStartCollider);
+                    _dragPositions = CalculateDragPositions(_dragSnappedStart, currentPos, _selectedData.size.x, _selectedData.size.z, ghostBuilder.CurrentRotation, _selectedData.structureType);
                 }
                 else
                 {
+                    // Normal hover preview
+                    Vector3 currentPos = CalculatePlacementPosition(_currentHitPos, _currentHitNormal, _currentHitCollider);
                     _dragPositions.Clear();
                     _dragPositions.Add(currentPos);
                 }
@@ -721,6 +731,8 @@ namespace Simulation.Building
                         // Start area selection for group moving
                         _isDragging = true;
                         _dragStartPos = currentPos;
+                        _dragStartNormal = _currentHitNormal;
+                        _dragStartCollider = _currentHitCollider;
                         _dragSelectedUnits.Clear();
                     }
                 }
@@ -750,7 +762,8 @@ namespace Simulation.Building
 
                 if (_isDragging)
                 {
-                    _dragPositions = CalculateDragPositions(_dragStartPos, currentPos, 1f, 1f, 0f, StructureType.Normal);
+                    Vector3 dragCurrentPos = CalculatePlacementPosition(_currentHitPos, _dragStartNormal, _dragStartCollider);
+                    _dragPositions = CalculateDragPositions(_dragStartPos, dragCurrentPos, 1f, 1f, 0f, StructureType.Normal);
                     
                     foreach (var unit in _dragSelectedUnits) if (unit != null) unit.SetHighlight(false);
                     _dragSelectedUnits.Clear();
@@ -952,7 +965,8 @@ namespace Simulation.Building
                 if (Input.GetMouseButtonDown(0))
                 {
                     _isDragging = true;
-                    _dragStartPos = currentPos;
+                    // Snap the start point immediately
+                    _dragStartPos = CalculatePlacementPosition(_currentHitPos, _currentHitNormal, _currentHitCollider);
                     _dragStartNormal = _currentHitNormal;
                     _dragStartCollider = _currentHitCollider;
                     BeginBatch();
@@ -961,7 +975,8 @@ namespace Simulation.Building
 
                 if (_isDragging)
                 {
-                    _dragPositions = CalculateDragPositions(_dragStartPos, currentPos, 1f, 1f, 0f, StructureType.Normal);
+                    Vector3 dragCurrentPos = CalculatePlacementPosition(_currentHitPos, _dragStartNormal, _dragStartCollider);
+                    _dragPositions = CalculateDragPositions(_dragStartPos, dragCurrentPos, 1f, 1f, 0f, StructureType.Normal);
 
                     // Clear old selection highlights
                     foreach (var unit in _dragSelectedUnits)

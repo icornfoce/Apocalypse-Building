@@ -190,7 +190,9 @@ namespace Simulation.Building
 
         public void UpdatePosition(Vector3 snappedPosition)
         {
-            if (_ghostTemplates.Count > 1) UpdateGroupGhosts(snappedPosition, _currentRotation, _isValid);
+            // If we have templates (even just one), use the group update logic
+            // which respects the relative offsets from the anchor.
+            if (_ghostTemplates.Count > 0) UpdateGroupGhosts(snappedPosition, _currentRotation, _isValid);
             else UpdateGhosts(new List<Vector3> { snappedPosition }, _currentRotation, _isValid);
         }
 

@@ -748,15 +748,21 @@ namespace Simulation.Building
                     if (holdTime > 0.25f || mouseDist > 15f)
                     {
                         List<StructureUnit> building = FindConnectedUnits(_hoveredUnit);
-                        EnterGroupMoveMode(building);
+                        if (building.Count > 1)
+                        {
+                            EnterGroupMoveMode(building);
+                        }
+                        else
+                        {
+                            EnterMovingSubmode(_hoveredUnit);
+                        }
                         _isDraggingMove = true; // Drag mode: place on release
                         _isHoldingPickup = false;
                     }
                     // If they release quickly without moving, it's a click-to-pick (SINGLE PIECE ONLY)
                     else if (Input.GetMouseButtonUp(0))
                     {
-                        List<StructureUnit> singleUnit = new List<StructureUnit> { _hoveredUnit };
-                        EnterGroupMoveMode(singleUnit);
+                        EnterMovingSubmode(_hoveredUnit);
                         _isDraggingMove = false; // Click mode: stick to mouse, place on next click
                         _isHoldingPickup = false;
                     }
@@ -835,8 +841,10 @@ namespace Simulation.Building
             // Reset pivot offset for group anchor
             _pivotToBottomOffset = 0f;
 
-            // Snap center XZ to cell grid directly (avoid CalculatePlacementPosition which
-            // has complex Y logic designed for placing new structures, not computing group anchors)
+            // Snap center XZ to cell grid directly
+            // We ALWAYS use cell center (Normal) snapping for the anchor of a group,
+            // even if it contains walls. The walls will have a +/- 0.5 offset which
+            // will be preserved during movement, keeping them on the edges.
             float snappedX = SnapToCellCenter(center.x, 1f);
             float snappedZ = SnapToCellCenter(center.z, 1f);
             float yStep = heightStep > 0f ? heightStep : gridSize;
@@ -892,7 +900,10 @@ namespace Simulation.Building
 
             if (_hasValidTarget && ghostBuilder.HasGhost)
             {
-                Vector3 placePos = CalculatePlacementPosition(_currentHitPos, _currentHitNormal, _currentHitCollider);
+                // For groups, we force 'Normal' snapping (cell center) for the anchor.
+                // For single units, we use their specific snapping logic (e.g. walls snap to edges).
+                bool forceNormal = _movingGroup.Count > 0;
+                Vector3 placePos = CalculatePlacementPosition(_currentHitPos, _currentHitNormal, _currentHitCollider, forceNormal);
                 ghostBuilder.UpdatePosition(placePos);
                 
                 bool allValid = true;

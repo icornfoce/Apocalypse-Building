@@ -333,12 +333,14 @@ namespace Simulation.Building
             {
                 if (unit == null || unit.Data == null) continue;
                 
-                float y = unit.transform.position.y;
-                // ถ้า Pivot อยู่ตรงกลาง ให้ขยับลงมาที่ฐานก่อนคำนวณชั้น เพื่อความแม่นยำสูงสุด
-                if (unit.Data.pivotAtCenter)
+                float bottomY = float.MaxValue;
+                foreach (Collider col in unit.GetComponentsInChildren<Collider>())
                 {
-                    y -= unit.Data.size.y * 0.5f;
+                    if (col.bounds.min.y < bottomY) bottomY = col.bounds.min.y;
                 }
+                if (bottomY == float.MaxValue) bottomY = unit.transform.position.y - GetPivotToBottomOffset(unit.gameObject);
+                
+                float y = bottomY;
 
                 int floor = Mathf.FloorToInt(y / HeightStep + 0.1f) + 1;
                 if (floor > _maxOccupiedFloor) _maxOccupiedFloor = floor;
@@ -817,23 +819,35 @@ namespace Simulation.Building
             {
                 centerSum += u.transform.position;
                 
-                // Calculate bottom of this unit
-                float bottomY = u.transform.position.y;
-                if (u.Data.pivotAtCenter) bottomY -= u.Data.size.y * 0.5f;
-                if (bottomY < minBottomY) minBottomY = bottomY;
+                // Calculate absolute bottom of this unit using its colliders
+                foreach (Collider col in u.GetComponentsInChildren<Collider>())
+                {
+                    if (col.bounds.min.y < minBottomY) minBottomY = col.bounds.min.y;
+                }
             }
+            
+            // Fallback if no colliders found
+            if (minBottomY == float.MaxValue) minBottomY = centerSum.y / units.Count;
             
             Vector3 center = centerSum / units.Count;
             center.y = minBottomY; // Use the absolute lowest point as vertical anchor
 
-            // Snap center to grid to ensure relative offsets are grid-aligned
-            center = CalculatePlacementPosition(center, Vector3.up, null);
+            // Reset pivot offset for group anchor
+            _pivotToBottomOffset = 0f;
+
+            // Snap center XZ to cell grid directly (avoid CalculatePlacementPosition which
+            // has complex Y logic designed for placing new structures, not computing group anchors)
+            float snappedX = SnapToCellCenter(center.x, 1f);
+            float snappedZ = SnapToCellCenter(center.z, 1f);
+            float yStep = heightStep > 0f ? heightStep : gridSize;
+            float snappedY = Mathf.Round(minBottomY / yStep) * yStep;
+            Vector3 snappedCenter = new Vector3(snappedX, snappedY, snappedZ);
 
             List<GameObject> prefabs = new List<GameObject>();
             foreach (var unit in units)
             {
                 _groupOriginalStates.Add(new GroupOriginalState { unit = unit, pos = unit.transform.position, rot = unit.Rotation });
-                _groupOffsets.Add(unit.transform.position - center);
+                _groupOffsets.Add(unit.transform.position - snappedCenter);
                 _groupRotations.Add(unit.Rotation);
                 prefabs.Add(unit.Data.prefab);
                 unit.gameObject.SetActive(false);
@@ -858,9 +872,11 @@ namespace Simulation.Building
                 
             _movingUnit = unit;
             _movingUnit.gameObject.SetActive(false);
-
-            // Initialize offset for the pickup
-            _pivotToBottomOffset = GetPivotToBottomOffset(_movingUnit.Data);
+            
+            // Use Data-based offset to match 'Create New' behavior, but pass the instance 
+            // to account for scaling if possible.
+            _pivotToBottomOffset = GetPivotToBottomOffset(_movingUnit.Data, _movingUnit.gameObject);
+            
             ghostBuilder.CreateGhost(_movingUnit.Data.prefab);
             ghostBuilder.SetRotation(_movingUnit.Rotation); // Match original rotation
         }
@@ -919,13 +935,20 @@ namespace Simulation.Building
                 }
                 else
                 {
-                    // Single unit validity
+                    // Single unit validity — same logic as placing a new structure
                     bool isClear = IsAreaClear(placePos, ghostBuilder.CurrentRotation, _movingUnit.Data);
                     bool hasSupport = HasStructuralSupport(placePos, ghostBuilder.CurrentRotation, _movingUnit.Data);
-                    StructureUnit hitUnit = _currentHitCollider != null ? _currentHitCollider.GetComponentInParent<StructureUnit>() : null;
-                    bool isFloor = hitUnit != null && hitUnit.Data.structureType == StructureType.Floor;
-                    bool isTopSurface = _currentHitNormal.y > 0.9f;
-                    bool isOnStructure = !_movingUnit.Data.placeOnStructureOnly || (isFloor && isTopSurface);
+                    
+                    // placeOnStructureOnly check: needs to land on top of a floor structure
+                    bool isOnStructure = true;
+                    if (_movingUnit.Data.placeOnStructureOnly)
+                    {
+                        StructureUnit hitUnit = _currentHitCollider != null ? _currentHitCollider.GetComponentInParent<StructureUnit>() : null;
+                        bool isFloor = hitUnit != null && hitUnit.Data != null && hitUnit.Data.structureType == StructureType.Floor;
+                        bool isTopSurface = _currentHitNormal.y > 0.9f;
+                        isOnStructure = isFloor && isTopSurface;
+                    }
+                    
                     allValid = isClear && hasSupport && isOnStructure;
                 }
                 
@@ -1277,6 +1300,7 @@ namespace Simulation.Building
             ExecuteCommand(
                 execute: () => {
                     Quaternion groupRotQ = Quaternion.Euler(0, groupRotation, 0);
+                    // Pass 1: Set positions and enable everything
                     for (int i = 0; i < group.Count; i++)
                     {
                         Vector3 rotatedOffset = groupRotQ * offsets[i];
@@ -1288,12 +1312,18 @@ namespace Simulation.Building
                         group[i].SetRotation(pieceRot);
                         group[i].gameObject.SetActive(true);
                         group[i].SetHighlight(false);
-                        AttachJoint(group[i].gameObject, null); // Group move uses generic attachment
-                        AttachSideJoints(group[i].gameObject);
-                        IgnoreOverlappingCollisions(group[i]);
+                    }
+
+                    // Pass 2: Attach joints once all pieces are active and in place
+                    foreach (var u in group)
+                    {
+                        AttachJoint(u.gameObject, null);
+                        AttachSideJoints(u.gameObject);
+                        IgnoreOverlappingCollisions(u);
                     }
                 },
                 undo: () => {
+                    // Pass 1: Restore positions
                     foreach (var state in oldStates)
                     {
                         state.unit.transform.position = state.pos;
@@ -1301,6 +1331,11 @@ namespace Simulation.Building
                         state.unit.SetRotation(state.rot);
                         state.unit.gameObject.SetActive(true);
                         state.unit.SetHighlight(false);
+                    }
+
+                    // Pass 2: Restore joints
+                    foreach (var state in oldStates)
+                    {
                         AttachJoint(state.unit.gameObject, null);
                         AttachSideJoints(state.unit.gameObject);
                         IgnoreOverlappingCollisions(state.unit);
@@ -1735,10 +1770,10 @@ namespace Simulation.Building
             return null;
         }
 
-        private Vector3 CalculatePlacementPosition(Vector3 hitPoint, Vector3 hitNormal, Collider hitCollider)
+        private Vector3 CalculatePlacementPosition(Vector3 hitPoint, Vector3 hitNormal, Collider hitCollider, bool forceNormalType = false)
         {
             StructureData activeData = GetActiveStructureData();
-            StructureType placementType = activeData != null ? activeData.structureType : StructureType.Normal;
+            StructureType placementType = (activeData != null && !forceNormalType) ? activeData.structureType : StructureType.Normal;
 
             float rawX = hitPoint.x;
             float rawZ = hitPoint.z;
@@ -1867,9 +1902,11 @@ namespace Simulation.Building
             // ── Y Calculation (unchanged logic) ──
             float y = hitPoint.y;
 
-            if (_currentHitCollider != null)
+            // Use the passed hitCollider parameter (not the global _currentHitCollider)
+            // so that internal calls with explicit collider work correctly
+            if (hitCollider != null)
             {
-                StructureUnit hitUnit = _currentHitCollider.GetComponentInParent<StructureUnit>();
+                StructureUnit hitUnit = hitCollider.GetComponentInParent<StructureUnit>();
                 if (hitUnit != null && hitUnit.Data != null && hitUnit.Data.prefab != null)
                 {
                     float hitUnitPivotToBottom = GetPivotToBottomOffset(hitUnit.Data);
@@ -2055,14 +2092,23 @@ namespace Simulation.Building
             }
         }
 
-        private float GetPivotToBottomOffset(StructureData data)
+        private float GetPivotToBottomOffset(StructureData data, GameObject instance = null)
         {
-            if (data == null || data.prefab == null) return 0f;
+            if (data == null) return 0f;
+            
+            // If we have an instance, its scale might have been modified.
+            // We should prioritize the physical bounds of the instance if it has a collider.
+            if (instance != null)
+            {
+                float offset = GetPivotToBottomOffset(instance);
+                if (offset != 0f) return offset;
+            }
+
+            if (data.prefab == null) return 0f;
 
             if (data.pivotAtCenter)
             {
                 // If explicitly centered, the offset is half the height
-                // heightStep is the height of one grid unit vertically
                 float yStep = heightStep > 0f ? heightStep : gridSize;
                 return (data.size.y * yStep) * 0.5f;
             }

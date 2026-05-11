@@ -400,7 +400,12 @@ namespace Simulation.Mission
         private int CountPlacedPeople()
         {
             PersonTarget[] targets = FindObjectsByType<PersonTarget>(FindObjectsSortMode.None);
-            return targets.Length;
+            int count = 0;
+            foreach (var t in targets)
+            {
+                if (t != null && t.countsTowardsPopulation) count++;
+            }
+            return count;
         }
 
         /// <summary>
@@ -412,7 +417,7 @@ namespace Simulation.Mission
             int alive = 0;
             foreach (var p in people)
             {
-                if (p != null && p.gameObject.activeSelf) alive++;
+                if (p != null && p.gameObject.activeSelf && p.countsTowardsPopulation) alive++;
             }
             return alive;
         }

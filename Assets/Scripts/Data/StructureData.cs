@@ -13,7 +13,8 @@ namespace Simulation.Data
         Normal,
         Wall,
         Door,
-        Floor
+        Floor,
+        Gadget
     }
 
     [CreateAssetMenu(fileName = "New Structure Data", menuName = "Simulation/Structure Data")]

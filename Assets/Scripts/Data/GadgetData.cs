@@ -2,8 +2,8 @@ using UnityEngine;
 
 namespace Simulation.Data
 {
-    [CreateAssetMenu(fileName = "New Furniture Data", menuName = "Simulation/Furniture Data")]
-    public class FurnitureData : ScriptableObject
+    [CreateAssetMenu(fileName = "New Gadget Data", menuName = "Simulation/Gadget Data")]
+    public class GadgetData : ScriptableObject
     {
         [Header("General Info")]
         public string furnitureName;

@@ -12,6 +12,10 @@ namespace Simulation.Character
         [SerializeField] private float alpha = 0.15f;
         [SerializeField] private float fadeSpeed = 2f;
 
+        [Header("Mission Settings")]
+        [Tooltip("ถ้านับเป็นคนในภารกิจ จะถูกนำไปคำนวณจำนวนคนรอดและดาว")]
+        public bool countsTowardsPopulation = true;
+
         private bool _shouldFade = false;
         private Material[] _materials;
         private float _currentAlpha;

@@ -1123,6 +1123,32 @@ namespace Simulation.Building
             }
         }
 
+        /// <summary>
+        /// เริ่มโหมดสร้างโดยใช้ข้อมูลจาก GadgetData (Gadget)
+        /// โดยจะแปลงเป็น StructureData ชั่วคราวเพื่อให้ระบบหลักทำงานได้
+        /// </summary>
+        public void SelectFurniture(GadgetData data)
+        {
+            if (data == null) return;
+
+            // สร้าง StructureData จำลองขึ้นมา
+            StructureData proxy = ScriptableObject.CreateInstance<StructureData>();
+            proxy.structureName = data.furnitureName;
+            proxy.basePrice = data.Price;
+            proxy.baseMass = data.Mass;
+            proxy.baseHP = data.HP;
+            proxy.size = data.size;
+            proxy.prefab = data.prefab;
+            proxy.defaultMaterial = data.defaultMaterial;
+            proxy.allowOverlap = data.allowOverlap;
+            proxy.structureType = StructureType.Gadget;
+            proxy.breakVFX = data.breakVFX;
+            proxy.breakSFX = data.breakSound;
+            
+            // เรียกใช้ระบบเลือกปกติ
+            SelectStructure(proxy);
+        }
+
         public void EnterMoveMode()
         {
             if (!CanEnterBuildMode()) return;

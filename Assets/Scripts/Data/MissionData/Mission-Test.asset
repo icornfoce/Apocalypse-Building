@@ -14,9 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.Mission.MissionData
   missionName: Test
   description: 
-  requiredFloors: 1
-  requiredAreaPerFloor: 1
+  requiredFloors: 0
+  requiredAreaPerFloor: 0
   requiredPopulation: 1
+  gridColumns: 10
+  gridRows: 10
   startingBudget: 99999
-  disasters: []
+  disasters:
+  - disasterData: {fileID: 0}
+    startTime: 0
   simulationDuration: 15

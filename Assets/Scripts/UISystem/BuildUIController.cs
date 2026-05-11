@@ -1,6 +1,7 @@
 using UnityEngine;
 using Simulation.Data;
 using Simulation.Building;
+using UnityEngine.UI;
 
 namespace Simulation.UI
 {
@@ -24,9 +25,16 @@ namespace Simulation.UI
         [Tooltip("ลากไฟล์ StructureData มาใส่ที่นี่ (ใช้เฉพาะตอนกด StartBuilding)")]
         public StructureData structureToBuild;
 
+        [Tooltip("ลากไฟล์ GadgetData มาใส่ที่นี่ (ใช้เฉพาะตอนกด StartBuildingGadget)")]
+        public GadgetData gadgetToBuild;
+
         [Header("สำหรับเปลี่ยน Material")]
         [Tooltip("ลากไฟล์ MaterialData มาใส่ที่นี่ (ใช้กับ SelectMaterial)")]
         public MaterialData materialToSelect;
+
+        [Header("Panel Switching")]
+        [SerializeField] private GameObject structurePanel;
+        [SerializeField] private GameObject gadgetPanel;
 
         private void PlayClickSound()
         {
@@ -55,6 +63,26 @@ namespace Simulation.UI
             PlayClickSound();
             if (BuildingSystem.Instance == null || data == null) return;
             BuildingSystem.Instance.SelectStructure(data);
+        }
+
+        /// <summary>
+        /// เริ่มโหมดสร้าง Gadget — ต้องกำหนด furnitureToBuild ก่อน
+        /// </summary>
+        public void StartBuildingGadget()
+        {
+            PlayClickSound();
+            if (BuildingSystem.Instance == null || gadgetToBuild == null) return;
+            BuildingSystem.Instance.SelectFurniture(gadgetToBuild);
+        }
+
+        /// <summary>
+        /// เริ่มโหมดสร้าง Gadget — รับข้อมูลผ่าน Parameter
+        /// </summary>
+        public void StartBuildingGadgetWithData(GadgetData data)
+        {
+            PlayClickSound();
+            if (BuildingSystem.Instance == null || data == null) return;
+            BuildingSystem.Instance.SelectFurniture(data);
         }
 
         /// <summary>
@@ -208,6 +236,32 @@ namespace Simulation.UI
             PlayClickSound();
             if (BuildingSystem.Instance == null) return;
             BuildingSystem.Instance.ExitMode();
+        }
+
+        // --------------------------------------------------------------------------------
+        // Panel Switching (Structure vs Gadget)
+        // --------------------------------------------------------------------------------
+
+        /// <summary>
+        /// สลับไปแสดง Panel สิ่งก่อสร้าง (Structure) และปิด Panel อุปกรณ์ (Gadget)
+        /// </summary>
+        public void SwitchToStructurePanel()
+        {
+            PlayClickSound();
+            
+            if (gadgetPanel != null) gadgetPanel.SetActive(false);
+            if (structurePanel != null) structurePanel.SetActive(true);
+        }
+
+        /// <summary>
+        /// สลับไปแสดง Panel อุปกรณ์ (Gadget) และปิด Panel สิ่งก่อสร้าง (Structure)
+        /// </summary>
+        public void SwitchToGadgetPanel()
+        {
+            PlayClickSound();
+
+            if (structurePanel != null) structurePanel.SetActive(false);
+            if (gadgetPanel != null) gadgetPanel.SetActive(true);
         }
 
         // --------------------------------------------------------------------------------

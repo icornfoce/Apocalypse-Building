@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Zombie
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.Mission.DisasterData
   disasterName: 
-  disasterType: 0
+  disasterType: 7
   duration: 10
   intensity: 10
   radius: 0

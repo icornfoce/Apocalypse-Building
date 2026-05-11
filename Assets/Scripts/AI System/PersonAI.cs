@@ -24,6 +24,10 @@ namespace Simulation.Character
         [Tooltip("ความแรงจากการชนขั้นต่ำที่จะทำให้ลดเลือด")]
         public float damageImpactThreshold = 3f;
 
+        [Header("Mission Settings")]
+        [Tooltip("ถ้านับเป็นคนในภารกิจ จะถูกนำไปคำนวณจำนวนคนรอดและดาว")]
+        public bool countsTowardsPopulation = true;
+
         private float _currentHealth;
         private Transform _target;
         private Rigidbody _rb;

@@ -4997,6 +4997,7 @@ MonoBehaviour:
   startSimButton: {fileID: 3410964659867659177}
   startButtonText: {fileID: 0}
   resultsPanel: {fileID: 6917445592140882621}
+  restartButton: {fileID: 0}
   resultTitleText: {fileID: 2241583185785777718}
   starIcons:
   - {fileID: 136041780482968445}
@@ -6309,7 +6310,6 @@ GameObject:
   - component: {fileID: 4522488806202852490}
   - component: {fileID: 3228421465879048866}
   - component: {fileID: 4958096658703350819}
-  - component: {fileID: 1863904232892459261}
   m_Layer: 5
   m_Name: Gameplay
   m_TagString: Untagged
@@ -6420,33 +6420,6 @@ MonoBehaviour:
   structureToBuild: {fileID: 11400000, guid: 84aee6cf8e1e9ff4ea9bb0a754c40a30, type: 2}
   materialToSelect: {fileID: 11400000, guid: 829f48f1ccaf61443afdeda45981932d, type: 2}
   deleteHoldDuration: 2
---- !u!54 &1863904232892459261
-Rigidbody:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8587275230740406666}
-  serializedVersion: 5
-  m_Mass: 1
-  m_LinearDamping: 0
-  m_AngularDamping: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
-  m_InertiaTensor: {x: 1, y: 1, z: 1}
-  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ImplicitCom: 1
-  m_ImplicitTensor: 1
-  m_UseGravity: 1
-  m_IsKinematic: 0
-  m_Interpolate: 0
-  m_Constraints: 0
-  m_CollisionDetection: 0
 --- !u!1 &8991599737843110260
 GameObject:
   m_ObjectHideFlags: 0

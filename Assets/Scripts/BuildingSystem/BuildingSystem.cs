@@ -2,6 +2,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using Simulation.Data;
 using Simulation.Physics;
+using Simulation.Mission;
 
 namespace Simulation.Building
 {
@@ -133,6 +134,13 @@ namespace Simulation.Building
         public void SetBudget(float amount)
         {
             _currentBudget = amount;
+        }
+
+        public void SetGridDimensions(int cols, int rows)
+        {
+            if (cols > 0) gridColumns = cols;
+            if (rows > 0) gridRows = rows;
+            // Optionally trigger a grid visual update if you have one
         }
 
         private void Awake()
@@ -601,6 +609,20 @@ namespace Simulation.Building
                     if (!isOccupiedBySame)
                     {
                         totalCost += itemPrice;
+                    }
+
+                    // Population cap: ห้ามวาง PersonTarget เกินจำนวนที่กำหนดใน MissionData
+                    if (_selectedData.placeOnStructureOnly && MissionManager.Instance != null && MissionManager.Instance.CurrentMission != null)
+                    {
+                        int maxPop = MissionManager.Instance.CurrentMission.requiredPopulation;
+                        if (maxPop > 0)
+                        {
+                            int currentPop = FindObjectsByType<Simulation.Character.PersonTarget>(FindObjectsSortMode.None).Length;
+                            if (currentPop >= maxPop)
+                            {
+                                allValid = false;
+                            }
+                        }
                     }
                 }
 

@@ -13,7 +13,8 @@ namespace Simulation.Mission
         UFOAbduction,   // UFO ดูดของ
         DragonFire,     // มังกรพ่นไฟ
         AcidRain,       // ฝนกรด
-        Tornado         // พายุทอร์นาโด
+        Tornado,        // พายุทอร์นาโด
+        Zombie          // ซอมบี้
     }
 
     /// <summary>
@@ -92,5 +93,27 @@ namespace Simulation.Mission
 
         [Tooltip("Tornado: แรงยกขึ้น")]
         public float tornadoLiftForce = 8f;
+
+        [Header("Zombie Settings")]
+        [Tooltip("Zombie: Prefab ซอมบี้ธรรมดาที่จะ Spawn")]
+        public GameObject zombiePrefab;
+
+        [Tooltip("Zombie: Prefab DiggerZombie (ขุดดิน)")]
+        public GameObject diggerZombiePrefab;
+
+        [Tooltip("Zombie: Prefab BalloonZombie (บิน)")]
+        public GameObject balloonZombiePrefab;
+
+        [Tooltip("Zombie: จำนวนซอมบี้ธรรมดา")]
+        public int zombieSpawnCount = 5;
+
+        [Tooltip("Zombie: จำนวน DiggerZombie")]
+        public int diggerZombieCount = 0;
+
+        [Tooltip("Zombie: จำนวน BalloonZombie")]
+        public int balloonZombieCount = 0;
+
+        [Tooltip("Zombie: จำนวน wave (รอบ) ที่จะ Spawn")]
+        public int zombieWaveCount = 1;
     }
 }

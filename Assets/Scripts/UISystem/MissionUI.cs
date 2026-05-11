@@ -127,28 +127,52 @@ namespace Simulation.UI
             var mission = MissionManager.Instance.CurrentMission;
             var stats = MissionManager.Instance.GetCurrentStats();
 
-            // แสดงสถานะ ชั้น
+            // แสดงสถานะ ชั้น (ซ่อนถ้า 0 = ไม่บังคับ)
             if (floorsStatusText != null)
             {
-                bool ok = stats.floors >= mission.requiredFloors;
-                floorsStatusText.text = $"Floors: {stats.floors}/{mission.requiredFloors}";
-                floorsStatusText.color = ok ? completedColor : _originalFloorsColor;
+                if (mission.requiredFloors > 0)
+                {
+                    bool ok = stats.floors >= mission.requiredFloors;
+                    floorsStatusText.text = $"Floors: {stats.floors}/{mission.requiredFloors}";
+                    floorsStatusText.color = ok ? completedColor : _originalFloorsColor;
+                    floorsStatusText.gameObject.SetActive(true);
+                }
+                else
+                {
+                    floorsStatusText.gameObject.SetActive(false);
+                }
             }
 
             // แสดงสถานะ พื้นที่
             if (areaStatusText != null)
             {
-                bool ok = stats.area >= mission.requiredAreaPerFloor;
-                areaStatusText.text = $"Area: {stats.area}/{mission.requiredAreaPerFloor} m²";
-                areaStatusText.color = ok ? completedColor : _originalAreaColor;
+                if (mission.requiredAreaPerFloor > 0)
+                {
+                    bool ok = stats.area >= mission.requiredAreaPerFloor;
+                    areaStatusText.text = $"Area: {stats.area}/{mission.requiredAreaPerFloor} m²";
+                    areaStatusText.color = ok ? completedColor : _originalAreaColor;
+                    areaStatusText.gameObject.SetActive(true);
+                }
+                else
+                {
+                    areaStatusText.gameObject.SetActive(false);
+                }
             }
 
             // แสดงสถานะ คน
             if (populationStatusText != null)
             {
-                bool ok = stats.people >= mission.requiredPopulation;
-                populationStatusText.text = $"People: {stats.people}/{mission.requiredPopulation}";
-                populationStatusText.color = ok ? completedColor : _originalPopulationColor;
+                if (mission.requiredPopulation > 0)
+                {
+                    bool ok = stats.people >= mission.requiredPopulation;
+                    populationStatusText.text = $"People: {stats.people}/{mission.requiredPopulation}";
+                    populationStatusText.color = ok ? completedColor : _originalPopulationColor;
+                    populationStatusText.gameObject.SetActive(true);
+                }
+                else
+                {
+                    populationStatusText.gameObject.SetActive(false);
+                }
             }
         }
 

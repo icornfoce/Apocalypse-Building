@@ -14,6 +14,10 @@ namespace Simulation.Data
         [Tooltip("If true, this furniture can overlap with others")]
         public bool allowOverlap = false;
 
+        [Header("Gadget Settings")]
+        public bool isSpikeTrap = false;
+        public float trapDamage = 20f;
+
         [Header("Assets")]
         public GameObject prefab;
         public MaterialData defaultMaterial;

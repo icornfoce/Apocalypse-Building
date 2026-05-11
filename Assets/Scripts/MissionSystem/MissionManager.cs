@@ -36,6 +36,8 @@ namespace Simulation.Mission
         private int _initialPeopleCount;
         private int _initialStructureCount;
         private float _budgetBeforeSimulation;
+        private bool _hasZombieDisaster;
+        private bool _zombieSpawned;
 
         // ── Events ──
         /// <summary>เรียกเมื่อ Mission เริ่ม</summary>
@@ -86,6 +88,22 @@ namespace Simulation.Mission
             {
                 EndMission(true);
             }
+            else if (isMissionActive && _hasZombieDisaster && simulationTimer > 2f)
+            {
+                // เช็คว่า Zombie ตายหมดแล้วหรือยัง
+                var zombies = GameObject.FindObjectsByType<ZombieAI>(FindObjectsSortMode.None);
+                
+                if (zombies.Length > 0)
+                {
+                    _zombieSpawned = true; // เคยมี Zombie เกิดขึ้นแล้ว
+                }
+                else if (_zombieSpawned)
+                {
+                    // Zombie เคยเกิดแล้ว แต่ตอนนี้ตายหมด → จบด่าน
+                    Debug.Log("<color=green>★ All zombies eliminated!</color>");
+                    EndMission(true);
+                }
+            }
         }
 
         // ────────────────────────────────────────────────────────────────
@@ -103,6 +121,14 @@ namespace Simulation.Mission
             if (BuildingSystem.Instance != null && mission != null)
             {
                 BuildingSystem.Instance.SetBudget(mission.startingBudget);
+                
+                // ตั้งค่า Grid (ถ้ากำหนดมาใน MissionData)
+                if (mission.gridColumns > 0 || mission.gridRows > 0)
+                {
+                    // เราต้องการเข้าถึง field gridColumns/gridRows ใน BuildingSystem
+                    // แต่เนื่องจากมันเป็น private serialized field เราอาจจะต้องเพิ่ม public setter หรือ method
+                    BuildingSystem.Instance.SetGridDimensions(mission.gridColumns, mission.gridRows);
+                }
             }
         }
 
@@ -133,6 +159,21 @@ namespace Simulation.Mission
             _initialPeopleCount = CountAlivePeople();
             _initialStructureCount = CountIntactStructures();
             _budgetBeforeSimulation = BuildingSystem.Instance != null ? BuildingSystem.Instance.CurrentBudget : 0f;
+            _zombieSpawned = false;
+
+            // Cache ว่าด่านนี้มี Zombie ไหม
+            _hasZombieDisaster = false;
+            if (currentMission != null && currentMission.disasters != null)
+            {
+                foreach (var entry in currentMission.disasters)
+                {
+                    if (entry.disasterData != null && entry.disasterData.disasterType == DisasterType.Zombie)
+                    {
+                        _hasZombieDisaster = true;
+                        break;
+                    }
+                }
+            }
 
             // เริ่ม Simulation (ฟิสิกส์ + NavMesh + NPC)
             if (SimulationManager.Instance != null && !SimulationManager.Instance.IsSimulating)
@@ -208,24 +249,33 @@ namespace Simulation.Mission
             if (currentMission == null) return "No mission assigned.";
 
             // 1. Check Floor Count
-            int floors = CountFloors();
-            if (floors < currentMission.requiredFloors)
+            if (currentMission.requiredFloors > 0)
             {
-                return $"Not enough floors! Need {currentMission.requiredFloors} (Current: {floors})";
+                int floors = CountFloors();
+                if (floors < currentMission.requiredFloors)
+                {
+                    return $"Not enough floors! Need {currentMission.requiredFloors} (Current: {floors})";
+                }
             }
 
             // 2. Check Total Area
-            int totalArea = CountTotalArea();
-            if (totalArea < currentMission.requiredAreaPerFloor)
+            if (currentMission.requiredAreaPerFloor > 0)
             {
-                return $"Not enough total area! Need {currentMission.requiredAreaPerFloor} m² (Current: {totalArea} m²)";
+                int totalArea = CountTotalArea();
+                if (totalArea < currentMission.requiredAreaPerFloor)
+                {
+                    return $"Not enough total area! Need {currentMission.requiredAreaPerFloor} m² (Current: {totalArea} m²)";
+                }
             }
 
             // 3. Check Population
-            int people = CountPlacedPeople();
-            if (people < currentMission.requiredPopulation)
+            if (currentMission.requiredPopulation > 0)
             {
-                return $"Not enough population! Need {currentMission.requiredPopulation} (Current: {people})";
+                int people = CountPlacedPeople();
+                if (people < currentMission.requiredPopulation)
+                {
+                    return $"Not enough population! Need {currentMission.requiredPopulation} (Current: {people})";
+                }
             }
 
             return null; // All passed
@@ -437,6 +487,7 @@ namespace Simulation.Mission
                 case DisasterType.DragonFire:     return new DragonFireDisaster(data, this);
                 case DisasterType.AcidRain:       return new AcidRainDisaster(data, this);
                 case DisasterType.Tornado:        return new TornadoDisaster(data, this);
+                case DisasterType.Zombie:         return new ZombieDisaster(data, this);
                 default:
                     Debug.LogWarning($"[MissionManager] Unknown disaster type: {data.disasterType}");
                     return null;
@@ -466,59 +517,50 @@ namespace Simulation.Mission
 
         /// <summary>
         /// Evaluate Mission result → 0-3 stars
-        /// ★ Star 1: Everyone survived and reached target
-        /// ★ Star 2: Building still meets requirements after disaster (Floors, Area, Pop)
-        /// ★ Star 3: Budget is not negative
+        /// ★ Star 1: At least 1 survivor
+        /// ★ Star 2: Budget is not negative
+        /// ★ Star 3: All survivors survive
         /// </summary>
         private int EvaluateResult()
         {
             int stars = 0;
 
-            // ★ Star 1: All survived and reached target
-            PersonAI[] people = FindObjectsByType<PersonAI>(FindObjectsSortMode.None);
-            int successPeople = 0;
-            foreach (var p in people)
-            {
-                if (p != null && p.gameObject.activeSelf && !p.IsDead && p.HasReachedTarget) successPeople++;
-            }
-            
-            bool allSurvived = successPeople >= _initialPeopleCount && _initialPeopleCount > 0;
+            int aliveCount = CountAlivePeople();
+            int placedCount = _initialPeopleCount;
 
-            if (!allSurvived)
-            {
-                Debug.Log($"  ☆ Star 1: FAILED (Successful {successPeople}/{_initialPeopleCount}) - 0 stars.");
-                return 0; // ต้องรอดทุกคนถึงจะได้ดาวแรก
-            }
-            
-            stars++;
-            Debug.Log("  ★ Star 1: Everyone survived! ✓");
-
-            // ★ Star 2: Requirements check after disaster
-            string validationResult = ValidatePreConditions();
-            bool requirementsStillMet = (validationResult == null);
-
-            if (requirementsStillMet)
+            // ★ Star 1: At least 1 survivor
+            if (aliveCount >= 1)
             {
                 stars++;
-                Debug.Log("  ★ Star 2: Building requirements still met after disaster! ✓");
-
-                // ★ Star 3: Not in debt
-                float currentBudget = BuildingSystem.Instance != null ? BuildingSystem.Instance.CurrentBudget : 0f;
-                bool noDebt = currentBudget >= 0f;
-
-                if (noDebt)
-                {
-                    stars++;
-                    Debug.Log($"  ★ Star 3: Budget is positive ({currentBudget:F0}) ✓");
-                }
-                else
-                {
-                    Debug.Log($"  ☆ Star 3: Budget is negative ({currentBudget:F0}) ✗");
-                }
+                Debug.Log("  ★ Star 1: At least one person survived! ✓");
             }
             else
             {
-                Debug.Log($"  ☆ Star 2: Building failed requirements after disaster ({validationResult}) ✗ - Star 3 locked.");
+                Debug.Log("  ☆ Star 1: FAILED (Everyone died) - 0 stars.");
+                return 0; // ต้องมีคนรอดอย่างน้อย 1 คนถึงจะได้ดาว
+            }
+
+            // ★ Star 2: Budget is not negative
+            float currentBudget = BuildingSystem.Instance != null ? BuildingSystem.Instance.CurrentBudget : 0f;
+            if (currentBudget >= 0f)
+            {
+                stars++;
+                Debug.Log($"  ★ Star 2: Budget is positive ({currentBudget:F0}) ✓");
+            }
+            else
+            {
+                Debug.Log($"  ☆ Star 2: Budget is negative ({currentBudget:F0}) ✗");
+            }
+
+            // ★ Star 3: Everyone survived
+            if (aliveCount >= placedCount && placedCount > 0)
+            {
+                stars++;
+                Debug.Log("  ★ Star 3: Everyone survived! ✓");
+            }
+            else
+            {
+                Debug.Log($"  ☆ Star 3: Some people died ({aliveCount}/{placedCount}) ✗");
             }
 
             return stars;

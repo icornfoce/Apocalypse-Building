@@ -30,18 +30,27 @@ namespace Simulation.Mission
         public string description;
 
         [Header("Building Requirements")]
-        [Tooltip("จำนวนชั้นขั้นต่ำที่ต้องสร้าง")]
-        [Min(1)]
-        public int requiredFloors = 1;
+        [Tooltip("จำนวนชั้นขั้นต่ำที่ต้องสร้าง (0 = ไม่มี)")]
+        [Min(0)]
+        public int requiredFloors = 0;
 
-        [Tooltip("พื้นที่ขั้นต่ำต่อชั้น (ตารางเมตร = จำนวนช่อง Grid)")]
-        [Min(1)]
-        public int requiredAreaPerFloor = 4;
+        [Tooltip("พื้นที่ขั้นต่ำรวมทุกชั้น (ตารางเมตร = จำนวนช่อง Grid) (0 = ไม่มี)")]
+        [Min(0)]
+        public int requiredAreaPerFloor = 0;
 
         [Header("Population Requirements")]
-        [Tooltip("จำนวนคนที่ต้องรองรับ (PersonTarget ที่ต้องวาง)")]
-        [Min(1)]
-        public int requiredPopulation = 1;
+        [Tooltip("จำนวนคนที่ต้องรองรับ (PersonTarget ที่ต้องวาง) (0 = ไม่มี)")]
+        [Min(0)]
+        public int requiredPopulation = 0;
+
+        [Header("Grid Settings")]
+        [Tooltip("จำนวนช่อง Grid แนวนอน (X) (0 = ใช้ค่า Default)")]
+        [Min(0)]
+        public int gridColumns = 0;
+
+        [Tooltip("จำนวนช่อง Grid แนวตั้ง (Z) (0 = ใช้ค่า Default)")]
+        [Min(0)]
+        public int gridRows = 0;
 
         [Header("Budget")]
         [Tooltip("งบประมาณเริ่มต้นของด่านนี้")]

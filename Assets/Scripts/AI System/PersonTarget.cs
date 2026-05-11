@@ -20,6 +20,10 @@ namespace Simulation.Character
         private Material[] _materials;
         private float _currentAlpha;
 
+        private void Awake()
+        {
+        }
+
         private void Start()
         {
             _currentAlpha = alpha;

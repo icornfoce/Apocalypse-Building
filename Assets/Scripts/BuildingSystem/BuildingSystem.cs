@@ -592,7 +592,14 @@ namespace Simulation.Building
                     bool isFloor = hitUnit != null && hitUnit.Data.structureType == StructureType.Floor;
                     bool isTopSurface = _currentHitNormal.y > 0.9f;
 
-                    bool isOnStructure = !_selectedData.placeOnStructureOnly || (isFloor && isTopSurface);
+                    // Check for structure/floor requirement
+                    var ptOnPrefab = _selectedData.prefab != null ? _selectedData.prefab.GetComponentInChildren<Simulation.Character.PersonTarget>() : null;
+                    bool isPlacingPerson = ptOnPrefab != null;
+                    
+                    // หากเป็นคน ให้วางที่พื้นได้เลย (Override placeOnStructureOnly)
+                    bool effectivePlaceOnStructureOnly = isPlacingPerson ? false : _selectedData.placeOnStructureOnly;
+                    
+                    bool isOnStructure = !effectivePlaceOnStructureOnly || (isFloor && isTopSurface);
                     
                     bool doorValid = true;
                     if (_selectedData.structureType == StructureType.Door)
@@ -612,12 +619,31 @@ namespace Simulation.Building
                     }
 
                     // Population cap: ห้ามวาง PersonTarget เกินจำนวนที่กำหนดใน MissionData
-                    if (_selectedData.placeOnStructureOnly && MissionManager.Instance != null && MissionManager.Instance.CurrentMission != null)
+                    // แก้ไข: ตรวจสอบเฉพาะเมื่อของที่จะวางมี Component PersonTarget เท่านั้น เพื่อไม่ให้ไปบล็อกการวาง Gadget/Furniture
+                    // (ใช้ตัวแปร ptOnPrefab และ isPlacingPerson ที่ประกาศไว้ข้างบนแล้ว)
+                    
+                    // หากเป็นตัวละคร และตัวละครนั้นถูกตั้งค่าให้นับเป็นประชากร (countsTowardsPopulation == true)
+                    if (isPlacingPerson && ptOnPrefab.countsTowardsPopulation && MissionManager.Instance != null && MissionManager.Instance.CurrentMission != null)
                     {
                         int maxPop = MissionManager.Instance.CurrentMission.requiredPopulation;
                         if (maxPop > 0)
                         {
-                            int currentPop = FindObjectsByType<Simulation.Character.PersonTarget>(FindObjectsSortMode.None).Length;
+                            var targets = FindObjectsByType<Simulation.Character.PersonTarget>(FindObjectsSortMode.None);
+                            int currentPop = 0;
+                            foreach (var t in targets)
+                            {
+                                if (t != null && t.countsTowardsPopulation)
+                                {
+                                    // ข้ามการนับ Ghost Preview (ตัวจำลองที่กำลังลากอยู่)
+                                    if (t.gameObject.name.Contains("Ghost")) continue;
+
+                                    // ข้ามการนับตัวที่เป็น Alpha ในตอนวาง (GhostBuilder) 
+                                    // เพื่อให้วาง Alpha ได้ไม่จำกัด แต่ยังนับเป็นคนรอดใน Mission
+                                    bool isAlpha = t.gameObject.name.Contains("Alpha");
+                                    if (!isAlpha) currentPop++;
+                                }
+                            }
+
                             if (currentPop >= maxPop)
                             {
                                 allValid = false;
@@ -2272,6 +2298,10 @@ namespace Simulation.Building
             foreach (var unit in _placedStructures)
             {
                 if (unit == null || unit == _movingUnit || _movingGroup.Contains(unit)) continue;
+
+                // NEW: ข้ามการเช็คการทับซ้อนกับตัวละคร (PersonTarget) 
+                // เพื่อไม่ให้มาร์กเกอร์คนไปบล็อกการวางสิ่งก่อสร้างหรือ Gadget
+                if (unit.GetComponent<Simulation.Character.PersonTarget>() != null) continue;
 
                 // Check for exact duplicate placements regardless of allowOverlap
                 float dist = Vector3.Distance(position, unit.transform.position);

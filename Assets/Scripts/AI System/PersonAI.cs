@@ -41,6 +41,12 @@ namespace Simulation.Character
 
         private void Awake()
         {
+            // ถ้าชื่อมีคำว่า Alpha ให้ถือเป็น NPC พิเศษ
+            if (gameObject.name.Contains("Alpha"))
+            {
+                // สามารถใส่ Logic พิเศษสำหรับ Alpha ตรงนี้ได้
+            }
+
             _rb = GetComponent<Rigidbody>();
             _currentHealth = maxHealth;
             
@@ -121,15 +127,17 @@ namespace Simulation.Character
                     if (_wanderTimer <= 0f || (_agent.remainingDistance <= 0.5f && !_agent.pathPending))
                     {
                         // Try to find a random position on a FLOOR nearby
+                        // เดินสุ่มรอบเป้าหมาย (แต่ไม่ออกนอกตัวตึก)
                         bool foundValidWanderPos = false;
-                        for (int attempt = 0; attempt < 5; attempt++) // Try 5 times to find a floor
+                        for (int attempt = 0; attempt < 8; attempt++) 
                         {
-                            Vector2 randomCircle = Random.insideUnitCircle * 5f;
+                            Vector2 randomCircle = Random.insideUnitCircle * 4f; // รัศมีแคบลงเพื่อให้ไม่หลุดออกนอกกำแพงง่ายๆ
                             Vector3 randomPos = _target.position + new Vector3(randomCircle.x, 0, randomCircle.y);
                             
-                            if (UnityEngine.AI.NavMesh.SamplePosition(randomPos, out UnityEngine.AI.NavMeshHit hit, 3f, UnityEngine.AI.NavMesh.AllAreas))
+                            if (UnityEngine.AI.NavMesh.SamplePosition(randomPos, out UnityEngine.AI.NavMeshHit hit, 2f, UnityEngine.AI.NavMesh.AllAreas))
                             {
-                                if (IsOnFloor(hit.position))
+                                // ต้องเป็นพื้น (Floor) และต้องไม่อยู่ไกลจากจุดมาร์กเกอร์เกินไป
+                                if (IsOnFloor(hit.position) && Vector3.Distance(hit.position, _target.position) < 5f)
                                 {
                                     _wanderTarget = hit.position;
                                     foundValidWanderPos = true;

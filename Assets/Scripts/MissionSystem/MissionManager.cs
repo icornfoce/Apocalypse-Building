@@ -156,7 +156,7 @@ namespace Simulation.Mission
             simulationTimer = 0f;
 
             // บันทึกสถานะก่อนเริ่ม
-            _initialPeopleCount = CountAlivePeople();
+            _initialPeopleCount = CountPlacedPeople();
             _initialStructureCount = CountIntactStructures();
             _budgetBeforeSimulation = BuildingSystem.Instance != null ? BuildingSystem.Instance.CurrentBudget : 0f;
             _zombieSpawned = false;
@@ -399,25 +399,27 @@ namespace Simulation.Mission
         /// </summary>
         private int CountPlacedPeople()
         {
-            PersonTarget[] targets = FindObjectsByType<PersonTarget>(FindObjectsSortMode.None);
+            PersonTarget[] targets = FindObjectsByType<PersonTarget>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             int count = 0;
             foreach (var t in targets)
             {
-                if (t != null && t.countsTowardsPopulation) count++;
+                if (t == null || t.gameObject.name.Contains("Ghost")) continue;
+                if (t.countsTowardsPopulation) count++;
             }
             return count;
         }
 
         /// <summary>
-        /// นับจำนวนคนที่ยังมีชีวิตอยู่ (PersonAI ที่ยัง active)
+        /// นับจำนวนคนที่ยังมีชีวิตอยู่ (PersonAI ที่ยังอยู่ในฉาก)
         /// </summary>
         private int CountAlivePeople()
         {
-            PersonAI[] people = FindObjectsByType<PersonAI>(FindObjectsSortMode.None);
+            PersonAI[] people = FindObjectsByType<PersonAI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             int alive = 0;
             foreach (var p in people)
             {
-                if (p != null && p.gameObject.activeSelf && p.countsTowardsPopulation) alive++;
+                if (p == null || p.gameObject.name.Contains("Ghost")) continue;
+                if (p.countsTowardsPopulation) alive++;
             }
             return alive;
         }
@@ -427,11 +429,12 @@ namespace Simulation.Mission
         /// </summary>
         private int CountIntactStructures()
         {
-            StructureUnit[] units = FindObjectsByType<StructureUnit>(FindObjectsSortMode.None);
+            StructureUnit[] units = FindObjectsByType<StructureUnit>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             int intact = 0;
             foreach (var unit in units)
             {
-                if (unit == null || !unit.gameObject.activeSelf) continue;
+                if (unit == null || unit.gameObject.name.Contains("Ghost")) continue;
+                if (!unit.gameObject.activeSelf) continue;
 
                 var stress = unit.GetComponent<StructuralStress>();
                 if (stress == null || !stress.IsBroken)

@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 726d9d048e30d614b8dea35917a79e2c, type: 3}
   m_Name: Zombie
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.Mission.DisasterData
-  disasterName: 
+  disasterName: Zombie
   disasterType: 7
   duration: 10
   intensity: 10

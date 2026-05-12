@@ -48,11 +48,25 @@ namespace Simulation.Building
             // ตั้ง cooldown ใหม่
             _cooldowns[id] = damageInterval;
 
-            // เช็คว่าเป็น ZombieAI ไหม (ให้ priority Zombie ก่อน)
+            // เช็คว่าเป็น ZombieAI ประเภทต่างๆ หรือไม่
             var zombie = other.GetComponentInParent<Simulation.Mission.ZombieAI>();
             if (zombie != null)
             {
                 zombie.TakeDamage(damage);
+                return;
+            }
+
+            var balloonZombie = other.GetComponentInParent<Simulation.Mission.BalloonZombieAI>();
+            if (balloonZombie != null)
+            {
+                balloonZombie.TakeDamage(damage);
+                return;
+            }
+
+            var diggerZombie = other.GetComponentInParent<Simulation.Mission.DiggerZombieAI>();
+            if (diggerZombie != null)
+            {
+                diggerZombie.TakeDamage(damage);
                 return;
             }
 

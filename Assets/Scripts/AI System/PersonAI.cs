@@ -190,14 +190,22 @@ namespace Simulation.Character
             }
         }
 
-        public void TakeDamage(float amount)
+        public void TakeDamage(float amount, bool isZombieBite = false)
         {
             if (_isDead) return;
 
-            _currentHealth -= amount;
+            if (isZombieBite)
+            {
+                _currentHealth = 0; // โดนซอมบี้กัด ทีเดียวตาย
+            }
+            else
+            {
+                _currentHealth -= amount;
+            }
+
             if (_currentHealth <= 0)
             {
-                Die();
+                Die(isZombieBite);
             }
         }
 
@@ -234,7 +242,7 @@ namespace Simulation.Character
             }
         }
 
-        private void Die()
+        private void Die(bool turnIntoZombie = false)
         {
             _isDead = true;
             
@@ -244,6 +252,15 @@ namespace Simulation.Character
             if (deathVFX != null)
             {
                 Instantiate(deathVFX, transform.position, Quaternion.identity);
+            }
+
+            // ถ้าตายเพราะซอมบี้กัด ให้กลายเป็นซอมบี้
+            if (turnIntoZombie)
+            {
+                if (Simulation.Mission.MissionManager.Instance != null)
+                {
+                    Simulation.Mission.MissionManager.Instance.SpawnNormalZombie(transform.position);
+                }
             }
             
             // ลบตัวละครทิ้ง

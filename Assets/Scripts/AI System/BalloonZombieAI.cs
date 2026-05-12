@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.AI;
 using Simulation.Character;
 using Simulation.Building;
 
@@ -16,6 +17,7 @@ namespace Simulation.Mission
     {
         [Header("Settings")]
         public float flySpeed = 2.0f;
+        public float moveSpeed = 1.5f;
         public float descendSpeed = 1.0f;
         public float attackDamage = 10f;
         public float attackInterval = 1.5f;
@@ -33,13 +35,20 @@ namespace Simulation.Mission
         [Header("Death")]
         public GameObject deathVFX;
 
+        [Header("Balloon Visuals")]
+        public GameObject balloonObject;
+        public GameObject balloonBurstVFX;
+
         private float _currentHealth;
         private Rigidbody _rb;
         private PersonAI _targetPerson;
         private float _personAttackTimer;
         private float _floorEatTimer;
+        private float _wallAttackTimer;
         private bool _isDead = false;
         private bool _hasLanded = false;
+
+        private NavMeshAgent _agent;
 
         // Cache
         private float _findTargetCooldown;
@@ -49,6 +58,10 @@ namespace Simulation.Mission
 
         private void Awake()
         {
+            _agent = GetComponent<NavMeshAgent>();
+            if (_agent == null) _agent = gameObject.AddComponent<NavMeshAgent>();
+            _agent.enabled = false; // ยังไม่เปิดจนกว่าจะลงจอด
+
             _rb = GetComponent<Rigidbody>();
             _currentHealth = maxHealth;
             _rb.useGravity = false;
@@ -62,6 +75,12 @@ namespace Simulation.Mission
 
         private void Start()
         {
+            if (balloonObject == null)
+            {
+                Transform t = transform.Find("Balloon");
+                if (t != null) balloonObject = t.gameObject;
+            }
+
             // ยกขึ้นบินเลย
             transform.position += new Vector3(0, flyHeight, 0);
         }
@@ -82,18 +101,51 @@ namespace Simulation.Mission
 
             if (_hasLanded)
             {
+                // เช็คพื้นรองรับ เพื่อให้ตกลงมาถ้าพื้นพัง
+                float rayDist = 0.8f;
+                bool hasFloor = UnityEngine.Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, rayDist, UnityEngine.Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+
+                if (!hasFloor && _agent != null && _agent.enabled)
+                {
+                    _agent.enabled = false;
+                    if (_rb != null)
+                    {
+                        _rb.isKinematic = false;
+                        _rb.useGravity = true;
+                    }
+                    var col = GetComponent<CapsuleCollider>();
+                    if (col != null) col.isTrigger = false;
+                }
+                else if (hasFloor && _agent != null && !_agent.enabled && _rb != null && _rb.linearVelocity.sqrMagnitude < 0.1f)
+                {
+                    if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 2f, NavMesh.AllAreas))
+                    {
+                        transform.position = hit.position;
+                        _agent.enabled = true;
+                        _rb.isKinematic = true;
+                        var col = GetComponent<CapsuleCollider>();
+                        if (col != null) col.isTrigger = true;
+                    }
+                }
+
+                if (_agent != null && !_agent.enabled) return; // กำลังร่วงอยู่
+
                 // ลงพื้นแล้ว — โจมตีเหมือน Zombie ปกติ
                 float dist = Vector3.Distance(transform.position, _targetPerson.transform.position);
+
                 if (dist <= attackRange)
                 {
+                    if (_agent != null && _agent.enabled && _agent.isOnNavMesh) _agent.isStopped = true;
                     AttackPerson();
                 }
                 else
                 {
-                    // เดินเข้าหาเป้าหมาย (ไม่บินแล้ว)
-                    Vector3 dir = (_targetPerson.transform.position - transform.position).normalized;
-                    transform.position += dir * flySpeed * 0.5f * Time.deltaTime;
-                    if (dir.sqrMagnitude > 0.001f) transform.rotation = Quaternion.LookRotation(dir);
+                    if (_agent != null && _agent.enabled && _agent.isOnNavMesh)
+                    {
+                        _agent.isStopped = false;
+                        _agent.SetDestination(_targetPerson.transform.position);
+                    }
+                    CheckForWalls();
                 }
             }
             else
@@ -177,18 +229,48 @@ namespace Simulation.Mission
                 transform.position = Vector3.MoveTowards(transform.position, descendTarget, descendSpeed * Time.deltaTime);
 
                 // เช็คว่าลงถึงพื้นแล้วหรือยัง
+                transform.position = Vector3.MoveTowards(transform.position, new Vector3(transform.position.x, targetY, transform.position.z), descendSpeed * Time.deltaTime);
+
                 if (Mathf.Abs(transform.position.y - targetY) < 0.3f)
                 {
-                    _hasLanded = true;
-                    _rb.isKinematic = false;
-                    _rb.useGravity = true;
-
-                    var col = GetComponent<CapsuleCollider>();
-                    if (col != null) col.isTrigger = false;
-
-                    Debug.Log($"<color=magenta>[BalloonZombie]</color> {name} has landed!");
+                    OnLanded();
                 }
             }
+        }
+
+        private void OnLanded()
+        {
+            if (_isDead) return;
+
+            _hasLanded = true;
+            
+            if (balloonObject != null)
+            {
+                balloonObject.SetActive(false);
+            }
+            if (balloonBurstVFX != null)
+            {
+                Instantiate(balloonBurstVFX, transform.position + Vector3.up * 1f, Quaternion.identity);
+            }
+
+            if (_agent != null)
+            {
+                if (UnityEngine.AI.NavMesh.SamplePosition(transform.position, out UnityEngine.AI.NavMeshHit hit, 3f, UnityEngine.AI.NavMesh.AllAreas))
+                {
+                    transform.position = hit.position;
+                    _agent.enabled = true;
+                    _agent.speed = moveSpeed;
+                    _agent.stoppingDistance = attackRange * 0.8f;
+                    _agent.areaMask = UnityEngine.AI.NavMesh.AllAreas;
+                    _agent.radius = 0.55f; // เพิ่มขนาดตัวไม่ให้ลอดประตูได้
+                    
+                    if (_rb != null) _rb.isKinematic = true;
+                    var col = GetComponent<CapsuleCollider>();
+                    if (col != null) col.isTrigger = true;
+                }
+            }
+
+            Debug.Log($"<color=magenta>[BalloonZombie]</color> Landed and starting ground movement!");
         }
 
         private void EatFloor(StructureUnit floor)
@@ -197,18 +279,9 @@ namespace Simulation.Mission
             if (_floorEatTimer >= floorEatInterval)
             {
                 _floorEatTimer = 0f;
-
                 var stress = floor.GetComponent<Simulation.Physics.StructuralStress>();
-                if (stress != null)
-                {
-                    stress.ApplyExternalDamage(floorEatDamage);
-                }
-                else
-                {
-                    floor.TakeDamage(floorEatDamage);
-                }
-
-                Debug.Log($"<color=magenta>[BalloonZombie]</color> Eating floor: {floor.name}");
+                if (stress != null) stress.ApplyExternalDamage(floorEatDamage);
+                else floor.TakeDamage(floorEatDamage);
             }
         }
 
@@ -220,9 +293,50 @@ namespace Simulation.Mission
                 _personAttackTimer = 0f;
                 if (_targetPerson != null && !_targetPerson.IsDead)
                 {
-                    _targetPerson.TakeDamage(attackDamage);
+                    _targetPerson.TakeDamage(0f, true); // กัดทีเดียวตาย
                     Debug.Log($"<color=magenta>[BalloonZombie]</color> Attacking person: {_targetPerson.name}");
                 }
+            }
+        }
+
+        private void CheckForWalls()
+        {
+            Vector3 direction = (_agent != null && _agent.enabled && _agent.velocity.sqrMagnitude > 0.01f)
+                ? _agent.velocity.normalized
+                : transform.forward;
+
+            Ray ray = new Ray(transform.position + Vector3.up * 0.5f, direction);
+            if (UnityEngine.Physics.SphereCast(ray, 0.5f, out RaycastHit hit, attackRange, LayerMask.GetMask("Structure")))
+            {
+                StructureUnit unit = hit.collider.GetComponentInParent<StructureUnit>();
+                
+                if (unit != null && unit.Data != null)
+                {
+                    bool isStair = unit.Data.structureName.ToLower().Contains("stair") || (unit.Data.prefab != null && unit.Data.prefab.name.ToLower().Contains("stair"));
+                    bool isFloor = unit.Data.structureType == Simulation.Data.StructureType.Floor;
+                    
+                    if (isStair || isFloor) return;
+                }
+
+                if (unit != null)
+                {
+                    if (_agent != null && _agent.enabled && _agent.isOnNavMesh) _agent.isStopped = true;
+
+                    _wallAttackTimer += Time.deltaTime;
+                    if (_wallAttackTimer >= attackInterval)
+                    {
+                        _wallAttackTimer = 0f;
+                        var stress = unit.GetComponent<Simulation.Physics.StructuralStress>();
+                        if (stress != null) stress.ApplyMaxHPDamage(attackDamage);
+                        else unit.TakeMaxHPDamage(attackDamage);
+
+                        Debug.Log($"<color=magenta>[BalloonZombie]</color> Biting wall: {unit.name}");
+                    }
+                }
+            }
+            else
+            {
+                _wallAttackTimer = 0f;
             }
         }
 

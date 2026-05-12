@@ -90,6 +90,11 @@ namespace Simulation.Physics
         private float _settlementTimer;
         private const float SETTLEMENT_DURATION = 0.5f;
 
+        // cached original values for restart
+        private float _originalBaseHP;
+        private float _originalMaxCompression;
+        private float _originalMaxTension;
+
         // Cached original material color (if stressRenderer is set)
         private Color _cachedOriginalColor;
         private bool _hasStressRenderer;
@@ -442,6 +447,9 @@ namespace Simulation.Physics
             // Fire event
             OnBreak?.Invoke(this);
 
+            // คำนวณชั้นสูงสุดใหม่ เพราะอาจจะมีบางชั้นพังลงไป
+            Building.BuildingSystem.Instance?.RecalculateMaxFloor();
+
             // Deactivate after delay
             StartCoroutine(DeactivateAfterDelay(5f));
         }
@@ -516,8 +524,8 @@ namespace Simulation.Physics
                 return;
             }
 
-            // HealthRatio: 1.0 = เต็ม, 0.0 = พัง
-            float health = HealthRatio;
+            // ใช้ _originalBaseHP ในการคำนวณสี เพื่อให้เห็นความเสียหายถาวรจากซอมบี้
+            float health = _originalBaseHP > 0 ? Mathf.Clamp01(_currentHP / _originalBaseHP) : 0f;
 
             // 100% (1.0) -> ใช้สีวัสดุดั้งเดิม (ใส)
             // 50%  (0.5) -> สีส้ม
@@ -574,12 +582,46 @@ namespace Simulation.Physics
             }
         }
 
+        /// <summary>
+        /// Apply damage that also reduces the maximum HP (permanent damage).
+        /// Used by zombies to make structures permanently weaker.
+        /// </summary>
+        public void ApplyMaxHPDamage(float amount)
+        {
+            if (_isBroken || amount <= 0f) return;
+
+            // คำนวณสัดส่วนความเสียหายเทียบกับ Max HP เดิมเพื่อลดค่าขีดจำกัดทางกายภาพด้วย
+            float damageRatio = (baseHP > 0) ? (amount / baseHP) : 1f;
+
+            // ลดทั้ง Max HP และ Current HP
+            baseHP = Mathf.Max(0f, baseHP - amount);
+            _currentHP = Mathf.Min(_currentHP, baseHP);
+            
+            // ลดขีดจำกัดแรงกดและแรงดึง (ทำให้โครงสร้างรับน้ำหนักได้น้อยลงถาวร)
+            maxCompression = Mathf.Max(0f, maxCompression * (1f - damageRatio));
+            maxTension = Mathf.Max(0f, maxTension * (1f - damageRatio));
+
+            _lowStressTimer = 0f;
+
+            if (baseHP <= 0f || _currentHP <= 0f)
+            {
+                _currentHP = 0f;
+                Break();
+            }
+        }
+
         public void InitializeStress(float maxHP, float compression = 1000f, float tension = 1000f)
         {
             baseHP = maxHP;
             _currentHP = maxHP;
             maxCompression = compression;
             maxTension = tension;
+
+            // Cache original values for restart/rewind
+            _originalBaseHP = maxHP;
+            _originalMaxCompression = compression;
+            _originalMaxTension = tension;
+
             _settlementTimer = SETTLEMENT_DURATION;
 
             // บันทึกสีดั้งเดิมใหม่ทุกครั้งที่มีการ Initialize (เผื่อโดนเปลี่ยน Material ในโหมด Painting)
@@ -615,7 +657,13 @@ namespace Simulation.Physics
 
             _isBroken = false;
             _isDetached = false;
-            _currentHP = baseHP;
+
+            // Restore original structural properties
+            baseHP = _originalBaseHP;
+            _currentHP = _originalBaseHP;
+            maxCompression = _originalMaxCompression;
+            maxTension = _originalMaxTension;
+
             _lowStressTimer = 0f;
             _settlementTimer = SETTLEMENT_DURATION;
             LastForceMagnitude = 0f;

@@ -159,7 +159,6 @@ namespace Simulation.Building
             {
                 (Vector3 center, Vector3 size) = GetPrefabBounds(pillarReference.prefab);
                 heightStep = size.y;
-                Debug.Log($"[BuildingSystem] Auto-set Height Step to {heightStep} from '{pillarReference.structureName}' height.");
             }
 
             // หา CameraController จากกล้องหลัก
@@ -334,12 +333,17 @@ namespace Simulation.Building
         /// Recalculate the highest floor that has at least one structure placed on it.
         /// Called after placing, moving, or deleting structures.
         /// </summary>
-        private void RecalculateMaxFloor()
+        public void RecalculateMaxFloor()
         {
             _maxOccupiedFloor = 1;
             foreach (var unit in _placedStructures)
             {
-                if (unit == null || unit.Data == null) continue;
+                if (unit == null || !unit.gameObject.activeInHierarchy) continue;
+                
+                var stress = unit.GetComponent<StructuralStress>();
+                if (stress != null && stress.IsBroken) continue;
+
+                if (unit.Data == null) continue;
                 
                 float bottomY = float.MaxValue;
                 foreach (Collider col in unit.GetComponentsInChildren<Collider>())
@@ -350,7 +354,7 @@ namespace Simulation.Building
                 
                 float y = bottomY;
 
-                int floor = Mathf.FloorToInt(y / HeightStep + 0.1f) + 1;
+                int floor = Mathf.FloorToInt(y / heightStep + 0.1f) + 1;
                 if (floor > _maxOccupiedFloor) _maxOccupiedFloor = floor;
             }
         }
@@ -644,7 +648,11 @@ namespace Simulation.Building
                                 }
                             }
 
-                            if (currentPop >= maxPop)
+                            // ให้สิทธิ์วาง Alpha ได้แม้คนจะเต็มแล้ว
+                            bool isPlacingAlpha = _selectedData.prefab != null && _selectedData.prefab.name.Contains("Alpha");
+
+                            // รวมจำนวนคนที่กำลังลากวางในการเช็คด้วย
+                            if (!isPlacingAlpha && currentPop + _dragPositions.Count > maxPop)
                             {
                                 allValid = false;
                             }
@@ -653,6 +661,8 @@ namespace Simulation.Building
                 }
 
                 bool canAfford = _currentBudget >= totalCost;
+                if (!canAfford) allValid = false;
+                
                 ghostBuilder.UpdateGhosts(_dragPositions, ghostBuilder.CurrentRotation, allValid);
 
                 // Placement execution on mouse up

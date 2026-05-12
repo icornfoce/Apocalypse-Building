@@ -152,6 +152,21 @@ namespace Simulation.Building
             }
         }
 
+        public void TakeMaxHPDamage(float amount)
+        {
+            var stress = GetComponent<Simulation.Physics.StructuralStress>();
+            if (stress != null)
+            {
+                stress.ApplyMaxHPDamage(amount);
+                _currentHP = stress.CurrentHP;
+            }
+            else
+            {
+                _currentHP -= amount;
+                if (_currentHP <= 0) DestroyStructure();
+            }
+        }
+
         public void DestroyStructure()
         {
             if (currentMaterial != null)

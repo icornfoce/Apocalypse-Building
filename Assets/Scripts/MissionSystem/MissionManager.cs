@@ -88,20 +88,47 @@ namespace Simulation.Mission
             {
                 EndMission(true);
             }
-            else if (isMissionActive && _hasZombieDisaster && simulationTimer > 2f)
+            else if (isMissionActive && simulationTimer > 2f)
             {
-                // เช็คว่า Zombie ตายหมดแล้วหรือยัง
-                var zombies = GameObject.FindObjectsByType<ZombieAI>(FindObjectsSortMode.None);
-                
-                if (zombies.Length > 0)
+                // 1. เช็คว่าคนตายหมดหรือยัง
+                var people = GameObject.FindObjectsByType<PersonAI>(FindObjectsSortMode.None);
+                bool anyAlive = false;
+                foreach (var p in people)
                 {
-                    _zombieSpawned = true; // เคยมี Zombie เกิดขึ้นแล้ว
+                    if (p != null && !p.IsDead && p.countsTowardsPopulation)
+                    {
+                        anyAlive = true;
+                        break;
+                    }
                 }
-                else if (_zombieSpawned)
+
+                // ถ้าตอนเริ่มมีคน แต่ตอนนี้ตายหมดแล้ว ให้จบด่านเลย
+                if (!anyAlive && _initialPeopleCount > 0)
                 {
-                    // Zombie เคยเกิดแล้ว แต่ตอนนี้ตายหมด → จบด่าน
-                    Debug.Log("<color=green>★ All zombies eliminated!</color>");
+                    Debug.Log("<color=red>☠ All people died!</color>");
                     EndMission(true);
+                    return;
+                }
+
+                // 2. เช็คว่า Zombie ตายหมดแล้วหรือยัง (ถ้ามี)
+                if (_hasZombieDisaster)
+                {
+                    var normalZombies = GameObject.FindObjectsByType<ZombieAI>(FindObjectsSortMode.None);
+                    var diggerZombies = GameObject.FindObjectsByType<DiggerZombieAI>(FindObjectsSortMode.None);
+                    var balloonZombies = GameObject.FindObjectsByType<BalloonZombieAI>(FindObjectsSortMode.None);
+
+                    int totalZombies = normalZombies.Length + diggerZombies.Length + balloonZombies.Length;
+                    
+                    if (totalZombies > 0)
+                    {
+                        _zombieSpawned = true; // เคยมี Zombie เกิดขึ้นแล้ว
+                    }
+                    else if (_zombieSpawned)
+                    {
+                        // Zombie เคยเกิดแล้ว แต่ตอนนี้ตายหมด → จบด่าน
+                        Debug.Log("<color=green>★ All zombies eliminated!</color>");
+                        EndMission(true);
+                    }
                 }
             }
         }
@@ -109,6 +136,33 @@ namespace Simulation.Mission
         // ────────────────────────────────────────────────────────────────
         // Public API
         // ────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// เสกซอมบี้ธรรมดา ณ ตำแหน่งที่กำหนด (ใช้ตอน NPC โดนกัดตายแล้วกลายร่าง)
+        /// </summary>
+        public void SpawnNormalZombie(Vector3 position)
+        {
+            if (currentMission != null && currentMission.disasters != null)
+            {
+                foreach (var entry in currentMission.disasters)
+                {
+                    if (entry.disasterData != null && entry.disasterData.disasterType == DisasterType.Zombie)
+                    {
+                        var prefab = entry.disasterData.zombiePrefab;
+                        if (prefab != null)
+                        {
+                            GameObject zombie = Instantiate(prefab, position, Quaternion.identity);
+                            zombie.name = "InfectedZombie";
+                            if (zombie.GetComponent<ZombieAI>() == null)
+                            {
+                                zombie.AddComponent<ZombieAI>();
+                            }
+                            return; // พอเสกได้ตัวนึงก็จบ
+                        }
+                    }
+                }
+            }
+        }
 
         /// <summary>
         /// กำหนด Mission ที่จะเล่น
@@ -234,6 +288,20 @@ namespace Simulation.Mission
             {
                 SimulationManager.Instance.StopSimulation();
             }
+
+            ClearAllZombies();
+        }
+
+        private void ClearAllZombies()
+        {
+            var normalZombies = FindObjectsByType<ZombieAI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            foreach (var z in normalZombies) if (z != null && z.gameObject != null) Destroy(z.gameObject);
+
+            var diggerZombies = FindObjectsByType<DiggerZombieAI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            foreach (var z in diggerZombies) if (z != null && z.gameObject != null) Destroy(z.gameObject);
+
+            var balloonZombies = FindObjectsByType<BalloonZombieAI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            foreach (var z in balloonZombies) if (z != null && z.gameObject != null) Destroy(z.gameObject);
         }
 
         // ────────────────────────────────────────────────────────────────

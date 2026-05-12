@@ -57,12 +57,18 @@ namespace Simulation.Mission
             {
                 _agent.speed = moveSpeed;
                 _agent.stoppingDistance = attackRange * 0.8f;
+                _agent.areaMask = NavMesh.AllAreas;
+                _agent.radius = 0.55f; // เพิ่มขนาดตัวไม่ให้ลอดประตูได้
 
                 // เช็คว่าอยู่บน NavMesh
                 if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 3f, NavMesh.AllAreas))
                 {
                     transform.position = hit.position;
                     _agent.enabled = true;
+                    
+                    if (_rb != null) _rb.isKinematic = true;
+                    var col = GetComponent<CapsuleCollider>();
+                    if (col != null) col.isTrigger = true;
                 }
             }
         }
@@ -70,6 +76,36 @@ namespace Simulation.Mission
         private void Update()
         {
             if (_isDead) return;
+
+            // เช็คพื้นรองรับ เพื่อให้ตกลงมาถ้าพื้นพัง
+            float rayDist = 0.8f;
+            bool hasFloor = UnityEngine.Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, rayDist, UnityEngine.Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+
+            if (!hasFloor && _agent != null && _agent.enabled)
+            {
+                _agent.enabled = false;
+                if (_rb != null)
+                {
+                    _rb.isKinematic = false;
+                    _rb.useGravity = true;
+                }
+                var col = GetComponent<CapsuleCollider>();
+                if (col != null) col.isTrigger = false;
+            }
+            else if (hasFloor && _agent != null && !_agent.enabled && _rb != null && _rb.linearVelocity.sqrMagnitude < 0.1f)
+            {
+                // กลับมาบนพื้นแล้ว เปิด Agent คืน
+                if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 2f, NavMesh.AllAreas))
+                {
+                    transform.position = hit.position;
+                    _agent.enabled = true;
+                    _rb.isKinematic = true;
+                    var col = GetComponent<CapsuleCollider>();
+                    if (col != null) col.isTrigger = true;
+                }
+            }
+
+            if (_agent != null && !_agent.enabled) return; // กำลังร่วงอยู่ ไม่ต้องเดินหรือกัด
 
             // หาเป้าหมายใหม่ทุกๆ 0.5 วินาที (ลดภาระ)
             _findTargetCooldown -= Time.deltaTime;
@@ -141,7 +177,7 @@ namespace Simulation.Mission
                 _personAttackTimer = 0f;
                 if (_targetPerson != null && !_targetPerson.IsDead)
                 {
-                    _targetPerson.TakeDamage(attackDamage);
+                    _targetPerson.TakeDamage(0f, true); // กัดทีเดียวตาย
                     Debug.Log($"<color=red>[Zombie]</color> Attacking person: {_targetPerson.name}");
                 }
             }
@@ -158,22 +194,39 @@ namespace Simulation.Mission
             if (UnityEngine.Physics.SphereCast(ray, 0.5f, out RaycastHit hit, attackRange, LayerMask.GetMask("Structure")))
             {
                 StructureUnit unit = hit.collider.GetComponentInParent<StructureUnit>();
+                
+                // ข้ามการโจมตีถ้าเป็นบันไดหรือพื้น (เพื่อให้เดินขึ้น/เดินผ่านได้)
+                if (unit != null && unit.Data != null)
+                {
+                    bool isStair = unit.Data.structureName.ToLower().Contains("stair") || (unit.Data.prefab != null && unit.Data.prefab.name.ToLower().Contains("stair"));
+                    bool isFloor = unit.Data.structureType == Simulation.Data.StructureType.Floor;
+                    
+                    if (isStair || isFloor)
+                    {
+                        _wallAttackTimer = 0f;
+                        return; // ไม่นับว่าติดกำแพง ปล่อยให้ NavMesh พาขึ้นไป
+                    }
+                }
+
                 if (unit != null)
                 {
+                    // ชนกำแพง/ประตู ให้หยุดเดินแล้วโจมตี
+                    if (_agent != null && _agent.enabled && _agent.isOnNavMesh) _agent.isStopped = true;
+
                     _wallAttackTimer += Time.deltaTime;
                     if (_wallAttackTimer >= attackInterval)
                     {
                         _wallAttackTimer = 0f;
 
-                        // ใช้ ApplyExternalDamage ผ่าน StructuralStress เพื่อให้เกิดการถล่มแบบฟิสิกส์
+                        // ใช้ ApplyMaxHPDamage เพื่อให้ลด Max HP และขีดจำกัดทางกายภาพถาวร
                         var stress = unit.GetComponent<Simulation.Physics.StructuralStress>();
                         if (stress != null)
                         {
-                            stress.ApplyExternalDamage(attackDamage);
+                            stress.ApplyMaxHPDamage(attackDamage);
                         }
                         else
                         {
-                            unit.TakeDamage(attackDamage);
+                            unit.TakeMaxHPDamage(attackDamage);
                         }
 
                         Debug.Log($"<color=red>[Zombie]</color> Biting wall: {unit.name}");

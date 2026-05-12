@@ -131,7 +131,7 @@ namespace Simulation.Character
                         bool foundValidWanderPos = false;
                         for (int attempt = 0; attempt < 8; attempt++) 
                         {
-                            Vector2 randomCircle = Random.insideUnitCircle * 4f; // รัศมีแคบลงเพื่อให้ไม่หลุดออกนอกกำแพงง่ายๆ
+                            Vector2 randomCircle = Random.insideUnitCircle * 1.5f; // รัศมีแคบลงเพื่อให้ไม่หลุดออกนอกกำแพงง่ายๆ
                             Vector3 randomPos = _target.position + new Vector3(randomCircle.x, 0, randomCircle.y);
                             
                             if (UnityEngine.AI.NavMesh.SamplePosition(randomPos, out UnityEngine.AI.NavMeshHit hit, 2f, UnityEngine.AI.NavMesh.AllAreas))
@@ -161,7 +161,7 @@ namespace Simulation.Character
                     
                     // เช็คว่าถึงเป้าหมายหรือยัง (ใช้ Distance จะชัวร์กว่า remainingDistance ในบางกรณี)
                     float distanceToTarget = Vector3.Distance(transform.position, _target.position);
-                    if (!_agent.pathPending && distanceToTarget <= arrivalDistance + 0.3f)
+                    if (!_agent.pathPending && distanceToTarget <= arrivalDistance + 0.1f)
                     {
                         HasReachedTarget = true;
                         _wanderTarget = _target.position; // เริ่มเดินวนจากจุดนี้

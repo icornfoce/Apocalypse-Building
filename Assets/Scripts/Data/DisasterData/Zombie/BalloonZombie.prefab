@@ -157,10 +157,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.Mission.BalloonZombieAI
   flySpeed: 2
+  moveSpeed: 1.5
   descendSpeed: 1
   attackDamage: 10
   attackInterval: 1.5
-  attackRange: 1
+  attackRange: 0.6
   maxHealth: 40
   flyHeight: 8
   floorEatDamage: 20

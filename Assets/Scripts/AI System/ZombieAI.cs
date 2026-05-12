@@ -35,6 +35,8 @@ namespace Simulation.Mission
         private float _personAttackTimer;
         private float _wallAttackTimer;
         private bool _isDead = false;
+        private bool _isAttackingWall = false;
+        private StructureUnit _lastAttackedWall;
 
         // Cache สำหรับ FindTarget (ไม่ต้องค้นทุกเฟรม)
         private float _findTargetCooldown;
@@ -127,15 +129,22 @@ namespace Simulation.Mission
                 }
                 else
                 {
-                    // ยังไม่ถึง — เดินไปหา
+                    // ยังไม่ถึง — เช็คกำแพงขวางทางก่อน (เพื่อลดการจุกจิกของ Agent)
+                    CheckForWalls();
+
+                    // เดินไปหา ถ้าไม่ได้ติดกำแพง
                     if (_agent.enabled && _agent.isOnNavMesh)
                     {
-                        _agent.isStopped = false;
-                        _agent.SetDestination(_targetPerson.transform.position);
+                        if (!_isAttackingWall)
+                        {
+                            _agent.isStopped = false;
+                            _agent.SetDestination(_targetPerson.transform.position);
+                        }
+                        else
+                        {
+                            _agent.isStopped = true;
+                        }
                     }
-
-                    // เช็คกำแพงขวางทาง (ใช้ timer แยก)
-                    CheckForWalls();
                 }
             }
             else
@@ -185,10 +194,17 @@ namespace Simulation.Mission
 
         private void CheckForWalls()
         {
-            // ใช้ Agent velocity เป็นทิศทาง (ถ้ามี) เพื่อให้กัดกำแพงที่ขวางจริงๆ
-            Vector3 direction = (_agent != null && _agent.enabled && _agent.velocity.sqrMagnitude > 0.01f)
-                ? _agent.velocity.normalized
-                : transform.forward;
+            // ทิศทางที่ต้องการไป: ใช้ความเร็วถ้ายังเดินอยู่ หรือทิศทางไปหาเป้าหมายถ้าหยุดแล้ว
+            Vector3 direction = transform.forward;
+            if (_agent != null && _agent.enabled && _agent.velocity.sqrMagnitude > 0.01f)
+            {
+                direction = _agent.velocity.normalized;
+            }
+            else if (_targetPerson != null)
+            {
+                direction = (_targetPerson.transform.position - transform.position).normalized;
+                direction.y = 0;
+            }
 
             Ray ray = new Ray(transform.position + Vector3.up * 0.5f, direction);
             if (UnityEngine.Physics.SphereCast(ray, 0.5f, out RaycastHit hit, attackRange, LayerMask.GetMask("Structure")))
@@ -203,22 +219,26 @@ namespace Simulation.Mission
                     
                     if (isStair || isFloor)
                     {
-                        _wallAttackTimer = 0f;
-                        return; // ไม่นับว่าติดกำแพง ปล่อยให้ NavMesh พาขึ้นไป
+                        ResetWallAttack(false);
+                        return;
                     }
                 }
 
                 if (unit != null)
                 {
-                    // ชนกำแพง/ประตู ให้หยุดเดินแล้วโจมตี
-                    if (_agent != null && _agent.enabled && _agent.isOnNavMesh) _agent.isStopped = true;
+                    _isAttackingWall = true;
+                    _lastAttackedWall = unit;
+
+                    // หันหน้าไปทางกำแพง
+                    Vector3 lookDir = hit.point - transform.position;
+                    lookDir.y = 0;
+                    if (lookDir.sqrMagnitude > 0.001f) transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDir), Time.deltaTime * 5f);
 
                     _wallAttackTimer += Time.deltaTime;
                     if (_wallAttackTimer >= attackInterval)
                     {
                         _wallAttackTimer = 0f;
 
-                        // ใช้ ApplyMaxHPDamage เพื่อให้ลด Max HP และขีดจำกัดทางกายภาพถาวร
                         var stress = unit.GetComponent<Simulation.Physics.StructuralStress>();
                         if (stress != null)
                         {
@@ -231,12 +251,35 @@ namespace Simulation.Mission
 
                         Debug.Log($"<color=red>[Zombie]</color> Biting wall: {unit.name}");
                     }
+                    return;
                 }
+            }
+
+            // ถ้าไม่เจอกำแพงแล้ว แต่ก่อนหน้านี้กำลังกัดอยู่
+            if (_isAttackingWall)
+            {
+                ResetWallAttack(true);
             }
             else
             {
-                // ไม่เจอกำแพง — รีเซ็ต timer
                 _wallAttackTimer = 0f;
+            }
+        }
+
+        private void ResetWallAttack(bool forceRecalculate)
+        {
+            _isAttackingWall = false;
+            _wallAttackTimer = 0f;
+            _lastAttackedWall = null;
+
+            if (_agent != null && _agent.enabled && _agent.isOnNavMesh)
+            {
+                _agent.isStopped = false;
+                if (forceRecalculate && _targetPerson != null)
+                {
+                    _agent.ResetPath();
+                    _agent.SetDestination(_targetPerson.transform.position);
+                }
             }
         }
 

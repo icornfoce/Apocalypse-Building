@@ -160,7 +160,7 @@ MonoBehaviour:
   digSpeed: 0.3
   attackDamage: 10
   attackInterval: 1.5
-  attackRange: 1
+  attackRange: 0.6
   maxHealth: 60
   floorDigDamage: 15
   digInterval: 1

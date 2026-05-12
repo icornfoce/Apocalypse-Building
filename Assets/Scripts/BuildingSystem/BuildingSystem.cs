@@ -660,8 +660,8 @@ namespace Simulation.Building
                     }
                 }
 
-                bool canAfford = _currentBudget >= totalCost;
-                if (!canAfford) allValid = false;
+                // bool canAfford = _currentBudget >= totalCost;
+                // if (!canAfford) allValid = false;
                 
                 ghostBuilder.UpdateGhosts(_dragPositions, ghostBuilder.CurrentRotation, allValid);
 

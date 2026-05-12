@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 7381083682853993954}
   - component: {fileID: 3723966052901262454}
   - component: {fileID: 3137570388254761148}
-  - component: {fileID: 937004795302064801}
+  - component: {fileID: -2903205079644064209}
   m_Layer: 6
   m_Name: floor
   m_TagString: Untagged
@@ -141,7 +141,7 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
---- !u!114 &937004795302064801
+--- !u!114 &-2903205079644064209
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -160,9 +160,11 @@ MonoBehaviour:
   torqueDamageMultiplier: 0.05
   recoveryRate: 10
   recoveryCooldown: 0.5
+  impactDamageThreshold: 50
+  impactDamageMultiplier: 0.05
   maxCompression: 1000
   maxTension: 1000
   supportedLoadMultiplier: 10
   stressRenderer: {fileID: 0}
-  stressVisualIntensity: 0.5
+  stressVisualIntensity: 1
   showDebugLogs: 1

@@ -943,7 +943,19 @@ namespace Simulation.Building
             // to account for scaling if possible.
             _pivotToBottomOffset = GetPivotToBottomOffset(_movingUnit.Data, _movingUnit.gameObject);
             
-            ghostBuilder.CreateGhost(_movingUnit.Data.prefab);
+            // ── Door Frame Ghost (Move) ──
+            if (_movingUnit.Data.structureType == StructureType.Door && _movingUnit.Data.doorReplacementPrefab != null)
+            {
+                List<GameObject> prefabs = new List<GameObject> { _movingUnit.Data.prefab, _movingUnit.Data.doorReplacementPrefab };
+                List<Vector3> offsets = new List<Vector3> { Vector3.zero, Vector3.zero };
+                List<float> rotations = new List<float> { 0f, 0f };
+                ghostBuilder.CreateGroupGhost(prefabs, offsets, rotations);
+            }
+            else
+            {
+                ghostBuilder.CreateGhost(_movingUnit.Data.prefab);
+            }
+            
             ghostBuilder.SetRotation(_movingUnit.Rotation); // Match original rotation
         }
 
@@ -1155,7 +1167,20 @@ namespace Simulation.Building
             if (data != null && data.prefab != null)
             {
                 _pivotToBottomOffset = GetPivotToBottomOffset(data);
-                ghostBuilder.CreateGhost(data.prefab);
+                
+                // ── Door Frame Ghost ──
+                // If this is a door and has a replacement prefab, show both in the preview.
+                if (data.structureType == StructureType.Door && data.doorReplacementPrefab != null)
+                {
+                    List<GameObject> prefabs = new List<GameObject> { data.prefab, data.doorReplacementPrefab };
+                    List<Vector3> offsets = new List<Vector3> { Vector3.zero, Vector3.zero };
+                    List<float> rotations = new List<float> { 0f, 0f };
+                    ghostBuilder.CreateGroupGhost(prefabs, offsets, rotations);
+                }
+                else
+                {
+                    ghostBuilder.CreateGhost(data.prefab);
+                }
             }
         }
 
@@ -1318,6 +1343,16 @@ namespace Simulation.Building
             }
 
             GameObject obj = Instantiate(_selectedData.prefab, position, Quaternion.Euler(0, rotation, 0));
+
+            // ── Door Frame Replacement ──
+            // If this is a door and it has a replacement prefab (like a DoorFrame),
+            // instantiate it and parent it to the door so they are managed together.
+            if (_selectedData.structureType == StructureType.Door && _selectedData.doorReplacementPrefab != null)
+            {
+                GameObject frame = Instantiate(_selectedData.doorReplacementPrefab, position, Quaternion.Euler(0, rotation, 0));
+                frame.transform.SetParent(obj.transform);
+            }
+
             SetLayerRecursively(obj, structureLayer);
             obj.name = $"{_selectedData.prefab.name} {GetGridPositionString(position)}";
 

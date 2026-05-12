@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0837ce6ae0cc02d4386014dddfbffbab, type: 3}
+  m_Name: Mission-LV.1
+  m_EditorClassIdentifier: Assembly-CSharp::Simulation.Mission.MissionData
+  missionName: Lv.1
+  description: 
+  requiredFloors: 0
+  requiredAreaPerFloor: 0
+  requiredPopulation: 2
+  gridColumns: 5
+  gridRows: 5
+  startingBudget: 5500
+  disasters:
+  - disasterData: {fileID: 11400000, guid: 6e071d8c10b3b5a438a6c7310b8b8458, type: 2}
+    startTime: 5
+  simulationDuration: 300

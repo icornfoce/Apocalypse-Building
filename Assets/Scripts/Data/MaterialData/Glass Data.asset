@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 460fbb420c916c14297fefabd89cb6fd, type: 3}
   m_Name: Glass Data
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.Data.MaterialData
-  materialName: Wood
-  priceModifier: 0
+  materialName: Glass
+  priceModifier: -50
   massModifier: 0
   hpModifier: 0
   material: {fileID: 2100000, guid: 6f08aa95da1ec8b4da3b14c9c107028a, type: 2}
@@ -21,5 +21,5 @@ MonoBehaviour:
   breakSound: {fileID: 8300000, guid: 6e946fba95a11a54b8b590689521b6d5, type: 3}
   placeVFX: {fileID: 1076566125589518086, guid: 03719e542f88b1e4c89bfbba2503de75, type: 3}
   breakVFX: {fileID: 5880797563127281583, guid: 265d3a5ba69981a4698ceabcedf368b0, type: 3}
-  compressionModifier: 0
-  tensionModifier: 0
+  compressionModifier: -500
+  tensionModifier: -500

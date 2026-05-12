@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.Data.StructureData
   structureName: Wall
   structureType: 1
-  basePrice: 100
-  baseMass: 50
+  basePrice: 80
+  baseMass: 80
   baseHP: 100
   size: {x: 1, y: 1, z: 1}
   pivotAtCenter: 0

@@ -11,6 +11,7 @@ namespace Simulation.Building
         
         private float _currentHP;
         private float _rotation;
+        private float _additionalRefundValue; // ใช้เก็บมูลค่าของที่ถูกแทนที่ (เช่น กำแพงที่โดนประตูทับ)
 
         // Highlight
         private List<Renderer> _renderers = new List<Renderer>();
@@ -25,6 +26,9 @@ namespace Simulation.Building
         public float CurrentHP => _currentHP;
         public float Rotation => _rotation;
         public bool IsHighlighted => _isHighlighted;
+        public float AdditionalRefundValue => _additionalRefundValue;
+        
+        public void SetAdditionalRefundValue(float value) { _additionalRefundValue = value; }
 
         public void Initialize(StructureData structureData, MaterialData materialData, float rotation = 0f)
         {

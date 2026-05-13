@@ -1310,7 +1310,7 @@ namespace Simulation.Building
                 if (unit == null) continue;
 
                 float materialPrice = unit.CurrentMaterial != null ? unit.CurrentMaterial.priceModifier : 0f;
-                float sellPrice = unit.Data.basePrice + materialPrice;
+                float sellPrice = unit.Data.basePrice + materialPrice + unit.AdditionalRefundValue;
                 _currentBudget += sellPrice;
 
                 // ทำความสะอาด Joint ที่อ้างอิงถึงตัวนี้
@@ -1375,6 +1375,14 @@ namespace Simulation.Building
 
             StructureUnit unit = obj.GetComponent<StructureUnit>() ?? obj.AddComponent<StructureUnit>();
             unit.Initialize(_selectedData, mat, rotation);
+
+            // หากเป็นการวางประตู ให้เก็บมูลค่ากำแพงที่โดนทับไว้เพื่อคืนตอนขาย
+            if (replacedWall != null)
+            {
+                float wallMatPrice = replacedWall.CurrentMaterial != null ? replacedWall.CurrentMaterial.priceModifier : 0f;
+                float wallValue = replacedWall.Data.basePrice + wallMatPrice;
+                unit.SetAdditionalRefundValue(wallValue);
+            }
             
             // Start disabled so the Command can enable it
             obj.SetActive(false);
@@ -1690,12 +1698,30 @@ namespace Simulation.Building
                 // วิธีนี้รองรับชิ้นส่วนทุกขนาด (ช่วยแก้ปัญหา Connected body ไม่ยอมต่อกับของที่กว้างกว่า 1 ช่อง)
                 foreach (var myCol in myColliders)
                 {
-                    Bounds expandedBounds = myCol.bounds;
-                    expandedBounds.Expand(0.2f); // ขยายขอบเขตออกเล็กน้อยเพื่อหาของที่อยู่ติดกัน
-
+                    Bounds myB = myCol.bounds;
                     foreach (var otherCol in otherColliders)
                     {
-                        if (expandedBounds.Intersects(otherCol.bounds))
+                        Bounds otherB = otherCol.bounds;
+                        
+                        // 1. เช็คเบื้องต้นว่า Bounds แตะกันหรือไม่ (รวมระยะ Expand)
+                        Bounds expanded = myB;
+                        expanded.Expand(0.2f);
+                        if (!expanded.Intersects(otherB)) continue;
+
+                        // 2. กรอง "แนวทแยง" ออก:
+                        // เพื่อนบ้านที่ติดกันจริงๆ (Face-to-face) ต้องมีแกนที่ "ซ้อนทับ" กันอย่างน้อย 2 แกน
+                        // เช่น ถ้าวางข้างกัน แกน Y และ Z ต้องซ้อนกัน
+                        int overlapCount = 0;
+                        float eps = 0.1f; // ค่าเผื่อความคลาดเคลื่อน
+                        
+                        Vector3 diff = myB.center - otherB.center;
+                        Vector3 sumSize = (myB.size + otherB.size) * 0.5f;
+
+                        if (Mathf.Abs(diff.x) < sumSize.x - eps) overlapCount++;
+                        if (Mathf.Abs(diff.y) < sumSize.y - eps) overlapCount++;
+                        if (Mathf.Abs(diff.z) < sumSize.z - eps) overlapCount++;
+
+                        if (overlapCount >= 2)
                         {
                             isAdjacent = true;
                             break;
@@ -1763,7 +1789,7 @@ namespace Simulation.Building
         private void TrySellStructure(StructureUnit unit)
         {
             float materialPrice = unit.CurrentMaterial != null ? unit.CurrentMaterial.priceModifier : 0f;
-            float sellPrice = unit.Data.basePrice + materialPrice;
+            float sellPrice = unit.Data.basePrice + materialPrice + unit.AdditionalRefundValue;
 
             Collider targetCol = null;
             var joint = unit.GetComponent<Joint>();

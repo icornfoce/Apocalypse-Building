@@ -32,9 +32,9 @@ namespace Simulation.UI
         [Tooltip("ลากไฟล์ MaterialData มาใส่ที่นี่ (ใช้กับ SelectMaterial)")]
         public MaterialData materialToSelect;
 
-        [Header("Panel Switching")]
-        [SerializeField] private GameObject structurePanel;
-        [SerializeField] private GameObject gadgetPanel;
+        [Header("Screen Names")]
+        [SerializeField] private string structureScreenName = "StructurePanel";
+        [SerializeField] private string gadgetScreenName = "GadgetPanel";
 
         private void PlayClickSound()
         {
@@ -248,20 +248,13 @@ namespace Simulation.UI
         public void SwitchToStructurePanel()
         {
             PlayClickSound();
-            
-            if (gadgetPanel != null) gadgetPanel.SetActive(false);
-            if (structurePanel != null) structurePanel.SetActive(true);
+            if (ScreenManager.Instance != null) ScreenManager.Instance.OpenScreen(structureScreenName);
         }
 
-        /// <summary>
-        /// สลับไปแสดง Panel อุปกรณ์ (Gadget) และปิด Panel สิ่งก่อสร้าง (Structure)
-        /// </summary>
         public void SwitchToGadgetPanel()
         {
             PlayClickSound();
-
-            if (structurePanel != null) structurePanel.SetActive(false);
-            if (gadgetPanel != null) gadgetPanel.SetActive(true);
+            if (ScreenManager.Instance != null) ScreenManager.Instance.OpenScreen(gadgetScreenName);
         }
 
         // --------------------------------------------------------------------------------

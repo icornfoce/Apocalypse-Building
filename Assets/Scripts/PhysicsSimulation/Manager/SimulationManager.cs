@@ -208,7 +208,9 @@ namespace Simulation.Physics
             if (_proceduralGrid == null)
             {
                 _proceduralGrid = new GameObject("ProceduralGrid_Runtime");
-                _proceduralGrid.transform.SetParent(this.transform);
+                _proceduralGrid.transform.SetParent(null); // อยู่ที่ World Space เสมอเพื่อความแม่นยำ
+                _proceduralGrid.transform.position = Vector3.zero;
+                _proceduralGrid.transform.rotation = Quaternion.identity;
                 _gridMeshFilter = _proceduralGrid.AddComponent<MeshFilter>();
                 _gridMeshRenderer = _proceduralGrid.AddComponent<MeshRenderer>();
 
@@ -243,8 +245,8 @@ namespace Simulation.Physics
             {
                 float xPos = startX + x * gridSize;
                 int baseIdx = vertices.Count;
-                vertices.Add(new Vector3(xPos, 0.02f, startZ));
-                vertices.Add(new Vector3(xPos, 0.02f, startZ + totalDepth));
+                vertices.Add(new Vector3(xPos, 0.05f, startZ));
+                vertices.Add(new Vector3(xPos, 0.05f, startZ + totalDepth));
                 indices.Add(baseIdx);
                 indices.Add(baseIdx + 1);
             }
@@ -254,8 +256,8 @@ namespace Simulation.Physics
             {
                 float zPos = startZ + z * gridSize;
                 int baseIdx = vertices.Count;
-                vertices.Add(new Vector3(startX, 0.02f, zPos));
-                vertices.Add(new Vector3(startX + totalWidth, 0.02f, zPos));
+                vertices.Add(new Vector3(startX, 0.05f, zPos));
+                vertices.Add(new Vector3(startX + totalWidth, 0.05f, zPos));
                 indices.Add(baseIdx);
                 indices.Add(baseIdx + 1);
             }

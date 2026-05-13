@@ -15,8 +15,12 @@ namespace Simulation.UI
         [Header("Budget UI")]
         [SerializeField] private TextMeshProUGUI budgetText;
 
-        [Header("Mission Info UI")]
+        [Header("Panels")]
         [SerializeField] private GameObject missionPanel;
+        [SerializeField] private GameObject resultsPanel;
+        [SerializeField] private GameObject gameplayHUD;
+
+        [Header("Mission Info UI (Inside MissionInfo Screen)")]
         [SerializeField] private TextMeshProUGUI missionNameText;
         [SerializeField] private TextMeshProUGUI missionDescText;
         [SerializeField] private TextMeshProUGUI timerText;
@@ -30,11 +34,15 @@ namespace Simulation.UI
         [SerializeField] private Button startSimButton;
         [SerializeField] private TextMeshProUGUI startButtonText;
 
-        [Header("Results UI")]
-        [SerializeField] private GameObject resultsPanel;
+        [Header("Results UI (Inside MissionResults Screen)")]
         [SerializeField] private Button restartButton;
         [SerializeField] private TextMeshProUGUI resultTitleText;
-        [SerializeField] private GameObject[] starIcons; // ลากรูปดาว 3 ดวงมาใส่
+        [SerializeField] private GameObject[] starIcons;
+
+        [Header("Progression UI")]
+        [SerializeField] private Button nextLevelButton;
+        [SerializeField] private Button levelSelectButton;
+        [SerializeField] private string levelSelectScreenName = "LevelSelect";
 
         [Header("Error Messages")]
         [SerializeField] private TextMeshProUGUI errorText;
@@ -67,7 +75,16 @@ namespace Simulation.UI
                 restartButton.onClick.AddListener(OnRestartClick);
             }
 
-            if (resultsPanel != null) resultsPanel.SetActive(false);
+            if (nextLevelButton != null)
+            {
+                nextLevelButton.onClick.AddListener(OnNextLevelClick);
+            }
+
+            if (levelSelectButton != null)
+            {
+                levelSelectButton.onClick.AddListener(OnBackToLevelSelectClick);
+            }
+
             if (errorText != null) errorText.gameObject.SetActive(false);
             
             // เก็บสีเริ่มต้น
@@ -94,8 +111,6 @@ namespace Simulation.UI
                 {
                     timerText.text = $"Time: {MissionManager.Instance.SimulationTimeRemaining:F1}s";
                 }
-                
-                if (missionPanel != null && !missionPanel.activeSelf) missionPanel.SetActive(true);
             }
 
             // อัปเดตสถานะเงื่อนไข (แบบ Realtime ก่อนเริ่ม)
@@ -105,13 +120,21 @@ namespace Simulation.UI
             }
         }
 
-        private void UpdateMissionInfo()
+        private void OnEnable()
+        {
+            UpdateMissionInfo();
+        }
+
+        public void UpdateMissionInfo()
         {
             if (MissionManager.Instance == null || MissionManager.Instance.CurrentMission == null) return;
 
             var mission = MissionManager.Instance.CurrentMission;
             if (missionNameText != null) missionNameText.text = mission.missionName;
             if (missionDescText != null) missionDescText.text = mission.description;
+            
+            // รีเซ็ตสถานะข้อความเงื่อนไขให้เป็นปัจจุบันทันที
+            UpdateRequirementStatus();
         }
 
         private void UpdateRequirementStatus()
@@ -196,7 +219,11 @@ namespace Simulation.UI
         private void HandleMissionStarted()
         {
             if (startButtonText != null) startButtonText.text = "STOP";
+            
+            if (missionPanel != null) missionPanel.SetActive(false);
+            if (gameplayHUD != null) gameplayHUD.SetActive(true);
             if (resultsPanel != null) resultsPanel.SetActive(false);
+
             if (errorText != null) errorText.gameObject.SetActive(false);
         }
 
@@ -204,15 +231,18 @@ namespace Simulation.UI
         {
             if (startButtonText != null) startButtonText.text = "RESTART";
             
-            if (resultsPanel != null)
+            if (resultsPanel != null) resultsPanel.SetActive(true);
+            if (gameplayHUD != null) gameplayHUD.SetActive(false);
+            if (missionPanel != null) missionPanel.SetActive(false);
+
+            if (resultTitleText != null) resultTitleText.text = "MISSION COMPLETE!";
+            
+            // แสดงดาวตามจำนวนที่ได้
+            if (starIcons != null)
             {
-                resultsPanel.SetActive(true);
-                if (resultTitleText != null) resultTitleText.text = "MISSION COMPLETE!";
-                
-                // แสดงดาวตามจำนวนที่ได้
                 for (int i = 0; i < starIcons.Length; i++)
                 {
-                    starIcons[i].SetActive(i < stars);
+                    if (starIcons[i] != null) starIcons[i].SetActive(i < stars);
                 }
             }
         }
@@ -240,7 +270,56 @@ namespace Simulation.UI
         public void OnRestartClick()
         {
             if (resultsPanel != null) resultsPanel.SetActive(false);
+            if (gameplayHUD != null) gameplayHUD.SetActive(true);
+            
             if (startButtonText != null) startButtonText.text = "START";
+        }
+
+        /// <summary>
+        /// ไปยังด่านถัดไป (ถ้ามี)
+        /// </summary>
+        public void OnNextLevelClick()
+        {
+            if (MissionManager.Instance == null || MissionManager.Instance.CurrentMission == null) return;
+
+            var nextMission = MissionManager.Instance.CurrentMission.nextMission;
+            if (nextMission != null)
+            {
+                MissionManager.Instance.SetMission(nextMission);
+                
+                // ปิดหน้าสรุปผล และเปิดหน้าข้อมูลด่านใหม่
+                if (resultsPanel != null) resultsPanel.SetActive(false);
+                if (missionPanel != null) missionPanel.SetActive(true);
+                
+                UpdateMissionInfo();
+                Debug.Log($"[MissionUI] Transition to next level: {nextMission.missionName}");
+            }
+            else
+            {
+                Debug.LogWarning("[MissionUI] No next mission assigned in MissionData.");
+                OnBackToLevelSelectClick(); // ถ้าไม่มีด่านถัดไป ให้กลับไปหน้าเลือกด่าน
+            }
+        }
+
+        /// <summary>
+        /// กลับไปยังหน้าเลือกด่าน (ScreenManager)
+        /// </summary>
+        public void OnBackToLevelSelectClick()
+        {
+            // ปิด UI ทุกอย่างของ Mission นี้
+            if (missionPanel != null) missionPanel.SetActive(false);
+            if (resultsPanel != null) resultsPanel.SetActive(false);
+            if (gameplayHUD != null) gameplayHUD.SetActive(false);
+
+            // เปิดหน้าจอเลือกด่านผ่าน ScreenManager
+            if (ScreenManager.Instance != null)
+            {
+                ScreenManager.Instance.OpenScreen(levelSelectScreenName);
+            }
+            else
+            {
+                Debug.LogError("[MissionUI] ScreenManager Instance not found for LevelSelect!");
+            }
         }
     }
 }

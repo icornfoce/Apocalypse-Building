@@ -63,5 +63,9 @@ namespace Simulation.Mission
         [Header("Simulation")]
         [Tooltip("ระยะเวลาจำลองทั้งหมด (วินาที) — เมื่อหมดเวลาจะประเมินผลอัตโนมัติ")]
         public float simulationDuration = 30f;
+
+        [Header("Progression")]
+        [Tooltip("ด่านถัดไป (ถ้ามี)")]
+        public MissionData nextMission;
     }
 }

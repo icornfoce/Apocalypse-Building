@@ -119,6 +119,137 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!114 &188768375 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 3240549832978188083, guid: e4ee5a16c27d92c42a9b0e41489a2b83, type: 3}
+  m_PrefabInstance: {fileID: 1512400827}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
+--- !u!1 &283615559 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 216571477696704442, guid: e4ee5a16c27d92c42a9b0e41489a2b83, type: 3}
+  m_PrefabInstance: {fileID: 1512400827}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &283615561 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 2270021181093139701, guid: e4ee5a16c27d92c42a9b0e41489a2b83, type: 3}
+  m_PrefabInstance: {fileID: 1512400827}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 283615559}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1344c3c82d62a2a41a3576d8abb8e3ea, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.RawImage
+--- !u!114 &283615563
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 283615559}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
+  m_Navigation:
+    m_Mode: 3
+    m_WrapAround: 0
+    m_SelectOnUp: {fileID: 0}
+    m_SelectOnDown: {fileID: 0}
+    m_SelectOnLeft: {fileID: 0}
+    m_SelectOnRight: {fileID: 0}
+  m_Transition: 1
+  m_Colors:
+    m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
+    m_HighlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_PressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
+    m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_DisabledColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 0.5019608}
+    m_ColorMultiplier: 1
+    m_FadeDuration: 0.1
+  m_SpriteState:
+    m_HighlightedSprite: {fileID: 0}
+    m_PressedSprite: {fileID: 0}
+    m_SelectedSprite: {fileID: 0}
+    m_DisabledSprite: {fileID: 0}
+  m_AnimationTriggers:
+    m_NormalTrigger: Normal
+    m_HighlightedTrigger: Highlighted
+    m_PressedTrigger: Pressed
+    m_SelectedTrigger: Selected
+    m_DisabledTrigger: Disabled
+  m_Interactable: 1
+  m_TargetGraphic: {fileID: 283615561}
+  m_OnClick:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!1 &293386432 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 8484505567584776677, guid: e4ee5a16c27d92c42a9b0e41489a2b83, type: 3}
+  m_PrefabInstance: {fileID: 1512400827}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &293386434 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 3314508993030267325, guid: e4ee5a16c27d92c42a9b0e41489a2b83, type: 3}
+  m_PrefabInstance: {fileID: 1512400827}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 293386432}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1344c3c82d62a2a41a3576d8abb8e3ea, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.RawImage
+--- !u!114 &293386436
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 293386432}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
+  m_Navigation:
+    m_Mode: 3
+    m_WrapAround: 0
+    m_SelectOnUp: {fileID: 0}
+    m_SelectOnDown: {fileID: 0}
+    m_SelectOnLeft: {fileID: 0}
+    m_SelectOnRight: {fileID: 0}
+  m_Transition: 1
+  m_Colors:
+    m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
+    m_HighlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_PressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
+    m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_DisabledColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 0.5019608}
+    m_ColorMultiplier: 1
+    m_FadeDuration: 0.1
+  m_SpriteState:
+    m_HighlightedSprite: {fileID: 0}
+    m_PressedSprite: {fileID: 0}
+    m_SelectedSprite: {fileID: 0}
+    m_DisabledSprite: {fileID: 0}
+  m_AnimationTriggers:
+    m_NormalTrigger: Normal
+    m_HighlightedTrigger: Highlighted
+    m_PressedTrigger: Pressed
+    m_SelectedTrigger: Selected
+    m_DisabledTrigger: Disabled
+  m_Interactable: 1
+  m_TargetGraphic: {fileID: 293386434}
+  m_OnClick:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1 &455420283
 GameObject:
   m_ObjectHideFlags: 0
@@ -319,6 +450,7 @@ Transform:
   m_Children:
   - {fileID: 1467596879}
   - {fileID: 1625897337}
+  - {fileID: 1858835443}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &948665665
@@ -758,6 +890,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6917445592140882621, guid: e4ee5a16c27d92c42a9b0e41489a2b83, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7627447903331135848, guid: e4ee5a16c27d92c42a9b0e41489a2b83, type: 3}
       propertyPath: m_AnchorMax.y
       value: 0
@@ -786,10 +922,28 @@ PrefabInstance:
       propertyPath: m_Name
       value: Gameplay
       objectReference: {fileID: 0}
+    - target: {fileID: 8955291341089065858, guid: e4ee5a16c27d92c42a9b0e41489a2b83, type: 3}
+      propertyPath: missionNameText
+      value: 
+      objectReference: {fileID: 188768375}
+    - target: {fileID: 8955291341089065858, guid: e4ee5a16c27d92c42a9b0e41489a2b83, type: 3}
+      propertyPath: nextLevelButton
+      value: 
+      objectReference: {fileID: 293386436}
+    - target: {fileID: 8955291341089065858, guid: e4ee5a16c27d92c42a9b0e41489a2b83, type: 3}
+      propertyPath: levelSelectButton
+      value: 
+      objectReference: {fileID: 283615563}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 8484505567584776677, guid: e4ee5a16c27d92c42a9b0e41489a2b83, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 293386436}
+    - targetCorrespondingSourceObject: {fileID: 216571477696704442, guid: e4ee5a16c27d92c42a9b0e41489a2b83, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 283615563}
   m_SourcePrefab: {fileID: 100100000, guid: e4ee5a16c27d92c42a9b0e41489a2b83, type: 3}
 --- !u!1 &1625897336
 GameObject:
@@ -973,6 +1127,7 @@ GameObject:
   - component: {fileID: 1858835443}
   - component: {fileID: 1858835444}
   - component: {fileID: 1858835445}
+  - component: {fileID: 1858835446}
   m_Layer: 0
   m_Name: Manager
   m_TagString: Untagged
@@ -989,11 +1144,11 @@ Transform:
   m_GameObject: {fileID: 1858835442}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 1, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1.5, y: 1, z: 1.5}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 0}
+  m_Father: {fileID: 948665664}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1858835444
 MonoBehaviour:
@@ -1026,6 +1181,20 @@ MonoBehaviour:
   isMissionActive: 0
   lastStarRating: 0
   simulationTimer: 0
+--- !u!114 &1858835446
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1858835442}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 12e2132ea72d80d4393eee8842aef9da, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Simulation.UI.ScreenManager
+  screens: []
+  startScreen: 
 --- !u!1 &1898330697
 GameObject:
   m_ObjectHideFlags: 0
@@ -1374,7 +1543,6 @@ SceneRoots:
   m_Roots:
   - {fileID: 2136153321}
   - {fileID: 948665664}
-  - {fileID: 1858835443}
   - {fileID: 1898330701}
   - {fileID: 1695399799}
   - {fileID: 594831028}

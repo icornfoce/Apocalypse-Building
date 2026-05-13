@@ -37,7 +37,7 @@ MonoBehaviour:
   zombiePrefab: {fileID: 2533105815544628967, guid: 1b42401e477759e4e9611de4c957a985, type: 3}
   diggerZombiePrefab: {fileID: 6731510451850877391, guid: 385d6dad5b426da41b95f32d3d5727a4, type: 3}
   balloonZombiePrefab: {fileID: 1374880148582166778, guid: a137138e84700ea40993116d258991e5, type: 3}
-  zombieSpawnCount: 5
-  diggerZombieCount: 0
+  zombieSpawnCount: 0
+  diggerZombieCount: 2
   balloonZombieCount: 0
   zombieWaveCount: 1

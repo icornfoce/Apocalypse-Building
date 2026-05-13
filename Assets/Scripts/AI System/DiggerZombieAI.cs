@@ -21,10 +21,11 @@ namespace Simulation.Mission
         
         [Header("Visual")]
         [Tooltip("Y offset ตอนขุดอยู่ใต้ดิน (ค่าลบ = จมลงไป)")]
-        public float undergroundYOffset = -1.5f; // เพิ่มความลึกให้พ้น Collider พื้น
+        public float undergroundYOffset = -2.5f; // เพิ่มความลึกให้พ้น Collider พื้นแน่นอน
 
         private DiggerState _currentState = DiggerState.Surface;
-        private StructureUnit _currentFloorTarget;
+        private Vector3 _digStartPos;
+        private float _minDigDistance = 2.0f; // ระยะทางขั้นต่ำที่ต้องขุดเพื่อให้พ้นกำแพง
         private float _digTimer;
 
         protected override void Update()
@@ -143,15 +144,20 @@ namespace Simulation.Mission
             Debug.Log($"<color=orange>[DiggerZombie]</color> Starting to dig under {obstacle.name}");
             
             _currentState = DiggerState.Underground;
+            _digStartPos = transform.position;
             if (_agent != null) _agent.enabled = false;
             
             // ขยับตัวลงไปใต้ดิน
             transform.position += new Vector3(0, undergroundYOffset, 0);
             
             // ดันตัวไปข้างหน้าเล็กน้อยเพื่อให้พ้นจุดเริ่มกำแพง
-            transform.position += transform.forward * 0.5f;
+            transform.position += transform.forward * 0.8f;
 
-            if (_rb != null) _rb.isKinematic = true;
+            if (_rb != null) 
+            {
+                _rb.isKinematic = true;
+                _rb.useGravity = false;
+            }
             var col = GetComponent<CapsuleCollider>();
             if (col != null) col.isTrigger = true;
         }
@@ -166,12 +172,13 @@ namespace Simulation.Mission
             Vector3 moveDir = (moveTarget - transform.position).normalized;
 
             // 1. เช็คว่าพ้นสิ่งกีดขวางหรือยัง (ยิง Ray ขึ้นไปหา Layer Structure)
-            // ยิงขึ้นไปสูงหน่อยเพื่อให้พ้น Collider พื้นของตัวมันเอง
-            bool isBlockedAbove = UnityEngine.Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.up, out RaycastHit hitUp, 2.5f, LayerMask.GetMask("Structure"));
+            // ยิงขึ้นไปสูงหน่อยเพื่อให้พ้น Collider พื้น
+            bool isBlockedAbove = UnityEngine.Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.up, out RaycastHit hitUp, 3.5f, LayerMask.GetMask("Structure"));
+            float distFromStart = Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), new Vector3(_digStartPos.x, 0, _digStartPos.z));
 
-            if (!isBlockedAbove)
+            if (!isBlockedAbove && distFromStart > _minDigDistance)
             {
-                // ไม่เจออะไรขวางข้างบนแล้ว — โผล่ขึ้นมา!
+                // ไม่เจออะไรขวางข้างบนแล้ว และขุดมาไกลพอจะพ้นกำแพงแล้ว — โผล่ขึ้นมา!
                 Surface();
                 return;
             }

@@ -16,7 +16,11 @@ namespace Simulation.Physics
         public static SimulationManager Instance { get; private set; }
 
         [Header("Settings")]
-        [SerializeField] private GameObject gridObject;
+        [SerializeField] private Material gridMaterial;
+
+        private GameObject _proceduralGrid;
+        private MeshFilter _gridMeshFilter;
+        private MeshRenderer _gridMeshRenderer;
 
         [Header("State")]
         [SerializeField] private bool isSimulating = false;
@@ -60,14 +64,6 @@ namespace Simulation.Physics
         {
             // แช่แข็งฟิสิกส์เริ่มต้น (ไม่ให้ชิ้นส่วนที่อยู่ในฉากแต่แรกร่วงลงมา)
             FreezeAllStructures();
-
-            // พยายามหา Grid อัตโนมัติถ้าไม่ได้ใส่มา
-            if (gridObject == null)
-            {
-                gridObject = GameObject.Find("Grid");
-                if (gridObject == null) gridObject = GameObject.Find("GridObject");
-                // ค้นหาจาก Tag ก็ได้ถ้าต้องการ
-            }
         }
 
         // ────────────────────────────────────────────────────────────────
@@ -89,10 +85,7 @@ namespace Simulation.Physics
             }
 
             // 1.1 ซ่อน Grid เมื่อเริ่มเล่น
-            if (gridObject != null)
-            {
-                gridObject.SetActive(false);
-            }
+            SetGridVisibility(false);
 
             // 2. บันทึก Snapshot ก่อนเริ่ม Simulate
             SaveSnapshots();
@@ -191,10 +184,87 @@ namespace Simulation.Physics
         /// </summary>
         public void SetGridVisibility(bool visible)
         {
-            if (gridObject != null)
+            if (_proceduralGrid != null)
             {
-                gridObject.SetActive(visible);
+                _proceduralGrid.SetActive(visible);
             }
+        }
+
+        public void SetGridHeight(float y)
+        {
+            if (_proceduralGrid != null)
+            {
+                Vector3 pos = _proceduralGrid.transform.position;
+                _proceduralGrid.transform.position = new Vector3(pos.x, y, pos.z);
+            }
+        }
+
+        /// <summary>
+        /// อัปเดตขนาดของ Grid Visual ให้ตรงกับจำนวนช่องใน Logic
+        /// โดยการสร้าง Mesh ของเส้น Grid ขึ้นมาใหม่ (Procedural)
+        /// </summary>
+        public void UpdateGridVisual(int cols, int rows, float gridSize)
+        {
+            if (_proceduralGrid == null)
+            {
+                _proceduralGrid = new GameObject("ProceduralGrid_Runtime");
+                _proceduralGrid.transform.SetParent(this.transform);
+                _gridMeshFilter = _proceduralGrid.AddComponent<MeshFilter>();
+                _gridMeshRenderer = _proceduralGrid.AddComponent<MeshRenderer>();
+
+                if (gridMaterial != null)
+                {
+                    _gridMeshRenderer.sharedMaterial = gridMaterial;
+                }
+                else
+                {
+                    // Fallback material if not assigned
+                    Shader shader = Shader.Find("Unlit/Color");
+                    Material mat = new Material(shader != null ? shader : Shader.Find("Hidden/Internal-Colored"));
+                    mat.color = new Color(0.3f, 0.6f, 1f, 0.5f);
+                    _gridMeshRenderer.sharedMaterial = mat;
+                }
+            }
+
+            // Create Grid Line Mesh
+            Mesh mesh = new Mesh();
+            mesh.name = "GridLineMesh";
+
+            List<Vector3> vertices = new List<Vector3>();
+            List<int> indices = new List<int>();
+
+            float totalWidth = cols * gridSize;
+            float totalDepth = rows * gridSize;
+            float startX = -totalWidth * 0.5f;
+            float startZ = -totalDepth * 0.5f;
+
+            // Vertical lines (along Z)
+            for (int x = 0; x <= cols; x++)
+            {
+                float xPos = startX + x * gridSize;
+                int baseIdx = vertices.Count;
+                vertices.Add(new Vector3(xPos, 0.02f, startZ));
+                vertices.Add(new Vector3(xPos, 0.02f, startZ + totalDepth));
+                indices.Add(baseIdx);
+                indices.Add(baseIdx + 1);
+            }
+
+            // Horizontal lines (along X)
+            for (int z = 0; z <= rows; z++)
+            {
+                float zPos = startZ + z * gridSize;
+                int baseIdx = vertices.Count;
+                vertices.Add(new Vector3(startX, 0.02f, zPos));
+                vertices.Add(new Vector3(startX + totalWidth, 0.02f, zPos));
+                indices.Add(baseIdx);
+                indices.Add(baseIdx + 1);
+            }
+
+            mesh.SetVertices(vertices);
+            mesh.SetIndices(indices, MeshTopology.Lines, 0);
+            
+            if (_gridMeshFilter.mesh != null) Destroy(_gridMeshFilter.mesh);
+            _gridMeshFilter.mesh = mesh;
         }
 
         // ────────────────────────────────────────────────────────────────

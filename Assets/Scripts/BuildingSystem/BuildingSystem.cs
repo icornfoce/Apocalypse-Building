@@ -140,7 +140,12 @@ namespace Simulation.Building
         {
             if (cols > 0) gridColumns = cols;
             if (rows > 0) gridRows = rows;
-            // Optionally trigger a grid visual update if you have one
+            
+            // Sync visual grid
+            if (Simulation.Physics.SimulationManager.Instance != null)
+            {
+                Simulation.Physics.SimulationManager.Instance.UpdateGridVisual(gridColumns, gridRows, gridSize);
+            }
         }
 
         private void Awake()
@@ -164,10 +169,18 @@ namespace Simulation.Building
             // หา CameraController จากกล้องหลัก
             if (mainCamera != null)
                 _cameraController = mainCamera.GetComponent<Simulation.Camera.CameraController>();
+
+            // Initialize Grid Visual
+            if (Simulation.Physics.SimulationManager.Instance != null)
+            {
+                Simulation.Physics.SimulationManager.Instance.UpdateGridVisual(gridColumns, gridRows, gridSize);
+            }
         }
 
         private void Update()
         {
+            HandleFloorSwitch();
+
             // ปิดระบบสร้างทั้งหมดถ้ากำลังเริ่มการจำลองฟิสิกส์ (ป้องกันการวางของขณะร่วง)
             if (SimulationManager.Instance != null && SimulationManager.Instance.IsSimulating)
             {
@@ -177,7 +190,6 @@ namespace Simulation.Building
 
             UpdateRaycast();
             HandleHoverHighlight();
-            HandleFloorSwitch();
 
             switch (_currentMode)
             {
@@ -382,9 +394,14 @@ namespace Simulation.Building
 
         private void NotifyCameraFloorChanged()
         {
+            float floorY = GetFloorY(_currentFloor);
             if (_cameraController != null)
             {
-                _cameraController.SetFloorView(_currentFloor, GetFloorY(_currentFloor));
+                _cameraController.SetFloorView(_currentFloor, floorY);
+            }
+            if (SimulationManager.Instance != null)
+            {
+                SimulationManager.Instance.SetGridHeight(floorY);
             }
         }
 
@@ -1936,9 +1953,12 @@ namespace Simulation.Building
                 // The wall revolves around the cell center in 4 directions
                 float currentRot = ghostBuilder != null ? ghostBuilder.CurrentRotation : 0f;
                 
-                float leftEdge = Mathf.Floor(rawX / gridSize) * gridSize;
+                float offsetX = (gridColumns % 2 != 0) ? gridSize * 0.5f : 0f;
+                float offsetZ = (gridRows % 2 != 0) ? gridSize * 0.5f : 0f;
+                
+                float leftEdge = Mathf.Floor((rawX - offsetX) / gridSize) * gridSize + offsetX;
                 float rightEdge = leftEdge + gridSize;
-                float bottomEdge = Mathf.Floor(rawZ / gridSize) * gridSize;
+                float bottomEdge = Mathf.Floor((rawZ - offsetZ) / gridSize) * gridSize + offsetZ;
                 float topEdge = bottomEdge + gridSize;
 
                 float centerX = leftEdge + gridSize * 0.5f;
@@ -2022,8 +2042,11 @@ namespace Simulation.Building
                     sizeZ = tmp;
                 }
 
-                float centerX = SnapToCellCenter(rawX, sizeX);
-                float centerZ = SnapToCellCenter(rawZ, sizeZ);
+                float offsetX = (gridColumns % 2 != 0) ? gridSize * 0.5f : 0f;
+                float offsetZ = (gridRows % 2 != 0) ? gridSize * 0.5f : 0f;
+
+                float centerX = SnapToCellCenter(rawX, sizeX, offsetX);
+                float centerZ = SnapToCellCenter(rawZ, sizeZ, offsetZ);
 
                 x = centerX;
                 z = centerZ;
@@ -2081,7 +2104,7 @@ namespace Simulation.Building
         /// For size=1: center of a single cell (offset by half grid).
         /// For size=2: center spans two cells, etc.
         /// </summary>
-        private float SnapToCellCenter(float raw, float cellCount)
+        private float SnapToCellCenter(float raw, float cellCount, float gridOffset = 0f)
         {
             if (!useGridSnap) return raw;
 
@@ -2089,9 +2112,9 @@ namespace Simulation.Building
             float span = cellCount * gridSize;
 
             // Snap the LEFT edge to the nearest grid line, then offset to center
-            float leftEdge = raw - span * 0.5f;
+            float leftEdge = (raw - gridOffset) - span * 0.5f;
             float snappedLeft = Mathf.Round(leftEdge / gridSize) * gridSize;
-            return snappedLeft + span * 0.5f;
+            return snappedLeft + span * 0.5f + gridOffset;
         }
 
         /// <summary>

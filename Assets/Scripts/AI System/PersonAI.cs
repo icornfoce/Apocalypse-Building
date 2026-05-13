@@ -28,25 +28,29 @@ namespace Simulation.Character
         [Tooltip("ถ้านับเป็นคนในภารกิจ จะถูกนำไปคำนวณจำนวนคนรอดและดาว")]
         public bool countsTowardsPopulation = true;
 
+        [Header("Flee Behavior")]
+        [Tooltip("ระยะที่ NPC มองเห็นซอมบี้แล้วจะเริ่มวิ่งหนี")]
+        public float detectionRange = 7f;
+        [Tooltip("ความเร็วตอนวิ่งหนี")]
+        public float fleeSpeed = 4f;
+        [Tooltip("VFX ที่จะขึ้นบนหัวตอนตกใจหนี")]
+        public GameObject panicVFXPrefab;
+
         private float _currentHealth;
         private Transform _target;
         private Rigidbody _rb;
         private NavMeshAgent _agent;
         private bool _isDead = false;
-        private float _wanderTimer;
-        private Vector3 _wanderTarget;
+        private GameObject _activePanicVFX;
+        private float _panicTimer;
+        private Vector3 _fleeDirection;
 
         public bool IsDead => _isDead;
         public bool HasReachedTarget { get; private set; } = false;
+        public bool IsFleeing => _panicTimer > 0;
 
         private void Awake()
         {
-            // ถ้าชื่อมีคำว่า Alpha ให้ถือเป็น NPC พิเศษ
-            if (gameObject.name.Contains("Alpha"))
-            {
-                // สามารถใส่ Logic พิเศษสำหรับ Alpha ตรงนี้ได้
-            }
-
             _rb = GetComponent<Rigidbody>();
             _currentHealth = maxHealth;
             
@@ -54,9 +58,15 @@ namespace Simulation.Character
             _rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
         }
 
+        private void Start()
+        {
+            // ถ้ายังไม่ได้ Initialize ให้ทำทันที
+            if (_agent == null) InitializeAgent();
+        }
+
         public void InitializeAgent()
         {
-            // เช็คว่าอยู่บน NavMesh หรือไม่ก่อน (ถ้าอยู่ให้ขยับให้ตรง)
+            // เช็คว่าอยู่บน NavMesh หรือไม่ก่อน
             bool isOnNavMesh = UnityEngine.AI.NavMesh.SamplePosition(transform.position, out UnityEngine.AI.NavMeshHit hit, 2.0f, UnityEngine.AI.NavMesh.AllAreas);
             if (isOnNavMesh)
             {
@@ -64,11 +74,7 @@ namespace Simulation.Character
             }
 
             _agent = GetComponent<NavMeshAgent>();
-            if (_agent == null && isOnNavMesh)
-            {
-                // เพิ่มเฉพาะตอนที่ชัวร์ว่ามี NavMesh รองรับแล้ว ป้องกัน Error
-                _agent = gameObject.AddComponent<NavMeshAgent>();
-            }
+            if (_agent == null) _agent = gameObject.AddComponent<NavMeshAgent>();
 
             // ตั้งค่า Agent
             if (_agent != null)
@@ -80,12 +86,10 @@ namespace Simulation.Character
                     _agent.stoppingDistance = arrivalDistance;
                     _agent.updateRotation = true;
 
-                    // ปรับแต่งค่า Agent ให้ลอดช่องแคบและขึ้นที่ชันได้ดีขึ้น
-                    _agent.radius = 0.3f;     // เล็กลงเพื่อให้ลอดประตูได้
-                    _agent.height = 1.8f;     // ความสูงมาตรฐาน
-                    _agent.obstacleAvoidanceType = ObstacleAvoidanceType.LowQualityObstacleAvoidance; // ลดการเบียดกันเองจนติด
+                    _agent.radius = 0.3f;
+                    _agent.height = 1.8f;
+                    _agent.obstacleAvoidanceType = ObstacleAvoidanceType.LowQualityObstacleAvoidance;
 
-                    // ปิดระบบฟิสิกส์ระหว่างเดินด้วย NavMesh เพื่อไม่ให้เกิดแรงมหาศาลไปผลักสิ่งก่อสร้างจนพัง และไม่ให้ติดขอบบันได
                     if (_rb != null) _rb.isKinematic = true;
                     var col = GetComponent<CapsuleCollider>();
                     if (col != null) col.isTrigger = true;
@@ -103,7 +107,7 @@ namespace Simulation.Character
         public void SetTarget(Transform targetTransform)
         {
             _target = targetTransform;
-            if (_agent != null && _target != null && _agent.isOnNavMesh)
+            if (_agent != null && _target != null && _agent.enabled && _agent.isOnNavMesh)
             {
                 _agent.SetDestination(_target.position);
             }
@@ -111,78 +115,60 @@ namespace Simulation.Character
 
         private void Update()
         {
-            if (_isDead || _target == null) return;
+            if (_isDead) return;
 
-            // เช็คว่ายังมีพื้นรองรับอยู่หรือไม่ (ป้องกันการเดินลอยบนอากาศหากพื้นพังไปแล้วแต่ NavMesh ยังไม่ถูกลบ)
-            float rayDist = 0.8f; // ระยะประมาณก้าวขึ้นบันได (0.6) + เผื่อเหลือ (0.2)
-            bool hasFloor = UnityEngine.Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, rayDist, UnityEngine.Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+            // เช็คพื้นรองรับ (หนีแค่บน Layer Ground และ Structure เท่านั้น)
+            int floorMask = LayerMask.GetMask("Ground", "Structure");
+            float rayDist = 0.8f;
+            bool hasFloor = UnityEngine.Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, out RaycastHit floorHit, rayDist, floorMask, QueryTriggerInteraction.Ignore);
 
-            // สั่งให้เดินตามเป้าหมายด้วย NavMesh
             if (_agent != null && _agent.enabled && _agent.isOnNavMesh && hasFloor)
             {
-                if (HasReachedTarget)
-                {
-                    // พอถึงเป้าหมายแล้ว ให้เดินวนรอบๆ เป้าหมายแทนการยืนนิ่งๆ
-                    _wanderTimer -= Time.deltaTime;
-                    if (_wanderTimer <= 0f || (_agent.remainingDistance <= 0.5f && !_agent.pathPending))
-                    {
-                        // Try to find a random position on a FLOOR nearby
-                        // เดินสุ่มรอบเป้าหมาย (แต่ไม่ออกนอกตัวตึก)
-                        bool foundValidWanderPos = false;
-                        for (int attempt = 0; attempt < 8; attempt++) 
-                        {
-                            Vector2 randomCircle = Random.insideUnitCircle * 1.5f; // รัศมีแคบลงเพื่อให้ไม่หลุดออกนอกกำแพงง่ายๆ
-                            Vector3 randomPos = _target.position + new Vector3(randomCircle.x, 0, randomCircle.y);
-                            
-                            if (UnityEngine.AI.NavMesh.SamplePosition(randomPos, out UnityEngine.AI.NavMeshHit hit, 2f, UnityEngine.AI.NavMesh.AllAreas))
-                            {
-                                // ต้องเป็นพื้น (Floor) และต้องไม่อยู่ไกลจากจุดมาร์กเกอร์เกินไป
-                                if (IsOnFloor(hit.position) && Vector3.Distance(hit.position, _target.position) < 5f)
-                                {
-                                    _wanderTarget = hit.position;
-                                    foundValidWanderPos = true;
-                                    break;
-                                }
-                            }
-                        }
+                // ── ระบบตรวจจับซอมบี้และวิ่งหนี ──
+                HandleFleeBehavior();
 
-                        if (!foundValidWanderPos)
-                        {
-                            _wanderTarget = _target.position;
-                        }
-                        
-                        _agent.SetDestination(_wanderTarget);
-                        _wanderTimer = Random.Range(2f, 5f); // Randomize next wander interval
+                if (IsFleeing)
+                {
+                    // ขณะหนี ให้ใช้ความเร็ววิ่งหนี
+                    _agent.isStopped = false;
+                    _agent.speed = fleeSpeed;
+                    
+                    // อัปเดตตำแหน่งวิ่งหนี (วิ่งหนีไปในทิศทางตรงข้ามกับซอมบี้)
+                    Vector3 fleePos = transform.position + _fleeDirection * 5f;
+                    if (UnityEngine.AI.NavMesh.SamplePosition(fleePos, out UnityEngine.AI.NavMeshHit hit, 3f, UnityEngine.AI.NavMesh.AllAreas))
+                    {
+                        _agent.SetDestination(hit.position);
                     }
                 }
-                else
+                else if (HasReachedTarget)
                 {
+                    // หยุดเดินเมื่อถึงเป้าหมาย
+                    _agent.isStopped = true;
+                    _agent.speed = moveSpeed;
+                }
+                else if (_target != null)
+                {
+                    _agent.isStopped = false;
+                    _agent.speed = moveSpeed;
                     _agent.SetDestination(_target.position);
                     
-                    // เช็คว่าถึงเป้าหมายหรือยัง (ใช้ Distance จะชัวร์กว่า remainingDistance ในบางกรณี)
                     float distanceToTarget = Vector3.Distance(transform.position, _target.position);
                     if (!_agent.pathPending && distanceToTarget <= arrivalDistance + 0.1f)
                     {
                         HasReachedTarget = true;
-                        _wanderTarget = _target.position; // เริ่มเดินวนจากจุดนี้
 
-                        // แจ้งเตือนให้ Target Marker ค่อยๆ จางหายไป
                         if (_target != null)
                         {
                             PersonTarget pt = _target.GetComponent<PersonTarget>();
-                            if (pt != null) 
-                            {
-                                pt.StartFadeOut();
-                                Debug.Log($"<color=cyan>[PersonAI]</color> Reached target {_target.name}, triggering fade out.");
-                            }
+                            if (pt != null) pt.StartFadeOut();
                         }
                     }
                 }
             }
             else if (_agent != null && _agent.enabled && (!_agent.isOnNavMesh || !hasFloor))
             {
-                // พื้น NavMesh หายไป หรือ ไม่มีพื้นรองรับด้านล่างแล้ว (พื้นถล่ม) 
-                // ปิด Agent และเปิดฟิสิกส์ให้ร่วง
+                // ร่วงหรือไม่มีพื้น
+                StopFleeing();
                 _agent.enabled = false;
                 if (_rb != null) _rb.isKinematic = false;
                 var col = GetComponent<CapsuleCollider>();
@@ -190,34 +176,153 @@ namespace Simulation.Character
             }
         }
 
+        private void HandleFleeBehavior()
+        {
+            // ค้นหาซอมบี้ใกล้ๆ
+            Simulation.Mission.ZombieAI nearbyZombie = FindVisibleZombie();
+
+            if (nearbyZombie != null)
+            {
+                // พบซอมบี้! เริ่มตกใจและวิ่งหนี
+                _panicTimer = 3f; // หนีอย่างน้อย 3 วินาทีหลังจากไม่เห็นซอมบี้แล้ว
+                _fleeDirection = (transform.position - nearbyZombie.transform.position).normalized;
+                _fleeDirection.y = 0;
+
+                ShowPanicVFX(true);
+            }
+            else
+            {
+                // ไม่พบซอมบี้ ค่อยๆ ลดเวลาตกใจ
+                if (_panicTimer > 0)
+                {
+                    _panicTimer -= Time.deltaTime;
+                    if (_panicTimer <= 0)
+                    {
+                        StopFleeing();
+                    }
+                }
+            }
+        }
+
+        private Simulation.Mission.ZombieAI FindVisibleZombie()
+        {
+            if (detectionRange <= 0)
+            {
+                Debug.LogWarning($"[PersonAI] {name} has detectionRange = 0! Please set it in Inspector.");
+                return null;
+            }
+
+            // ตรวจสอบในรัศมีรอบตัว
+            Collider[] hits = UnityEngine.Physics.OverlapSphere(transform.position, detectionRange);
+            
+            // Debug: ดูว่าเจออะไรบ้างในรัศมี (แสดงทุก 1 วินาที)
+            if (Time.frameCount % 60 == 0) 
+            {
+                foreach(var h in hits) {
+                    // Debug.Log($"[PersonAI] {name} sees collider: {h.name} on layer {LayerMask.LayerToName(h.gameObject.layer)}");
+                }
+            }
+
+            foreach (var hit in hits)
+            {
+                // ข้ามถ้าเป็นตัวเอง
+                if (hit.transform.root == transform.root) continue;
+
+                var zombie = hit.GetComponentInParent<Simulation.Mission.ZombieAI>();
+                if (zombie != null)
+                {
+                    if (!zombie.IsDead)
+                    {
+                        // เช็ค LOS (ยิงไปที่ใจกลาง Collider ที่เจอจริงๆ เพื่อความแม่นยำ)
+                        Vector3 start = transform.position + Vector3.up * 1.0f; 
+                        Vector3 end = hit.bounds.center; // ยิงไปที่กลางเป้าที่เจอ
+                        Vector3 dir = (end - start).normalized;
+                        float dist = Vector3.Distance(start, end);
+
+                        // ถ้าเป้าหมายอยู่ใกล้มาก (แทบจะขี่คอกัน) ให้ถือว่าเห็นเลย
+                        if (dist < 0.5f) return zombie;
+
+                        // ใช้ ~0 เพื่อเช็คทุก Layer
+                        RaycastHit[] allHits = UnityEngine.Physics.RaycastAll(start, dir, dist + 0.5f, ~0, QueryTriggerInteraction.Collide);
+                        
+                        System.Array.Sort(allHits, (a, b) => a.distance.CompareTo(b.distance));
+
+                        bool foundZombie = false;
+                        foreach (var hitInfo in allHits)
+                        {
+                            if (hitInfo.collider.transform.root == transform.root) continue;
+
+                            if (hitInfo.collider.gameObject == zombie.gameObject || hitInfo.collider.transform.IsChildOf(zombie.transform))
+                            {
+                                foundZombie = true;
+                                break; 
+                            }
+                            else
+                            {
+                                return null; // ถูกบัง
+                            }
+                        }
+
+                        if (foundZombie) return zombie;
+
+                        // ถ้า Raycast ไม่โดนอะไรเลย แต่เรามั่นใจว่าตรงนั้นมีซอมบี้ (เพราะ OverlapSphere เจอ)
+                        if (allHits.Length == 0)
+                        {
+                            return zombie;
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        private void ShowPanicVFX(bool show)
+        {
+            if (show)
+            {
+                if (_activePanicVFX == null && panicVFXPrefab != null)
+                {
+                    _activePanicVFX = Instantiate(panicVFXPrefab, transform);
+                    // ปรับตำแหน่งให้อยู่บนหัว
+                    _activePanicVFX.transform.localPosition = Vector3.up * 2.2f; 
+                }
+            }
+            else
+            {
+                if (_activePanicVFX != null)
+                {
+                    Destroy(_activePanicVFX);
+                    _activePanicVFX = null;
+                }
+            }
+        }
+
+        private void StopFleeing()
+        {
+            _panicTimer = 0;
+            ShowPanicVFX(false);
+            if (_agent != null && _agent.enabled && _agent.isOnNavMesh)
+            {
+                _agent.ResetPath();
+            }
+        }
+
         public void TakeDamage(float amount, bool isZombieBite = false)
         {
             if (_isDead) return;
 
-            if (isZombieBite)
-            {
-                _currentHealth = 0; // โดนซอมบี้กัด ทีเดียวตาย
-            }
-            else
-            {
-                _currentHealth -= amount;
-            }
+            if (isZombieBite) _currentHealth = 0;
+            else _currentHealth -= amount;
 
-            if (_currentHealth <= 0)
-            {
-                Die(isZombieBite);
-            }
+            if (_currentHealth <= 0) Die(isZombieBite);
         }
 
         private void OnTriggerEnter(Collider other)
         {
             if (_isDead) return;
-
-            // ขณะที่กำลังเดิน (isTrigger = true) ให้รับความเสียหายจากสิ่งของที่ร่วงลงมาโดน
             Rigidbody otherRb = other.attachedRigidbody;
             if (otherRb != null)
             {
-                // คิดน้ำหนักของสิ่งที่มาชนด้วย (มวลยิ่งเยอะ ยิ่งเจ็บ)
                 float impact = otherRb.linearVelocity.magnitude;
                 if (impact > damageImpactThreshold)
                 {
@@ -229,15 +334,10 @@ namespace Simulation.Character
 
         private void OnCollisionEnter(Collision collision)
         {
-            // รับความเสียหายเมื่อฟิสิกส์ทำงานปกติ (เช่น ตกจากที่สูงตอนพื้นพัง)
             if (collision.relativeVelocity.magnitude > damageImpactThreshold)
             {
-                // ถ้าตกพื้นเอง คิดแค่มวลตัวเอง แต่ถ้ามีของหล่นมาทับต่อ ให้คิดมวลของชิ้นนั้น
                 float massFactor = 1f;
-                if (collision.rigidbody != null)
-                {
-                    massFactor = Mathf.Clamp(collision.rigidbody.mass, 1f, 500f);
-                }
+                if (collision.rigidbody != null) massFactor = Mathf.Clamp(collision.rigidbody.mass, 1f, 500f);
                 TakeDamage(collision.relativeVelocity.magnitude * massFactor * 2f);
             }
         }
@@ -245,16 +345,9 @@ namespace Simulation.Character
         private void Die(bool turnIntoZombie = false)
         {
             _isDead = true;
-            
             if (_agent != null) _agent.enabled = false;
-            
-            // เล่น VFX
-            if (deathVFX != null)
-            {
-                Instantiate(deathVFX, transform.position, Quaternion.identity);
-            }
+            if (deathVFX != null) Instantiate(deathVFX, transform.position, Quaternion.identity);
 
-            // ถ้าตายเพราะซอมบี้กัด ให้กลายเป็นซอมบี้
             if (turnIntoZombie)
             {
                 if (Simulation.Mission.MissionManager.Instance != null)
@@ -262,22 +355,7 @@ namespace Simulation.Character
                     Simulation.Mission.MissionManager.Instance.SpawnNormalZombie(transform.position);
                 }
             }
-            
-            // ลบตัวละครทิ้ง
             Destroy(gameObject);
-        }
-        private bool IsOnFloor(Vector3 position)
-        {
-            // Raycast down to find a StructureUnit
-            if (UnityEngine.Physics.Raycast(position + Vector3.up * 0.5f, Vector3.down, out RaycastHit hit, 1.0f))
-            {
-                var unit = hit.collider.GetComponentInParent<Simulation.Building.StructureUnit>();
-                if (unit != null && unit.Data != null && unit.Data.structureType == Simulation.Data.StructureType.Floor)
-                {
-                    return true;
-                }
-            }
-            return false;
         }
     }
 }

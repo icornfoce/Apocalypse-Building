@@ -105,23 +105,7 @@ namespace Simulation.Physics
             }
 
             // 2.2 Bake NavMesh สดๆ ก่อนให้คนเดิน
-            NavMeshSurface surface = GetComponent<NavMeshSurface>();
-            if (surface == null)
-            {
-                surface = gameObject.AddComponent<NavMeshSurface>();
-            }
-            
-            // ตั้งค่าพื้นผิวให้ใช้อบ
-            surface.collectObjects = CollectObjects.All;
-            surface.useGeometry = NavMeshCollectGeometry.PhysicsColliders; // ใช้ Collider เป็นตัวคำนวณพื้นเดิน
-
-            // หมายเหตุ: หาก AI ยังเดินผ่านประตูไม่ได้ หรือขึ้นบันไดไม่ได้ 
-            // ให้ไปที่ Component NavMeshSurface ใน Inspector แล้วปรับค่า:
-            // - Agent Radius: 0.3 (เล็กลงเพื่อให้ลอดช่องแคบได้)
-            // - Agent Slope: 60 (ชันขึ้นเพื่อให้ขึ้นบันไดได้)
-            // - Agent Step Height: 0.5 (สูงขึ้นสำหรับขั้นบันได)
-
-            surface.BuildNavMesh();
+            RebuildNavMesh();
 
             // 2.5 เรียกคนออกมาเดิน
             SpawnCharacters();
@@ -153,6 +137,27 @@ namespace Simulation.Physics
             }
 
             Debug.Log("<color=green>▶ Start Simulation</color> - Physics started!");
+        }
+
+        /// <summary>
+        /// คำนวณ NavMesh ใหม่แบบ Dynamic (เช่น เมื่อพื้นหรือกำแพงถล่ม)
+        /// </summary>
+        public void RebuildNavMesh()
+        {
+            NavMeshSurface surface = GetComponent<NavMeshSurface>();
+            if (surface == null)
+            {
+                surface = gameObject.AddComponent<NavMeshSurface>();
+                
+                // ตั้งค่าพื้นผิวให้ใช้อบ
+                surface.collectObjects = CollectObjects.All;
+                surface.useGeometry = NavMeshCollectGeometry.PhysicsColliders; 
+                
+                // ตั้งค่า Agent Settings ให้เหมาะสมกับการเดินในตัวตึก
+                // (สามารถปรับผ่าน Inspector ของ SimulationManager object ได้เลย)
+            }
+            
+            surface.BuildNavMesh();
         }
 
         /// <summary>

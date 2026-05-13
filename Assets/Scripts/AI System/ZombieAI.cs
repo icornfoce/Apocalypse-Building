@@ -129,8 +129,16 @@ namespace Simulation.Mission
                 }
                 else
                 {
-                    // ยังไม่ถึง — เช็คกำแพงขวางทางก่อน (เพื่อลดการจุกจิกของ Agent)
-                    CheckForWalls();
+                    // เช็คว่าเห็นคนหรือไม่ — ถ้าเห็น ให้เลิกสนใจกำแพงและวิ่งไปหาทันที
+                    if (CanSeePerson(_targetPerson))
+                    {
+                        if (_isAttackingWall) ResetWallAttack(true);
+                    }
+                    else
+                    {
+                        // ถ้าไม่เห็นคน ค่อยเช็คกำแพงขวางทาง
+                        CheckForWalls();
+                    }
 
                     // เดินไปหา ถ้าไม่ได้ติดกำแพง
                     if (_agent.enabled && _agent.isOnNavMesh)
@@ -152,6 +160,27 @@ namespace Simulation.Mission
                 // ไม่มีเป้าหมาย — ยืนเฉยๆ
                 if (_agent.enabled && _agent.isOnNavMesh) _agent.isStopped = true;
             }
+        }
+
+        private bool CanSeePerson(PersonAI person)
+        {
+            if (person == null || person.IsDead) return false;
+
+            // เช็ค Line of Sight (LOS)
+            Vector3 start = transform.position + Vector3.up * 1.5f;
+            Vector3 end = person.transform.position + Vector3.up * 1.0f;
+            Vector3 dir = (end - start).normalized;
+            float dist = Vector3.Distance(start, end);
+
+            // ยิง Ray ไปหาคน ถ้าไม่ติดอะไรเลย (รวมถึงกำแพง) แสดงว่าเห็น
+            if (UnityEngine.Physics.Raycast(start, dir, out RaycastHit hit, dist + 0.5f))
+            {
+                if (hit.collider.gameObject == person.gameObject || hit.collider.transform.IsChildOf(person.transform))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         protected virtual void FindTarget()

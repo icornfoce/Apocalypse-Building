@@ -452,6 +452,13 @@ namespace Simulation.Physics
             // คำนวณชั้นสูงสุดใหม่ เพราะอาจจะมีบางชั้นพังลงไป
             Building.BuildingSystem.Instance?.RecalculateMaxFloor();
 
+            // ── REBUILD NAVMESH ──
+            // เมื่อโครงสร้างพัง (กำแพงถล่ม/พื้นทะลุ) ให้คำนวณ NavMesh ใหม่เพื่อให้ AI หาทางไปต่อได้
+            if (SimulationManager.Instance != null && SimulationManager.Instance.IsSimulating)
+            {
+                SimulationManager.Instance.RebuildNavMesh();
+            }
+
             // Deactivate after delay
             StartCoroutine(DeactivateAfterDelay(5f));
         }

@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 5521548118231673804}
   - component: {fileID: 5150029741732788760}
   - component: {fileID: 6166824157558625808}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Cube
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -103,7 +103,7 @@ GameObject:
   - component: {fileID: 8799345707269957330}
   - component: {fileID: 189093468440556760}
   - component: {fileID: 7009689602007386305}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Door
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -185,7 +185,7 @@ MonoBehaviour:
   maxCompression: 1000
   maxTension: 1000
   supportedLoadMultiplier: 10
-  stressRenderer: {fileID: 0}
+  stressRenderers: []
   stressVisualIntensity: 1
   showDebugLogs: 1
 --- !u!65 &7009689602007386305

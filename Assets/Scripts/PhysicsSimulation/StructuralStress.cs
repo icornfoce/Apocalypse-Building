@@ -60,8 +60,8 @@ namespace Simulation.Physics
         [SerializeField] private float supportedLoadMultiplier = 10f;
 
         [Header("Visual Feedback")]
-        [Tooltip("If assigned, material color lerps based on structural health.")]
-        [SerializeField] private Renderer stressRenderer;
+        [Tooltip("If assigned, these material colors lerp based on structural health. If empty, it will auto-find all renderers in children.")]
+        [SerializeField] private Renderer[] stressRenderers;
         
         [SerializeField] [Range(0f, 1f)] private float stressVisualIntensity = 1.0f;
 
@@ -95,9 +95,9 @@ namespace Simulation.Physics
         private float _originalMaxCompression;
         private float _originalMaxTension;
 
-        // Cached original material color (if stressRenderer is set)
-        private Color _cachedOriginalColor;
-        private bool _hasStressRenderer;
+        // Cached original material colors
+        private Color[] _cachedOriginalColors;
+        private bool _hasStressRenderers;
 
         // ────────────────────────────────────────────────────────────────
         // Public Read-Only Properties
@@ -141,20 +141,22 @@ namespace Simulation.Physics
             _colliders = GetComponentsInChildren<Collider>();
             _joint = GetComponent<Joint>();
 
-            // Auto-find renderer if not set manually
-            if (stressRenderer == null)
+            // Auto-find renderers if not set manually
+            if (stressRenderers == null || stressRenderers.Length == 0)
             {
-                stressRenderer = GetComponentInChildren<Renderer>();
+                stressRenderers = GetComponentsInChildren<Renderer>();
             }
-
-            // Base HP will be set by StructureUnit's InitializeStress later
-            _currentHP = baseHP;
-
-            // Cache stress renderer
-            _hasStressRenderer = stressRenderer != null;
-            if (_hasStressRenderer)
+            
+            // Cache stress renderers
+            _hasStressRenderers = stressRenderers != null && stressRenderers.Length > 0;
+            if (_hasStressRenderers)
             {
-                _cachedOriginalColor = stressRenderer.material.color;
+                _cachedOriginalColors = new Color[stressRenderers.Length];
+                for (int i = 0; i < stressRenderers.Length; i++)
+                {
+                    if (stressRenderers[i] != null)
+                        _cachedOriginalColors[i] = stressRenderers[i].material.color;
+                }
             }
         }
 
@@ -511,18 +513,11 @@ namespace Simulation.Physics
 
         private void UpdateVisualStress()
         {
-            if (!_hasStressRenderer || stressRenderer == null) return;
+            if (!_hasStressRenderers || stressRenderers == null) return;
 
             // ถ้าชิ้นส่วนนี้กำลังถูก Highlight (เลือกอยู่) ไม่ต้องอัปเดตสีทับ
             var unit = GetComponent<Simulation.Building.StructureUnit>();
             if (unit != null && unit.IsHighlighted) return;
-
-            // ถ้าเปิดการแสดงผลสี ให้กลับไปใช้สีดั้งเดิม
-            if (!ShowHPVisualsGlobal)
-            {
-                stressRenderer.material.color = _cachedOriginalColor;
-                return;
-            }
 
             // ใช้ _originalBaseHP ในการคำนวณสี เพื่อให้เห็นความเสียหายถาวรจากซอมบี้
             float health = _originalBaseHP > 0 ? Mathf.Clamp01(_currentHP / _originalBaseHP) : 0f;
@@ -530,23 +525,36 @@ namespace Simulation.Physics
             // 100% (1.0) -> ใช้สีวัสดุดั้งเดิม (ใส)
             // 50%  (0.5) -> สีส้ม
             // 0%   (0.0) -> สีแดง
-            Color targetColor;
-
-            if (health >= 0.5f)
+            if (!ShowHPVisualsGlobal)
             {
-                // ช่วง 100% -> 50% (ไล่จากสีเดิม ไปหา ส้ม)
-                float t = (1.0f - health) / 0.5f; 
-                targetColor = Color.Lerp(_cachedOriginalColor, new Color(1f, 0.5f, 0f), t);
-            }
-            else
-            {
-                // ช่วง 50% -> 0% (ไล่จากส้ม ไปหา แดง)
-                float t = (0.5f - health) / 0.5f; 
-                targetColor = Color.Lerp(new Color(1f, 0.5f, 0f), Color.red, t);
+                for (int i = 0; i < stressRenderers.Length; i++)
+                {
+                    if (stressRenderers[i] != null)
+                        stressRenderers[i].material.color = _cachedOriginalColors[i];
+                }
+                return;
             }
 
-            // แสดงผลที่ Renderer ของชิ้นส่วนนั้นทันที
-            stressRenderer.material.color = Color.Lerp(_cachedOriginalColor, targetColor, stressVisualIntensity);
+            for (int i = 0; i < stressRenderers.Length; i++)
+            {
+                if (stressRenderers[i] == null) continue;
+
+                Color original = _cachedOriginalColors[i];
+                Color resultColor;
+
+                if (health >= 0.5f)
+                {
+                    float t = (1.0f - health) / 0.5f; 
+                    resultColor = Color.Lerp(original, new Color(1f, 0.5f, 0f), t);
+                }
+                else
+                {
+                    float t = (0.5f - health) / 0.5f; 
+                    resultColor = Color.Lerp(new Color(1f, 0.5f, 0f), Color.red, t);
+                }
+
+                stressRenderers[i].material.color = Color.Lerp(original, resultColor, stressVisualIntensity);
+            }
         }
 
         /// <summary>
@@ -624,12 +632,18 @@ namespace Simulation.Physics
 
             _settlementTimer = SETTLEMENT_DURATION;
 
-            // บันทึกสีดั้งเดิมใหม่ทุกครั้งที่มีการ Initialize (เผื่อโดนเปลี่ยน Material ในโหมด Painting)
-            if (stressRenderer == null) stressRenderer = GetComponentInChildren<Renderer>();
-            if (stressRenderer != null)
+            // บันทึกสีดั้งเดิมใหม่ทุกครั้งที่มีการ Initialize (เพื่อให้ครอบคลุมชิ้นส่วนที่เพิ่มทีหลังอย่าง DoorFrame)
+            stressRenderers = GetComponentsInChildren<Renderer>();
+
+            if (stressRenderers != null && stressRenderers.Length > 0)
             {
-                _cachedOriginalColor = stressRenderer.material.color;
-                _hasStressRenderer = true;
+                _cachedOriginalColors = new Color[stressRenderers.Length];
+                for (int i = 0; i < stressRenderers.Length; i++)
+                {
+                    if (stressRenderers[i] != null)
+                        _cachedOriginalColors[i] = stressRenderers[i].material.color;
+                }
+                _hasStressRenderers = true;
             }
 
             UpdateVisualStress();

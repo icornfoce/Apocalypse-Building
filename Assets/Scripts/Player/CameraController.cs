@@ -105,8 +105,8 @@ namespace Simulation.Camera
                 float mouseX = Input.GetAxis("Mouse X");
                 float mouseY = Input.GetAxis("Mouse Y");
 
-                yaw += mouseX * mouseRotateSensitivity * 100f * Time.deltaTime;
-                pitch -= mouseY * mouseRotateSensitivity * 100f * Time.deltaTime;
+                yaw += mouseX * mouseRotateSensitivity * 100f * Time.unscaledDeltaTime;
+                pitch -= mouseY * mouseRotateSensitivity * 100f * Time.unscaledDeltaTime;
             }
 
             // Still support WASD but as an alternative or just remove it? 
@@ -115,8 +115,8 @@ namespace Simulation.Camera
             float h = Input.GetAxis("Horizontal"); 
             float v = Input.GetAxis("Vertical");
 
-            yaw += h * keyboardRotateSpeed * Time.deltaTime;
-            pitch -= v * keyboardRotateSpeed * Time.deltaTime;
+            yaw += h * keyboardRotateSpeed * Time.unscaledDeltaTime;
+            pitch -= v * keyboardRotateSpeed * Time.unscaledDeltaTime;
 
             pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
         }
@@ -132,7 +132,7 @@ namespace Simulation.Camera
 
         private void UpdateCameraPosition()
         {
-            _currentDistance = Mathf.Lerp(_currentDistance, _targetDistance, zoomSmoothing * Time.deltaTime);
+            _currentDistance = Mathf.Lerp(_currentDistance, _targetDistance, zoomSmoothing * Time.unscaledDeltaTime);
 
             Quaternion rotation = Quaternion.Euler(pitch, yaw, 0f);
             Vector3 offset = rotation * new Vector3(0f, 0f, -_currentDistance);
@@ -141,7 +141,7 @@ namespace Simulation.Camera
             if (_currentShakeIntensity > 0.01f)
             {
                 shakeOffset = Random.insideUnitSphere * _currentShakeIntensity;
-                _currentShakeIntensity = Mathf.Lerp(_currentShakeIntensity, 0f, shakeDecayRate * Time.deltaTime);
+                _currentShakeIntensity = Mathf.Lerp(_currentShakeIntensity, 0f, shakeDecayRate * Time.unscaledDeltaTime);
             }
 
             transform.position = pivotPoint + offset + shakeOffset;
@@ -225,7 +225,7 @@ namespace Simulation.Camera
 
             // ── 4. Lerp alpha ทุก entry + cleanup ที่ restore เสร็จ ───
             List<Renderer> toRemove = new();
-            float dt = Time.deltaTime * fadeSmoothSpeed;
+            float dt = Time.unscaledDeltaTime * fadeSmoothSpeed;
 
             foreach (var kvp in _occluded)
             {

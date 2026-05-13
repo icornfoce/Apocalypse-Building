@@ -13,8 +13,8 @@ GameObject:
   - component: {fileID: 6506886783145746476}
   - component: {fileID: 7052995372789337287}
   - component: {fileID: 7436252273421040513}
-  - component: {fileID: 6509485308157397727}
-  - component: {fileID: 3661303612561532024}
+  - component: {fileID: 3514163496757121037}
+  - component: {fileID: 6287794498773216047}
   m_Layer: 0
   m_Name: DiggerZombie
   m_TagString: Untagged
@@ -144,30 +144,7 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
---- !u!114 &6509485308157397727
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6731510451850877391}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cc4520d06d582cc4c9b5a7f6d74e3524, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Simulation.Mission.DiggerZombieAI
-  moveSpeed: 1
-  digSpeed: 0.3
-  attackDamage: 10
-  attackInterval: 1.5
-  attackRange: 0.6
-  maxHealth: 60
-  floorDigDamage: 15
-  digInterval: 1
-  damageImpactThreshold: 3
-  deathVFX: {fileID: 5985634496115995773, guid: 463cf9f7af4680240898f6aeba3fe3e6, type: 3}
-  undergroundYOffset: -0.8
---- !u!195 &3661303612561532024
+--- !u!195 &3514163496757121037
 NavMeshAgent:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -186,6 +163,29 @@ NavMeshAgent:
   m_AutoBraking: 1
   m_AutoRepath: 1
   m_Height: 2
-  m_BaseOffset: 0
+  m_BaseOffset: 1
   m_WalkableMask: 4294967295
   m_ObstacleAvoidanceType: 4
+--- !u!114 &6287794498773216047
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6731510451850877391}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cc4520d06d582cc4c9b5a7f6d74e3524, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Simulation.Mission.DiggerZombieAI
+  moveSpeed: 1.5
+  attackDamage: 10
+  attackInterval: 1.5
+  attackRange: 1.5
+  maxHealth: 50
+  damageImpactThreshold: 3
+  deathVFX: {fileID: 5985634496115995773, guid: 463cf9f7af4680240898f6aeba3fe3e6, type: 3}
+  digSpeed: 1
+  floorDigDamage: 15
+  digInterval: 0.8
+  undergroundYOffset: -1.5

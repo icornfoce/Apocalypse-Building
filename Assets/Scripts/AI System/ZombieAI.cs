@@ -28,23 +28,23 @@ namespace Simulation.Mission
         [Header("Death")]
         public GameObject deathVFX;
 
-        private float _currentHealth;
-        private NavMeshAgent _agent;
-        private Rigidbody _rb;
-        private PersonAI _targetPerson;
-        private float _personAttackTimer;
-        private float _wallAttackTimer;
-        private bool _isDead = false;
-        private bool _isAttackingWall = false;
-        private StructureUnit _lastAttackedWall;
+        protected float _currentHealth;
+        protected NavMeshAgent _agent;
+        protected Rigidbody _rb;
+        protected PersonAI _targetPerson;
+        protected float _personAttackTimer;
+        protected float _wallAttackTimer;
+        protected bool _isDead = false;
+        protected bool _isAttackingWall = false;
+        protected StructureUnit _lastAttackedWall;
 
         // Cache สำหรับ FindTarget (ไม่ต้องค้นทุกเฟรม)
-        private float _findTargetCooldown;
-        private const float FIND_TARGET_INTERVAL = 0.5f;
+        protected float _findTargetCooldown;
+        protected const float FIND_TARGET_INTERVAL = 0.5f;
 
         public bool IsDead => _isDead;
 
-        private void Awake()
+        protected virtual void Awake()
         {
             _agent = GetComponent<NavMeshAgent>();
             _rb = GetComponent<Rigidbody>();
@@ -52,7 +52,7 @@ namespace Simulation.Mission
             _rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
         }
 
-        private void Start()
+        protected virtual void Start()
         {
             // ตั้งค่า Agent
             if (_agent != null)
@@ -75,7 +75,7 @@ namespace Simulation.Mission
             }
         }
 
-        private void Update()
+        protected virtual void Update()
         {
             if (_isDead) return;
 
@@ -207,7 +207,7 @@ namespace Simulation.Mission
         protected PersonAI GetTarget() => _targetPerson;
         protected void SetTargetPerson(PersonAI person) => _targetPerson = person;
 
-        private void AttackPerson()
+        protected virtual void AttackPerson()
         {
             _personAttackTimer += Time.deltaTime;
             if (_personAttackTimer >= attackInterval)
@@ -221,7 +221,7 @@ namespace Simulation.Mission
             }
         }
 
-        private void CheckForWalls()
+        protected virtual void CheckForWalls()
         {
             // ทิศทางที่ต้องการไป: ใช้ความเร็วถ้ายังเดินอยู่ หรือทิศทางไปหาเป้าหมายถ้าหยุดแล้ว
             Vector3 direction = transform.forward;
@@ -295,7 +295,7 @@ namespace Simulation.Mission
             }
         }
 
-        private void ResetWallAttack(bool forceRecalculate)
+        protected virtual void ResetWallAttack(bool forceRecalculate)
         {
             _isAttackingWall = false;
             _wallAttackTimer = 0f;
@@ -314,7 +314,7 @@ namespace Simulation.Mission
 
         // ── Crush Damage (เหมือน PersonAI) ─────────────────────────────
 
-        private void OnTriggerEnter(Collider other)
+        protected virtual void OnTriggerEnter(Collider other)
         {
             if (_isDead) return;
 
@@ -331,7 +331,7 @@ namespace Simulation.Mission
             }
         }
 
-        private void OnCollisionEnter(Collision collision)
+        protected virtual void OnCollisionEnter(Collision collision)
         {
             if (_isDead) return;
 
@@ -349,7 +349,7 @@ namespace Simulation.Mission
 
         // ── HP ──────────────────────────────────────────────────────────
 
-        public void TakeDamage(float amount)
+        public virtual void TakeDamage(float amount)
         {
             if (_isDead) return;
             _currentHealth -= amount;

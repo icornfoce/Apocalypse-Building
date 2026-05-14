@@ -271,8 +271,15 @@ namespace Simulation.UI
         {
             if (resultsPanel != null) resultsPanel.SetActive(false);
             if (gameplayHUD != null) gameplayHUD.SetActive(true);
+            if (missionPanel != null) missionPanel.SetActive(true);
             
             if (startButtonText != null) startButtonText.text = "START";
+
+            // รีเซ็ต PersonTarget ทั้งหมดให้กลับมาแสดงผล (Marker) ผ่าน MissionManager
+            if (MissionManager.Instance != null)
+            {
+                MissionManager.Instance.ResetAllPersonTargets();
+            }
         }
 
         /// <summary>

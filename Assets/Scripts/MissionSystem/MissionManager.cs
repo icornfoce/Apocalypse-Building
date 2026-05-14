@@ -281,6 +281,7 @@ namespace Simulation.Mission
             else
             {
                 Debug.Log("<color=red>■ Mission Stopped Early</color>");
+                ResetAllPersonTargets();
             }
 
             // หยุด Simulation
@@ -302,6 +303,15 @@ namespace Simulation.Mission
 
             var balloonZombies = FindObjectsByType<BalloonZombieAI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             foreach (var z in balloonZombies) if (z != null && z.gameObject != null) Destroy(z.gameObject);
+        }
+
+        public void ResetAllPersonTargets()
+        {
+            var targets = FindObjectsByType<PersonTarget>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            foreach (var t in targets)
+            {
+                if (t != null) t.ResetTarget();
+            }
         }
 
         // ────────────────────────────────────────────────────────────────

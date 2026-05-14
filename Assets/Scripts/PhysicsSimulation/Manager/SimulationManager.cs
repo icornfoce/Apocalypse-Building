@@ -87,6 +87,12 @@ namespace Simulation.Physics
             // 1.1 ซ่อน Grid เมื่อเริ่มเล่น
             SetGridVisibility(false);
 
+            // 1.2 ตรวจสอบและซ่อมแซมจุดเชื่อมต่อทั้งหมดก่อนเริ่ม (Fix missing joints)
+            if (BuildingSystem.Instance != null)
+            {
+                BuildingSystem.Instance.RefreshAllJoints();
+            }
+
             // 2. บันทึก Snapshot ก่อนเริ่ม Simulate
             SaveSnapshots();
 

@@ -1504,6 +1504,27 @@ namespace Simulation.Building
             RecalculateMaxFloor();
         }
 
+        public void RefreshAllJoints()
+        {
+            Debug.Log("[BuildingSystem] Refreshing all joints in scene...");
+            
+            // สำคัญ: ต้อง SyncTransforms เพื่อให้ Collider ทุกตัวอยู่ในตำแหน่งล่าสุดจริงๆ ก่อนยิงเรย์
+            UnityEngine.Physics.SyncTransforms();
+
+            foreach (var unit in _placedStructures)
+            {
+                if (unit == null || !unit.gameObject.activeInHierarchy) continue;
+                
+                // สั่งให้ชิ้นส่วนนั้นๆ หาจุดยึดใหม่
+                // 1. หาจุดยึดพื้น/โครงสร้างล่าง
+                AttachJoint(unit.gameObject, null);
+                // 2. หาจุดยึดซ้ายขวาหน้าหลัง (บนล่าง)
+                AttachSideJoints(unit.gameObject);
+                // 3. ปิดการชนกันเองเพื่อป้องกันการระเบิด
+                IgnoreOverlappingCollisions(unit);
+            }
+        }
+
         private void ConfirmMove(Vector3 position, float rotation, Collider targetCollider = null)
         {
             Vector3 oldPos = _moveOriginalPos;
@@ -1705,14 +1726,13 @@ namespace Simulation.Building
                         
                         // 1. เช็คเบื้องต้นว่า Bounds แตะกันหรือไม่ (รวมระยะ Expand)
                         Bounds expanded = myB;
-                        expanded.Expand(0.2f);
+                        expanded.Expand(0.3f); // เพิ่มระยะเล็กน้อยให้หาเจอเจอง่ายขึ้น
                         if (!expanded.Intersects(otherB)) continue;
 
                         // 2. กรอง "แนวทแยง" ออก:
                         // เพื่อนบ้านที่ติดกันจริงๆ (Face-to-face) ต้องมีแกนที่ "ซ้อนทับ" กันอย่างน้อย 2 แกน
-                        // เช่น ถ้าวางข้างกัน แกน Y และ Z ต้องซ้อนกัน
                         int overlapCount = 0;
-                        float eps = 0.1f; // ค่าเผื่อความคลาดเคลื่อน
+                        float eps = 0.01f; // ลดค่าความคลาดเคลื่อนลงให้รองรับของบางๆ ได้
                         
                         Vector3 diff = myB.center - otherB.center;
                         Vector3 sumSize = (myB.size + otherB.size) * 0.5f;

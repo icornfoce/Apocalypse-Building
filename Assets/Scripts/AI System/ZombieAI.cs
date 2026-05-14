@@ -329,9 +329,7 @@ namespace Simulation.Mission
                     TakeDamage(impact * massFactor * 2f);
                     
                     // กระเด้งกลับ (Knockback / Bounce)
-                    Vector3 forceDir = (otherRb.transform.position - transform.position).normalized;
-                    forceDir.y = 1f; // ให้เด้งขึ้นด้วย
-                    otherRb.AddForce(forceDir.normalized * impact * 0.5f, ForceMode.VelocityChange);
+                    ApplyBounce(otherRb, impact);
                 }
             }
         }
@@ -341,15 +339,33 @@ namespace Simulation.Mission
             if (_isDead) return;
 
             // รับความเสียหายเมื่อฟิสิกส์ทำงานปกติ (เช่น ตกจากที่สูง หรือมีของหล่นมาทับ)
-            if (collision.relativeVelocity.magnitude > damageImpactThreshold)
+            float impact = collision.relativeVelocity.magnitude;
+            if (impact > damageImpactThreshold)
             {
                 float massFactor = 1f;
                 if (collision.rigidbody != null)
                 {
                     massFactor = Mathf.Clamp(collision.rigidbody.mass, 1f, 500f);
+                    // กระเด้งกลับ (Knockback / Bounce)
+                    ApplyBounce(collision.rigidbody, impact);
                 }
-                TakeDamage(collision.relativeVelocity.magnitude * massFactor * 2f);
+                TakeDamage(impact * massFactor * 2f);
             }
+        }
+
+        /// <summary>
+        /// ทำให้วัตถุที่ตกลงมาโดนกระเด้งออกไป
+        /// </summary>
+        protected void ApplyBounce(Rigidbody otherRb, float impact)
+        {
+            // คำนวณทิศทางเด้ง: ออกจากตัวซอมบี้ + ดีดขึ้น
+            Vector3 bounceDir = (otherRb.transform.position - transform.position).normalized;
+            bounceDir.y = Mathf.Abs(bounceDir.y) + 0.8f; // ให้เด้งขึ้นเสมอ
+            bounceDir = bounceDir.normalized;
+
+            // แรงเด้งสัมพันธ์กับความเร็วตก แต่จำกัดไม่ให้เกินไป
+            float bounceForce = Mathf.Clamp(impact * 2f, 3f, 20f);
+            otherRb.AddForce(bounceDir * bounceForce, ForceMode.VelocityChange);
         }
 
         // ── HP ──────────────────────────────────────────────────────────

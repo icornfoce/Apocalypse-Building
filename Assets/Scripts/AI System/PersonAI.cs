@@ -351,21 +351,41 @@ namespace Simulation.Character
                     TakeDamage(impact * massFactor * 2f);
                     
                     // กระเด้งกลับ (Knockback / Bounce)
-                    Vector3 forceDir = (otherRb.transform.position - transform.position).normalized;
-                    forceDir.y = 1f; // ให้เด้งขึ้นด้วย
-                    otherRb.AddForce(forceDir.normalized * impact * 0.5f, ForceMode.VelocityChange);
+                    ApplyBounce(otherRb, impact);
                 }
             }
         }
 
         private void OnCollisionEnter(Collision collision)
         {
-            if (collision.relativeVelocity.magnitude > damageImpactThreshold)
+            if (_isDead) return;
+            float impact = collision.relativeVelocity.magnitude;
+            if (impact > damageImpactThreshold)
             {
                 float massFactor = 1f;
-                if (collision.rigidbody != null) massFactor = Mathf.Clamp(collision.rigidbody.mass, 1f, 500f);
-                TakeDamage(collision.relativeVelocity.magnitude * massFactor * 2f);
+                if (collision.rigidbody != null)
+                {
+                    massFactor = Mathf.Clamp(collision.rigidbody.mass, 1f, 500f);
+                    // กระเด้งกลับ (Knockback / Bounce)
+                    ApplyBounce(collision.rigidbody, impact);
+                }
+                TakeDamage(impact * massFactor * 2f);
             }
+        }
+
+        /// <summary>
+        /// ทำให้วัตถุที่ตกลงมาโดนกระเด้งออกไป
+        /// </summary>
+        private void ApplyBounce(Rigidbody otherRb, float impact)
+        {
+            // คำนวณทิศทางเด้ง: ออกจากตัว NPC + ดีดขึ้น
+            Vector3 bounceDir = (otherRb.transform.position - transform.position).normalized;
+            bounceDir.y = Mathf.Abs(bounceDir.y) + 0.8f; // ให้เด้งขึ้นเสมอ
+            bounceDir = bounceDir.normalized;
+
+            // แรงเด้งสัมพันธ์กับความเร็วตก แต่จำกัดไม่ให้เกินไป
+            float bounceForce = Mathf.Clamp(impact * 2f, 3f, 20f);
+            otherRb.AddForce(bounceDir * bounceForce, ForceMode.VelocityChange);
         }
 
         private void Die(bool turnIntoZombie = false)

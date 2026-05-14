@@ -641,9 +641,6 @@ namespace Simulation.Building
 
                     // Population cap: ห้ามวาง PersonTarget เกินจำนวนที่กำหนดใน MissionData
                     // แก้ไข: ตรวจสอบเฉพาะเมื่อของที่จะวางมี Component PersonTarget เท่านั้น เพื่อไม่ให้ไปบล็อกการวาง Gadget/Furniture
-                    // (ใช้ตัวแปร ptOnPrefab และ isPlacingPerson ที่ประกาศไว้ข้างบนแล้ว)
-                    
-                    // หากเป็นตัวละคร และตัวละครนั้นถูกตั้งค่าให้นับเป็นประชากร (countsTowardsPopulation == true)
                     if (isPlacingPerson && ptOnPrefab.countsTowardsPopulation && MissionManager.Instance != null && MissionManager.Instance.CurrentMission != null)
                     {
                         int maxPop = MissionManager.Instance.CurrentMission.requiredPopulation;
@@ -658,18 +655,13 @@ namespace Simulation.Building
                                     // ข้ามการนับ Ghost Preview (ตัวจำลองที่กำลังลากอยู่)
                                     if (t.gameObject.name.Contains("Ghost")) continue;
 
-                                    // ข้ามการนับตัวที่เป็น Alpha ในตอนวาง (GhostBuilder) 
-                                    // เพื่อให้วาง Alpha ได้ไม่จำกัด แต่ยังนับเป็นคนรอดใน Mission
-                                    bool isAlpha = t.gameObject.name.Contains("Alpha");
-                                    if (!isAlpha) currentPop++;
+                                    // นับทุกคนรวมถึง Alpha
+                                    currentPop++;
                                 }
                             }
 
-                            // ให้สิทธิ์วาง Alpha ได้แม้คนจะเต็มแล้ว
-                            bool isPlacingAlpha = _selectedData.prefab != null && _selectedData.prefab.name.Contains("Alpha");
-
-                            // รวมจำนวนคนที่กำลังลากวางในการเช็คด้วย
-                            if (!isPlacingAlpha && currentPop + _dragPositions.Count > maxPop)
+                            // รวมจำนวนคนที่กำลังลากวางในการเช็คด้วย และจำกัดการวางไม่ให้เกิน maxPop
+                            if (currentPop + _dragPositions.Count > maxPop)
                             {
                                 allValid = false;
                             }

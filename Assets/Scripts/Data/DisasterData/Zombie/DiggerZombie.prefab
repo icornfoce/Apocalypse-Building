@@ -182,7 +182,7 @@ MonoBehaviour:
   attackDamage: 10
   attackInterval: 1.5
   attackRange: 1.5
-  maxHealth: 50
+  maxHealth: 10
   damageImpactThreshold: 3
   deathVFX: {fileID: 5985634496115995773, guid: 463cf9f7af4680240898f6aeba3fe3e6, type: 3}
   digSpeed: 1

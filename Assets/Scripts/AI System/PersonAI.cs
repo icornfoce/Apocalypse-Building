@@ -182,7 +182,7 @@ namespace Simulation.Character
                     {
                         HasReachedTarget = true;
                         PersonTarget pt = _target.GetComponent<PersonTarget>();
-                        if (pt != null) pt.StartFadeOut();
+                        if (pt != null) pt.StartFadeOut(this);
                     }
                 }
             }

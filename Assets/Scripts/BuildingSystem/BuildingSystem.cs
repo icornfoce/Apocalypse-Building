@@ -2114,9 +2114,20 @@ namespace Simulation.Building
                     float bottomY = hitUnit.transform.position.y - hitUnitPivotToBottom;
                     float topY    = hitUnit.transform.position.y + hitUnitPivotToTop;
 
+                    bool isBottomHit = hitNormal.y <= -0.5f;
+
                     if (isSideHit)
                     {
                         y = bottomY;
+                    }
+                    else if (isBottomHit)
+                    {
+                        float newObjHeight = heightStep > 0 ? heightStep : gridSize;
+                        if (activeData != null && activeData.prefab != null)
+                        {
+                            newObjHeight = GetPivotToTopOffset(activeData.prefab) + GetPivotToBottomOffset(activeData);
+                        }
+                        y = bottomY - newObjHeight;
                     }
                     else if (hitUnit.Data.placementSinkThrough && (activeData == null || !activeData.requiresSupport))
                     {
@@ -2136,6 +2147,13 @@ namespace Simulation.Building
                 {
                     y = Mathf.Round(y / yStep) * yStep;
                 }
+            }
+
+            // ถ้าคำนวณตำแหน่งเสร็จแล้วพบว่ามันพยายามจะมุดดิน (Y ติดลบ)
+            // ให้ปัด (Clamp) ตำแหน่งฐานกลับขึ้นมาอยู่ที่ระดับพื้น (Y = 0) เสมอ
+            if (y < 0f)
+            {
+                y = 0f;
             }
 
             y += _pivotToBottomOffset;

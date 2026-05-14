@@ -327,6 +327,11 @@ namespace Simulation.Mission
                 {
                     float massFactor = Mathf.Clamp(otherRb.mass, 1f, 500f);
                     TakeDamage(impact * massFactor * 2f);
+                    
+                    // กระเด้งกลับ (Knockback / Bounce)
+                    Vector3 forceDir = (otherRb.transform.position - transform.position).normalized;
+                    forceDir.y = 1f; // ให้เด้งขึ้นด้วย
+                    otherRb.AddForce(forceDir.normalized * impact * 0.5f, ForceMode.VelocityChange);
                 }
             }
         }

@@ -149,10 +149,19 @@ namespace Simulation.Building
 
         public void TakeDamage(float amount)
         {
-            _currentHP -= amount;
-            if (_currentHP <= 0)
+            var stress = GetComponent<Simulation.Physics.StructuralStress>();
+            if (stress != null)
             {
-                DestroyStructure();
+                stress.ApplyExternalDamage(amount);
+                _currentHP = stress.CurrentHP;
+            }
+            else
+            {
+                _currentHP -= amount;
+                if (_currentHP <= 0)
+                {
+                    DestroyStructure();
+                }
             }
         }
 

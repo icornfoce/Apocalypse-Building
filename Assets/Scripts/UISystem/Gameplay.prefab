@@ -213,6 +213,7 @@ GameObject:
   - component: {fileID: 6754118536360219845}
   - component: {fileID: 3097367716640972637}
   - component: {fileID: 2270021181093139701}
+  - component: {fileID: 6620274329486457530}
   m_Layer: 5
   m_Name: Exit
   m_TagString: Untagged
@@ -274,6 +275,50 @@ MonoBehaviour:
     y: 0
     width: 1
     height: 1
+--- !u!114 &6620274329486457530
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 216571477696704442}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
+  m_Navigation:
+    m_Mode: 3
+    m_WrapAround: 0
+    m_SelectOnUp: {fileID: 0}
+    m_SelectOnDown: {fileID: 0}
+    m_SelectOnLeft: {fileID: 0}
+    m_SelectOnRight: {fileID: 0}
+  m_Transition: 1
+  m_Colors:
+    m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
+    m_HighlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_PressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
+    m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_DisabledColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 0.5019608}
+    m_ColorMultiplier: 1
+    m_FadeDuration: 0.1
+  m_SpriteState:
+    m_HighlightedSprite: {fileID: 0}
+    m_PressedSprite: {fileID: 0}
+    m_SelectedSprite: {fileID: 0}
+    m_DisabledSprite: {fileID: 0}
+  m_AnimationTriggers:
+    m_NormalTrigger: Normal
+    m_HighlightedTrigger: Highlighted
+    m_PressedTrigger: Pressed
+    m_SelectedTrigger: Selected
+    m_DisabledTrigger: Disabled
+  m_Interactable: 1
+  m_TargetGraphic: {fileID: 2270021181093139701}
+  m_OnClick:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1 &345713897685513178
 GameObject:
   m_ObjectHideFlags: 0
@@ -5434,7 +5479,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &7498895801146952283
 RectTransform:
   m_ObjectHideFlags: 0
@@ -5552,7 +5597,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.UI.MissionUI
   budgetText: {fileID: 5552501197563157602}
   missionPanel: {fileID: 5483231558031524570}
-  missionNameText: {fileID: 0}
+  resultsPanel: {fileID: 6917445592140882621}
+  gameplayHUD: {fileID: 0}
+  missionNameText: {fileID: 3240549832978188083}
   missionDescText: {fileID: 0}
   timerText: {fileID: 0}
   floorsStatusText: {fileID: 7348401343254984147}
@@ -5560,13 +5607,15 @@ MonoBehaviour:
   populationStatusText: {fileID: 3579331817454358745}
   startSimButton: {fileID: 613098769374269246}
   startButtonText: {fileID: 0}
-  resultsPanel: {fileID: 6917445592140882621}
   restartButton: {fileID: 1626414162587037949}
   resultTitleText: {fileID: 2241583185785777718}
   starIcons:
   - {fileID: 5520070783508920515}
   - {fileID: 5340929890087821909}
   - {fileID: 6946153146050475424}
+  nextLevelButton: {fileID: 3070654839128946818}
+  levelSelectButton: {fileID: 6620274329486457530}
+  levelSelectScreenName: LevelSelect
   errorText: {fileID: 2241583185785777718}
   errorDisplayDuration: 3
   completedColor: {r: 0, g: 0.6, b: 0, a: 1}
@@ -6845,6 +6894,7 @@ GameObject:
   - component: {fileID: 1461860293973360764}
   - component: {fileID: 2347423190872968410}
   - component: {fileID: 3314508993030267325}
+  - component: {fileID: 3070654839128946818}
   m_Layer: 5
   m_Name: NextLv
   m_TagString: Untagged
@@ -6906,6 +6956,50 @@ MonoBehaviour:
     y: 0
     width: 1
     height: 1
+--- !u!114 &3070654839128946818
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8484505567584776677}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
+  m_Navigation:
+    m_Mode: 3
+    m_WrapAround: 0
+    m_SelectOnUp: {fileID: 0}
+    m_SelectOnDown: {fileID: 0}
+    m_SelectOnLeft: {fileID: 0}
+    m_SelectOnRight: {fileID: 0}
+  m_Transition: 1
+  m_Colors:
+    m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
+    m_HighlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_PressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
+    m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_DisabledColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 0.5019608}
+    m_ColorMultiplier: 1
+    m_FadeDuration: 0.1
+  m_SpriteState:
+    m_HighlightedSprite: {fileID: 0}
+    m_PressedSprite: {fileID: 0}
+    m_SelectedSprite: {fileID: 0}
+    m_DisabledSprite: {fileID: 0}
+  m_AnimationTriggers:
+    m_NormalTrigger: Normal
+    m_HighlightedTrigger: Highlighted
+    m_PressedTrigger: Pressed
+    m_SelectedTrigger: Selected
+    m_DisabledTrigger: Disabled
+  m_Interactable: 1
+  m_TargetGraphic: {fileID: 3314508993030267325}
+  m_OnClick:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1 &8587275230740406666
 GameObject:
   m_ObjectHideFlags: 0
@@ -7029,6 +7123,6 @@ MonoBehaviour:
   structureToBuild: {fileID: 11400000, guid: 84aee6cf8e1e9ff4ea9bb0a754c40a30, type: 2}
   gadgetToBuild: {fileID: 11400000, guid: d7ea2dc26a53db949ae97145d4fe0ea8, type: 2}
   materialToSelect: {fileID: 11400000, guid: 829f48f1ccaf61443afdeda45981932d, type: 2}
-  structurePanel: {fileID: 7801292371586534165}
-  gadgetPanel: {fileID: 989990702008990265}
+  structureScreenName: StructurePanel
+  gadgetScreenName: GadgetPanel
   deleteHoldDuration: 2

@@ -109,7 +109,15 @@ namespace Simulation.Character
             _target = targetTransform;
             if (_agent != null && _target != null && _agent.enabled && _agent.isOnNavMesh)
             {
-                _agent.SetDestination(_target.position);
+                // หาระยะที่ใกล้ที่สุดบน NavMesh จากตำแหน่งเป้าหมาย
+                if (UnityEngine.AI.NavMesh.SamplePosition(_target.position, out UnityEngine.AI.NavMeshHit hit, 10.0f, UnityEngine.AI.NavMesh.AllAreas))
+                {
+                    _agent.SetDestination(hit.position);
+                }
+                else
+                {
+                    _agent.SetDestination(_target.position);
+                }
             }
         }
 
@@ -129,11 +137,9 @@ namespace Simulation.Character
 
                 if (IsFleeing)
                 {
-                    // ขณะหนี ให้ใช้ความเร็ววิ่งหนี
                     _agent.isStopped = false;
                     _agent.speed = fleeSpeed;
                     
-                    // อัปเดตตำแหน่งวิ่งหนี (วิ่งหนีไปในทิศทางตรงข้ามกับซอมบี้)
                     Vector3 fleePos = transform.position + _fleeDirection * 5f;
                     if (UnityEngine.AI.NavMesh.SamplePosition(fleePos, out UnityEngine.AI.NavMeshHit hit, 3f, UnityEngine.AI.NavMesh.AllAreas))
                     {
@@ -142,7 +148,6 @@ namespace Simulation.Character
                 }
                 else if (HasReachedTarget)
                 {
-                    // หยุดเดินเมื่อถึงเป้าหมาย
                     _agent.isStopped = true;
                     _agent.speed = moveSpeed;
                 }
@@ -150,18 +155,34 @@ namespace Simulation.Character
                 {
                     _agent.isStopped = false;
                     _agent.speed = moveSpeed;
-                    _agent.SetDestination(_target.position);
+
+                    // ถ้าเป้าหมายขยับ เราก็อัปเดตเรื่อยๆ (แต่ใช้ SamplePosition เพื่อความแม่นยำ)
+                    if (Time.frameCount % 30 == 0) // อัปเดตทุก 30 เฟรมเพื่อลดภาระ
+                    {
+                        if (UnityEngine.AI.NavMesh.SamplePosition(_target.position, out UnityEngine.AI.NavMeshHit hit, 10.0f, UnityEngine.AI.NavMesh.AllAreas))
+                            _agent.SetDestination(hit.position);
+                    }
                     
-                    float distanceToTarget = Vector3.Distance(transform.position, _target.position);
-                    if (!_agent.pathPending && distanceToTarget <= arrivalDistance + 0.1f)
+                    // เช็คว่าถึงเป้าหมายหรือยัง (นับว่าถึงถ้าอยู่ใกล้เป้าหมาย "หรือ" ไปต่อไม่ได้แล้วและอยู่ใกล้ที่สุดเท่าที่จะทำได้)
+                    float distToTarget = Vector3.Distance(transform.position, _target.position);
+                    bool arrived = distToTarget <= arrivalDistance + 0.1f;
+
+                    // กรณีไปไม่ถึงเป้าหมายโดยตรง (เช่น เป้าอยู่ชั้นบนแต่ไม่มีบันได)
+                    // ให้เช็คว่า Agent หยุดเดินแล้ว (remainingDistance น้อย) 
+                    if (!arrived && !_agent.pathPending)
+                    {
+                        if (_agent.remainingDistance <= _agent.stoppingDistance + 0.1f)
+                        {
+                            // ถ้าไปต่อไม่ได้แล้ว ให้ถือว่าถึงจุดที่ใกล้ที่สุดแล้ว
+                            arrived = true;
+                        }
+                    }
+
+                    if (arrived)
                     {
                         HasReachedTarget = true;
-
-                        if (_target != null)
-                        {
-                            PersonTarget pt = _target.GetComponent<PersonTarget>();
-                            if (pt != null) pt.StartFadeOut();
-                        }
+                        PersonTarget pt = _target.GetComponent<PersonTarget>();
+                        if (pt != null) pt.StartFadeOut();
                     }
                 }
             }
@@ -328,6 +349,11 @@ namespace Simulation.Character
                 {
                     float massFactor = Mathf.Clamp(otherRb.mass, 1f, 500f);
                     TakeDamage(impact * massFactor * 2f);
+                    
+                    // กระเด้งกลับ (Knockback / Bounce)
+                    Vector3 forceDir = (otherRb.transform.position - transform.position).normalized;
+                    forceDir.y = 1f; // ให้เด้งขึ้นด้วย
+                    otherRb.AddForce(forceDir.normalized * impact * 0.5f, ForceMode.VelocityChange);
                 }
             }
         }

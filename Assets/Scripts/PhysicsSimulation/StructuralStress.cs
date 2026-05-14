@@ -1,4 +1,6 @@
 using UnityEngine;
+using Simulation.Building;
+using Simulation.Data;
 
 namespace Simulation.Physics
 {
@@ -98,6 +100,9 @@ namespace Simulation.Physics
         // Cached original material colors
         private Color[] _cachedOriginalColors;
         private bool _hasStressRenderers;
+
+        // Bouncy material for debris
+        private static PhysicsMaterial _bouncyMaterial;
 
         // ────────────────────────────────────────────────────────────────
         // Public Read-Only Properties
@@ -365,11 +370,27 @@ namespace Simulation.Physics
 
             // 2. Enable physics collisions and ensure NOT triggers
             RestorePhysicsCollisions();
+            
+            if (_bouncyMaterial == null)
+            {
+                _bouncyMaterial = new PhysicsMaterial("DebrisBouncy");
+                _bouncyMaterial.bounciness = 0.5f;
+                _bouncyMaterial.bounceCombine = PhysicsMaterialCombine.Maximum;
+            }
+
             if (_colliders != null)
             {
+                // ตรวจสอบว่าเป็นประตูหรือไม่ (ถ้าเป็นประตูห้ามแก้ isTrigger เพราะ NPC จะเข้าไม่ได้)
+                StructureUnit unit = GetComponent<StructureUnit>();
+                bool isDoor = unit != null && unit.Data != null && unit.Data.structureType == StructureType.Door;
+
                 foreach (var col in _colliders)
                 {
-                    if (col != null) col.isTrigger = false;
+                    if (col != null)
+                    {
+                        if (!isDoor) col.isTrigger = false;
+                        col.material = _bouncyMaterial;
+                    }
                 }
             }
 
@@ -507,6 +528,12 @@ namespace Simulation.Physics
             }
 
             gameObject.SetActive(false);
+
+            // อัพเดท NavMesh อีกครั้งหลังจากซากหายไปแล้ว เพื่อให้ NPC เดินผ่านได้
+            if (SimulationManager.Instance != null && SimulationManager.Instance.IsSimulating)
+            {
+                SimulationManager.Instance.RebuildNavMesh();
+            }
         }
 
         // ────────────────────────────────────────────────────────────────

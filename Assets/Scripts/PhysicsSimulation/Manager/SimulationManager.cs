@@ -366,30 +366,6 @@ namespace Simulation.Physics
 
             _snapshots.Clear();
 
-            // คืนค่า IgnoreCollision ให้กับทุกชิ้นส่วน (ป้องกัน Bug ของระเบิดกระจายตอนกด Start รอบสอง)
-            // เพราะตอนที่ของพังไปแล้ว ระบบจะเปิดให้ชนกันใหม่ (RestorePhysicsCollisions) 
-            // เมื่อย้อนเวลากลับมา (Rewind) จึงต้องสั่งให้มันเลิกชนกันอีกรอบ เหมือนตอนเพิ่งวางเสร็จ
-            StructureUnit[] allUnits = FindObjectsByType<StructureUnit>(FindObjectsSortMode.None);
-            for (int i = 0; i < allUnits.Length; i++)
-            {
-                if (allUnits[i] == null) continue;
-                Collider[] cols1 = allUnits[i].GetComponentsInChildren<Collider>(true);
-                
-                for (int j = i + 1; j < allUnits.Length; j++)
-                {
-                    if (allUnits[j] == null) continue;
-                    Collider[] cols2 = allUnits[j].GetComponentsInChildren<Collider>(true);
-                    
-                    foreach (var c1 in cols1)
-                    {
-                        foreach (var c2 in cols2)
-                        {
-                            if (c1 != null && c2 != null)
-                                UnityEngine.Physics.IgnoreCollision(c1, c2, true);
-                        }
-                    }
-                }
-            }
         }
 
         // ────────────────────────────────────────────────────────────────

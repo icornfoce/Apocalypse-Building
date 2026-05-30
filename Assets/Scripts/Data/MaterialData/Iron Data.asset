@@ -16,7 +16,7 @@ MonoBehaviour:
   priceModifier: 100
   massModifier: 20
   hpModifier: 100
-  material: {fileID: 2100000, guid: 18c4e4cb1fa527a408c5c3f8df686fa0, type: 2}
+  material: {fileID: 2100000, guid: 44a3920887fbe134a862256e38341e34, type: 2}
   placeSound: {fileID: 8300000, guid: 45c54dcc7098852419e34f151fd21b43, type: 3}
   breakSound: {fileID: 8300000, guid: 10a92f77c96cdf34dab9bd3df225b9c5, type: 3}
   placeVFX: {fileID: 1076566125589518086, guid: 03719e542f88b1e4c89bfbba2503de75, type: 3}

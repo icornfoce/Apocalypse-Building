@@ -18,15 +18,42 @@ namespace Simulation.Mission
         public float digSpeed = 1.0f;
         public float floorDigDamage = 15f;
         public float digInterval = 0.8f;
+        public float digDistance = 2.0f;
+        public float digWaitTime = 0.5f;
         
         [Header("Visual")]
         [Tooltip("Y offset ตอนขุดอยู่ใต้ดิน (ค่าลบ = จมลงไป)")]
         public float undergroundYOffset = -2.5f; // เพิ่มความลึกให้พ้น Collider พื้นแน่นอน
 
+        [Header("Effects & Animations")]
+        [Tooltip("Animator สำหรับควบคุม Animation")]
+        public Animator animator;
+        [Tooltip("AudioSource สำหรับเล่นเสียง")]
+        public AudioSource audioSource;
+        
+        [Header("Visual Effects (VFX) Prefabs")]
+        public GameObject digStartVFX;
+        public GameObject diggingVFX;
+        public GameObject surfaceVFX;
+
+        [Header("Sound Effects (SFX) Clips")]
+        public AudioClip digStartSFX;
+        public AudioClip diggingSFX;
+        public AudioClip surfaceSFX;
+
         private DiggerState _currentState = DiggerState.Surface;
         private Vector3 _digStartPos;
+        private Vector3 _digTargetPos;
         private float _minDigDistance = 2.0f; // ระยะทางขั้นต่ำที่ต้องขุดเพื่อให้พ้นกำแพง
         private float _digTimer;
+        private float _digWaitTimer;
+
+        protected override void Awake()
+        {
+            base.Awake();
+            if (animator == null) animator = GetComponentInChildren<Animator>();
+            if (audioSource == null) audioSource = GetComponent<AudioSource>();
+        }
 
         protected override void Update()
         {
@@ -145,7 +172,26 @@ namespace Simulation.Mission
             
             _currentState = DiggerState.Underground;
             _digStartPos = transform.position;
+            
+            // คำนวณทิศทางการขุด
+            Vector3 digDirection = transform.forward;
+            if (_agent != null && _agent.enabled && _agent.velocity.sqrMagnitude > 0.01f)
+            {
+                digDirection = _agent.velocity.normalized;
+            }
+            digDirection.y = 0;
+            digDirection = digDirection.normalized;
+            
+            // ตั้งเป้าหมายขุดข้ามไปตามระยะทาง digDistance
+            _digTargetPos = _digStartPos + digDirection * digDistance;
+            _digWaitTimer = 0f;
+            _digTimer = 0f;
             if (_agent != null) _agent.enabled = false;
+            
+            // เล่น Animation / VFX / SFX เมื่อเริ่มขุด
+            if (animator != null) animator.SetTrigger("DigStart");
+            if (digStartVFX != null) Instantiate(digStartVFX, _digStartPos, Quaternion.identity);
+            if (audioSource != null && digStartSFX != null) audioSource.PlayOneShot(digStartSFX);
             
             // ขยับตัวลงไปใต้ดิน
             transform.position += new Vector3(0, undergroundYOffset, 0);
@@ -166,51 +212,70 @@ namespace Simulation.Mission
         {
             if (_targetPerson == null) return;
 
-            // คำนวณทิศทางไปยังเป้าหมาย (ในระนาบ XZ)
-            Vector3 targetPos = _targetPerson.transform.position;
-            Vector3 moveTarget = new Vector3(targetPos.x, transform.position.y, targetPos.z);
-            Vector3 moveDir = (moveTarget - transform.position).normalized;
+            // คำนวณเป้าหมายขุดในระดับความลึกปัจจุบัน
+            Vector3 targetPosOnXZ = new Vector3(_digTargetPos.x, transform.position.y, _digTargetPos.z);
+            float distToTarget = Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), new Vector3(_digTargetPos.x, 0, _digTargetPos.z));
 
-            // 1. เช็คว่าพ้นสิ่งกีดขวางหรือยัง (ยิง Ray ขึ้นไปหา Layer Structure)
-            // ยิงขึ้นไปสูงหน่อยเพื่อให้พ้น Collider พื้น
-            bool isBlockedAbove = UnityEngine.Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.up, out RaycastHit hitUp, 3.5f, LayerMask.GetMask("Structure"));
-            float distFromStart = Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), new Vector3(_digStartPos.x, 0, _digStartPos.z));
-
-            if (!isBlockedAbove && distFromStart > _minDigDistance)
+            if (distToTarget > 0.1f)
             {
-                // ไม่เจออะไรขวางข้างบนแล้ว และขุดมาไกลพอจะพ้นกำแพงแล้ว — โผล่ขึ้นมา!
-                Surface();
+                // ขยับตัวไปข้างหน้าใต้ดินจนถึงเป้าหมาย
+                transform.position = Vector3.MoveTowards(transform.position, targetPosOnXZ, digSpeed * Time.deltaTime);
+                Vector3 moveDir = (targetPosOnXZ - transform.position).normalized;
+                if (moveDir.sqrMagnitude > 0.001f)
+                    transform.rotation = Quaternion.LookRotation(new Vector3(moveDir.x, 0, moveDir.z));
                 return;
             }
 
-            // 2. ถ้าเจอพื้น (Floor) ข้างบน ให้ขุดทำความเสียหาย
-            StructureUnit unitAbove = hitUp.collider.GetComponentInParent<StructureUnit>();
-            if (unitAbove != null && unitAbove.Data != null && unitAbove.Data.structureType == Simulation.Data.StructureType.Floor)
+            // เมื่อถึงตำแหน่งปลายทางใต้ดิน (ข้ามพ้นกำแพงตามระยะทางที่กำหนดแล้ว)
+            // เช็คว่ามีสิ่งกีดขวาง เช่น พื้น หรืออย่างอื่นอยู่ด้านบนหรือไม่
+            bool isBlockedAbove = UnityEngine.Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.up, out RaycastHit hitUp, 3.5f, LayerMask.GetMask("Structure"));
+            if (isBlockedAbove)
             {
-                _digTimer += Time.deltaTime;
-                if (_digTimer >= digInterval)
+                StructureUnit unitAbove = hitUp.collider.GetComponentInParent<StructureUnit>();
+                if (unitAbove != null)
                 {
-                    _digTimer = 0f;
-                    var stress = unitAbove.GetComponent<Simulation.Physics.StructuralStress>();
-                    if (stress != null) stress.ApplyMaxHPDamage(floorDigDamage);
-                    else unitAbove.TakeMaxHPDamage(floorDigDamage);
+                    // ถ้าเจอพื้นหรืออย่างอื่นขวางด้านบน ให้โจมตีมันจนพัง
+                    _digTimer += Time.deltaTime;
+                    if (_digTimer >= digInterval)
+                    {
+                        _digTimer = 0f;
+                        var stress = unitAbove.GetComponent<Simulation.Physics.StructuralStress>();
+                        if (stress != null) stress.ApplyMaxHPDamage(floorDigDamage);
+                        else unitAbove.TakeMaxHPDamage(floorDigDamage);
+                        
+                        // เล่น Animation / VFX / SFX ขณะกำลังขุดโจมตีสิ่งกีดขวางด้านบน
+                        if (animator != null) animator.SetTrigger("DigAttack");
+                        if (diggingVFX != null) Instantiate(diggingVFX, hitUp.point, Quaternion.identity);
+                        if (audioSource != null && diggingSFX != null) audioSource.PlayOneShot(diggingSFX);
+                        
+                        Debug.Log($"<color=orange>[DiggerZombie]</color> Blocked above by {unitAbove.name}. Attacking structure!");
+                    }
+                    // ทำลายสิ่งกีดขวางอยู่ ยังไม่โผล่ขึ้นไป
+                    return;
                 }
             }
 
-            // 3. ขยับตัวไปข้างหน้าใต้ดิน
-            float currentSpeed = (unitAbove != null) ? digSpeed : moveSpeed;
-            transform.position = Vector3.MoveTowards(transform.position, moveTarget, currentSpeed * Time.deltaTime);
-            
-            if (moveDir.sqrMagnitude > 0.001f)
-                transform.rotation = Quaternion.LookRotation(moveDir);
+            // ถ้าไม่มีอะไรขวางด้านบนแล้ว (หรือตีจนพังไปแล้ว) ให้ขึ้นไปด้านบนโดยต้องรอเวลาขุดข้าม
+            _digWaitTimer += Time.deltaTime;
+            if (_digWaitTimer >= digWaitTime)
+            {
+                Surface();
+            }
         }
 
         private void Surface()
         {
             _currentState = DiggerState.Surface;
             
+            Vector3 surfacePos = transform.position - new Vector3(0, undergroundYOffset, 0);
+
             // กลับขึ้นมาที่ระดับพื้นปกติ
-            transform.position -= new Vector3(0, undergroundYOffset, 0);
+            transform.position = surfacePos;
+
+            // เล่น Animation / VFX / SFX เมื่อโผล่ขึ้นมาผิวดิน
+            if (animator != null) animator.SetTrigger("Surface");
+            if (surfaceVFX != null) Instantiate(surfaceVFX, surfacePos, Quaternion.identity);
+            if (audioSource != null && surfaceSFX != null) audioSource.PlayOneShot(surfaceSFX);
 
             if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 3f, NavMesh.AllAreas))
             {

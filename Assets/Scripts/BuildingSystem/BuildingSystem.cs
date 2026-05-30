@@ -1564,22 +1564,40 @@ namespace Simulation.Building
             Rigidbody newRb = structureObj.GetComponent<Rigidbody>();
             if (newRb == null) return;
 
-            // 1. Remove existing joints
+            StructureUnit newUnit = structureObj.GetComponent<StructureUnit>();
+            if (newUnit == null) return;
+
+            // 1. Remove existing joints immediately to avoid stale components in the same frame
             Joint[] existingJoints = structureObj.GetComponents<Joint>();
-            foreach (var j in existingJoints) Destroy(j);
+            foreach (var j in existingJoints) DestroyImmediate(j);
 
             // 2. Find the actual collider directly beneath this specific structure.
             // This is crucial for drag-placement, as the mouse-hit collider (targetCollider)
             // might not be the one supporting this specific instance in a line of structures.
             Collider actualTarget = null;
             
-            // Raycast down from slightly ABOVE the bottom of the structure
+            // Raycast/Boxcast down from slightly ABOVE the bottom of the structure
             float pivotToBottom = GetPivotToBottomOffset(structureObj);
             
             // We start slightly ABOVE the bottom to catch the surface we are placed on,
             // but we must ignore our own colliders.
             Vector3 rayStart = structureObj.transform.position - new Vector3(0, pivotToBottom - 0.1f, 0);
-            RaycastHit[] hits = UnityEngine.Physics.RaycastAll(rayStart, Vector3.down, 0.4f, groundLayer | structureLayer);
+
+            // ใช้ BoxCast แทน Raycast เพื่อเพิ่มพื้นที่ตรวจจับฐานด้านล่าง (สำคัญมากสำหรับพื้นที่อยู่บนขอบกำแพง)
+            Collider myCol = structureObj.GetComponentInChildren<Collider>();
+            Vector3 boxHalfExtents = myCol != null ? myCol.bounds.extents : new Vector3(0.5f, 0.05f, 0.5f);
+            boxHalfExtents.y = 0.05f; // ทำให้บางในแนวตั้งเพื่อหาแผ่นรองรับ
+            boxHalfExtents.x = Mathf.Max(0.05f, boxHalfExtents.x - 0.02f); // หดขอบเล็กน้อยมากๆ เท่านั้น เพื่อไม่ให้พลาดเสา/คานที่ขอบ
+            boxHalfExtents.z = Mathf.Max(0.05f, boxHalfExtents.z - 0.02f);
+
+            RaycastHit[] hits = UnityEngine.Physics.BoxCastAll(
+                rayStart, 
+                boxHalfExtents, 
+                Vector3.down, 
+                Quaternion.identity, 
+                0.4f, 
+                groundLayer | structureLayer
+            );
             System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
 
             foreach (var hit in hits)
@@ -1633,11 +1651,43 @@ namespace Simulation.Building
             var targetUnit = actualTarget.GetComponentInParent<StructureUnit>();
             if (targetUnit != null)
             {
-                targetRb = targetUnit.GetComponent<Rigidbody>();
+                // บล็อกการเชื่อมต่อกำแพงกับพื้นในแนวแกน Z สำหรับการต่อหลัก (AttachJoint)
+                bool isWall = newUnit.Data.structureType == StructureType.Wall;
+                bool isFloor = targetUnit.Data.structureType == StructureType.Floor;
+                bool isOtherWall = targetUnit.Data.structureType == StructureType.Wall;
+                bool isOtherFloor = newUnit.Data.structureType == StructureType.Floor;
+                bool isWallFloorConnection = (isWall && isFloor) || (isOtherWall && isOtherFloor);
+
+                if (isWallFloorConnection)
+                {
+                    float bottomY1 = structureObj.transform.position.y - GetPivotToBottomOffset(newUnit.Data, structureObj);
+                    float bottomY2 = targetUnit.transform.position.y - GetPivotToBottomOffset(targetUnit.Data, targetUnit.gameObject);
+                    bool onSameLevel = Mathf.Abs(bottomY1 - bottomY2) < 1.5f;
+
+                    if (onSameLevel)
+                    {
+                        StructureUnit wallUnit = isWall ? newUnit : targetUnit;
+                        StructureUnit floorUnit = isWall ? targetUnit : newUnit;
+                        Vector3 diff = floorUnit.transform.position - wallUnit.transform.position;
+                        diff.y = 0f;
+                        Vector3 localDiff = wallUnit.transform.InverseTransformDirection(diff);
+
+                        // ห้ามเชื่อมต่อกำแพงกับพื้นในแนวแกน Z
+                        if (Mathf.Abs(localDiff.z) > Mathf.Abs(localDiff.x))
+                        {
+                            actualTarget = null;
+                        }
+                    }
+                }
+
+                if (actualTarget != null)
+                {
+                    targetRb = targetUnit.GetComponent<Rigidbody>();
+                }
             }
 
             // Fallback to searching up the hierarchy
-            if (targetRb == null)
+            if (actualTarget != null && targetRb == null)
             {
                 targetRb = actualTarget.GetComponentInParent<Rigidbody>();
             }
@@ -1703,6 +1753,35 @@ namespace Simulation.Building
 
                 Rigidbody otherRb = unit.GetComponent<Rigidbody>();
                 if (otherRb == null || otherRb == mainConnected) continue;
+
+                // 3. กรองประเภทโครงสร้าง: กำแพงกับพื้น (และพื้นกับกำแพง) ในระดับ Unit
+                bool isWall = newUnit.Data.structureType == StructureType.Wall;
+                bool isFloor = unit.Data.structureType == StructureType.Floor;
+                bool isOtherWall = unit.Data.structureType == StructureType.Wall;
+                bool isOtherFloor = newUnit.Data.structureType == StructureType.Floor;
+                bool isWallFloorConnection = (isWall && isFloor) || (isOtherWall && isOtherFloor);
+
+                if (isWallFloorConnection)
+                {
+                    float bottomY1 = newUnit.transform.position.y - GetPivotToBottomOffset(newUnit.Data, newUnit.gameObject);
+                    float bottomY2 = unit.transform.position.y - GetPivotToBottomOffset(unit.Data, unit.gameObject);
+                    bool onSameLevel = Mathf.Abs(bottomY1 - bottomY2) < 1.5f;
+
+                    if (onSameLevel)
+                    {
+                        StructureUnit wallUnit = isWall ? newUnit : unit;
+                        StructureUnit floorUnit = isWall ? unit : newUnit;
+                        Vector3 diff = floorUnit.transform.position - wallUnit.transform.position;
+                        diff.y = 0f;
+                        Vector3 localDiff = wallUnit.transform.InverseTransformDirection(diff);
+
+                        // ห้ามเชื่อมต่อกำแพงกับพื้นในแนวแกน Z (บล็อกการต่อข้าม Unit ทั้งหมด)
+                        if (Mathf.Abs(localDiff.z) > Mathf.Abs(localDiff.x))
+                        {
+                            continue;
+                        }
+                    }
+                }
 
                 bool isAdjacent = false;
                 Collider[] otherColliders = unit.GetComponentsInChildren<Collider>();

@@ -165,6 +165,6 @@ MonoBehaviour:
   maxCompression: 1000
   maxTension: 1000
   supportedLoadMultiplier: 10
-  stressRenderer: {fileID: 0}
+  stressRenderers: []
   stressVisualIntensity: 1
   showDebugLogs: 1

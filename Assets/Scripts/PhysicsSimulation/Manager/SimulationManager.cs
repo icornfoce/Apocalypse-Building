@@ -176,6 +176,13 @@ namespace Simulation.Physics
             // ลบตัวละครจริงทิ้ง
             ClearCharacters();
 
+            // ลบ Break VFX เก่าทั้งหมดในฉาก
+            var container = GameObject.Find("BreakVFXContainer_Runtime");
+            if (container != null)
+            {
+                Destroy(container);
+            }
+
             // ย้อนกลับไปสถานะก่อน Start (Rewind)
             RestoreSnapshots();
 

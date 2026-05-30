@@ -63,19 +63,19 @@ namespace Simulation.Building
         private void SetupGhost(GameObject obj)
         {
             // Disable all colliders
-            foreach (var col in obj.GetComponentsInChildren<Collider>()) col.enabled = false;
+            foreach (var col in obj.GetComponentsInChildren<Collider>(true)) col.enabled = false;
 
             // Disable all Rigidbodies
-            foreach (var rb in obj.GetComponentsInChildren<Rigidbody>()) rb.isKinematic = true;
+            foreach (var rb in obj.GetComponentsInChildren<Rigidbody>(true)) rb.isKinematic = true;
 
-            // Remove logic components
-            Destroy(obj.GetComponent<StructureUnit>());
-            Destroy(obj.GetComponent<Simulation.Physics.StructuralStress>());
-            Destroy(obj.GetComponent<Simulation.Character.PersonTarget>());
-            Destroy(obj.GetComponent<Simulation.Character.PersonSpawner>());
-            Destroy(obj.GetComponent<Simulation.Character.PersonAI>());
-            Destroy(obj.GetComponent<UnityEngine.AI.NavMeshAgent>());
-            foreach (var j in obj.GetComponentsInChildren<Joint>()) Destroy(j);
+            // Remove logic components in children as well
+            foreach (var comp in obj.GetComponentsInChildren<StructureUnit>(true)) DestroyImmediate(comp);
+            foreach (var comp in obj.GetComponentsInChildren<Simulation.Physics.StructuralStress>(true)) DestroyImmediate(comp);
+            foreach (var comp in obj.GetComponentsInChildren<Simulation.Character.PersonTarget>(true)) DestroyImmediate(comp);
+            foreach (var comp in obj.GetComponentsInChildren<Simulation.Character.PersonSpawner>(true)) DestroyImmediate(comp);
+            foreach (var comp in obj.GetComponentsInChildren<Simulation.Character.PersonAI>(true)) DestroyImmediate(comp);
+            foreach (var comp in obj.GetComponentsInChildren<UnityEngine.AI.NavMeshAgent>(true)) DestroyImmediate(comp);
+            foreach (var j in obj.GetComponentsInChildren<Joint>(true)) DestroyImmediate(j);
         }
 
         private void AddInstance(GameObject template, Vector3 pos, float rotation)

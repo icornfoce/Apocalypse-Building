@@ -63,6 +63,11 @@ namespace Simulation.Mission
             if (_currentWave >= _totalWaves) return;
             _currentWave++;
 
+            // กำหนด Seed ทุกครั้งที่ขึ้น Wave ใหม่เพื่อให้ซอมบี้เกิดตำแหน่งเดิมทุกรอบที่กดเริ่มใหม่
+            // (ใช้ชื่อข้อมูลภัยพิบัติ + หมายเลข Wave ทำให้แต่ละด่านเกิดคนละจุดแต่ได้ผลลัพธ์เหมือนเดิมทุกครั้งที่เล่น)
+            int seed = GetDeterministicHashCode(data.name) + _currentWave;
+            Random.InitState(seed);
+
             // Zombie ธรรมดา
             int normalCount = Mathf.Min(_normalPerWave, data.zombieSpawnCount - _normalSpawned);
             for (int i = 0; i < normalCount; i++)
@@ -89,6 +94,19 @@ namespace Simulation.Mission
 
             int total = normalCount + diggerCount + balloonCount;
             Debug.Log($"<color=red> Wave {_currentWave}/{_totalWaves}: {normalCount} normal, {diggerCount} digger, {balloonCount} balloon</color>");
+        }
+
+        private int GetDeterministicHashCode(string str)
+        {
+            unchecked
+            {
+                int hash = 23;
+                foreach (char c in str)
+                {
+                    hash = hash * 31 + c;
+                }
+                return hash;
+            }
         }
 
         private void SpawnZombieOfType(GameObject prefab, string typeName, System.Type aiType)

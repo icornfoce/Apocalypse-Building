@@ -101,8 +101,8 @@ namespace Simulation.Physics
         private Color[] _cachedOriginalColors;
         private bool _hasStressRenderers;
 
-        // Bouncy material for debris
-        private static PhysicsMaterial _bouncyMaterial;
+        // Zero-bounce material for debris
+        private static PhysicsMaterial _zeroBounceMaterial;
 
         // ────────────────────────────────────────────────────────────────
         // Public Read-Only Properties
@@ -246,10 +246,12 @@ namespace Simulation.Physics
             {
                 forceDamage = (forceMag - forceThreshold) * forceDamageMultiplier * dt;
                 
-                // If force exceeds physical limits, take significant damage
+                // ถ้าแรงกระทำเกินขีดจำกัดสูงสุดของวัสดุ (maxTension) ให้ข้อต่อหักทันที (Instant Snap)
                 if (forceMag > currentLimit)
                 {
-                    forceDamage += (forceMag / currentLimit) * 10f * dt;
+                    _currentHP = 0f;
+                    Break();
+                    return;
                 }
             }
 
@@ -300,7 +302,35 @@ namespace Simulation.Physics
 
         private void OnCollisionEnter(Collision collision)
         {
+            // ข้ามการตรวจจับในช่วง settle เพื่อป้องกันโครงสร้างถล่มตั้งแต่เริ่มจำลอง
+            if (_settlementTimer > 0f) return;
+
             float impact = collision.impulse.magnitude;
+
+            // ── 0. ชิ้นส่วนที่หลุดออก (Detached): กระแทกอะไรก็ตามนิดเดียว → พังทันที ไม่เด้ง ──
+            if (_isDetached && !_isBroken && impact > 0.5f)
+            {
+                _currentHP = 0f;
+                Break();
+                return;
+            }
+
+            // ── 0.5 โครงสร้างที่ยังเกาะอยู่: ถ้าชน/กระแทกแค่นิดเดียว (impact > 2f) ให้ Joint หลุด (Detach) ทันที ──
+            if (!_isDetached && !_isBroken && impact > 2f)
+            {
+                if (showDebugLogs)
+                    Debug.Log($"[Stress] {name} joint snapped (detached) due to collision impact: {impact:F1}");
+
+                Detach();
+
+                // ถ้าชนแรงขึ้นมาหน่อย (impact > 10f) ให้พัง (Break) ไปเลย
+                if (impact > 10f)
+                {
+                    _currentHP = 0f;
+                    Break();
+                }
+                return;
+            }
 
             // ── 1. Impact Damage: If THIS structure is stable, but something hits it hard ──
             if (!_isBroken && impact > impactDamageThreshold) 
@@ -328,7 +358,7 @@ namespace Simulation.Physics
                     ContactPoint contact = collision.GetContact(0);
 
                     if (unit.CurrentMaterial.breakVFX != null)
-                        Instantiate(unit.CurrentMaterial.breakVFX, contact.point, Quaternion.identity);
+                        Instantiate(unit.CurrentMaterial.breakVFX, contact.point, Quaternion.identity, GetVFXContainer());
 
                     if (unit.CurrentMaterial.breakSound != null)
                         AudioSource.PlayClipAtPoint(unit.CurrentMaterial.breakSound, contact.point);
@@ -363,24 +393,37 @@ namespace Simulation.Physics
             if (_isDetached) return;
             _isDetached = true;
 
-            // 1. Destroy ALL joints
+            // 1. Destroy ALL joints บนตัวนี้
             Joint[] allJoints = GetComponents<Joint>();
             foreach (var j in allJoints) Destroy(j);
             _joint = null;
 
-            // 2. Enable physics collisions and ensure NOT triggers
-            RestorePhysicsCollisions();
-            
-            if (_bouncyMaterial == null)
+            // 2. ลบ Joint ของโครงสร้างอื่นที่อ้างถึง Rigidbody ตัวนี้ด้วย
+            //    ป้องกันปัญหา "ดึงกลับ" ที่ทำให้ชิ้นส่วนเด้งแปลกๆ
+            if (_rb != null)
             {
-                _bouncyMaterial = new PhysicsMaterial("DebrisBouncy");
-                _bouncyMaterial.bounciness = 0.5f;
-                _bouncyMaterial.bounceCombine = PhysicsMaterialCombine.Maximum;
+                Joint[] sceneJoints = FindObjectsByType<Joint>(FindObjectsSortMode.None);
+                foreach (var j in sceneJoints)
+                {
+                    if (j != null && j.connectedBody == _rb)
+                        Destroy(j);
+                }
+            }
+
+            // 3. Enable physics collisions and ensure NOT triggers
+            RestorePhysicsCollisions();
+
+            if (_zeroBounceMaterial == null)
+            {
+                _zeroBounceMaterial = new PhysicsMaterial("DebrisZeroBounce");
+                _zeroBounceMaterial.bounciness = 0f;
+                _zeroBounceMaterial.bounceCombine = PhysicsMaterialCombine.Minimum;
+                _zeroBounceMaterial.staticFriction = 0.6f;
+                _zeroBounceMaterial.dynamicFriction = 0.6f;
             }
 
             if (_colliders != null)
             {
-                // ตรวจสอบว่าเป็นประตูหรือไม่ (ถ้าเป็นประตูห้ามแก้ isTrigger เพราะ NPC จะเข้าไม่ได้)
                 StructureUnit unit = GetComponent<StructureUnit>();
                 bool isDoor = unit != null && unit.Data != null && unit.Data.structureType == StructureType.Door;
 
@@ -389,17 +432,16 @@ namespace Simulation.Physics
                     if (col != null)
                     {
                         if (!isDoor) col.isTrigger = false;
-                        col.material = _bouncyMaterial;
+                        col.material = _zeroBounceMaterial;
                     }
                 }
             }
 
-            // 3. Move to Default layer (0) so it collides with the Structure layer
-            //    (Structure layer อาจไม่ชนกับตัวเอง ใน Layer Collision Matrix)
+            // 4. Move to Default layer (0) so it collides with the Structure layer
             _originalLayer = gameObject.layer;
-            SetLayerRecursive(gameObject, 0); // Default layer collides with everything
+            SetLayerRecursive(gameObject, 0);
 
-            // 4. Make Rigidbody dynamic
+            // 5. Make Rigidbody dynamic
             if (_rb != null)
             {
                 foreach (var meshCol in GetComponentsInChildren<MeshCollider>())
@@ -411,8 +453,7 @@ namespace Simulation.Physics
                 _rb.useGravity = true;
                 _rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
                 _rb.WakeUp();
-                
-                // Add a tiny random bump for realism
+
                 _rb.AddTorque(Random.insideUnitSphere * 0.5f, ForceMode.Impulse);
             }
         }
@@ -430,7 +471,22 @@ namespace Simulation.Physics
             _isBroken = true;
             _currentHP = 0f;
 
-            Detach();
+            // ทำลาย Joint ทั้งหมดเพื่อให้โครงสร้างด้านบนตรวจเจอว่าตัวค้ำหายไป (Cascading Failure)
+            Joint[] allJoints = GetComponents<Joint>();
+            foreach (var j in allJoints) Destroy(j);
+            _joint = null;
+
+            // ลบ Joint ของโครงสร้างอื่นที่อ้างถึง Rigidbody ตัวนี้
+            // เพื่อให้ตัวที่ต่ออยู่ Detach → ร่วง → กระแทก → Break → cascade ต่อไปเรื่อยๆ
+            if (_rb != null)
+            {
+                Joint[] sceneJoints = FindObjectsByType<Joint>(FindObjectsSortMode.None);
+                foreach (var j in sceneJoints)
+                {
+                    if (j != null && j.connectedBody == _rb)
+                        Destroy(j);
+                }
+            }
 
             if (showDebugLogs)
             {
@@ -449,7 +505,7 @@ namespace Simulation.Physics
             
             Building.BuildingSystem.Instance?.TriggerCameraShake(shakeIntensity);
 
-            // Play break effects
+            // Spawn break VFX แทน Prefab ที่หายไป
             if (unit != null)
             {
                 if (unit.CurrentMaterial != null)
@@ -458,12 +514,12 @@ namespace Simulation.Physics
                         AudioSource.PlayClipAtPoint(unit.CurrentMaterial.breakSound, transform.position);
 
                     if (unit.CurrentMaterial.breakVFX != null)
-                        Instantiate(unit.CurrentMaterial.breakVFX, transform.position, Quaternion.identity);
+                        Instantiate(unit.CurrentMaterial.breakVFX, transform.position, Quaternion.identity, GetVFXContainer());
                 }
 
                 if (unit.Data != null && unit.Data.breakVFX != null)
                 {
-                    Instantiate(unit.Data.breakVFX, transform.position, Quaternion.identity);
+                    Instantiate(unit.Data.breakVFX, transform.position, transform.rotation, GetVFXContainer());
                 }
             }
 
@@ -473,15 +529,29 @@ namespace Simulation.Physics
             // คำนวณชั้นสูงสุดใหม่ เพราะอาจจะมีบางชั้นพังลงไป
             Building.BuildingSystem.Instance?.RecalculateMaxFloor();
 
+            // ── ซ่อน Prefab ทันที — ไม่ต้องรอให้ร่วงก่อน ──
+            foreach (var col in _colliders)
+            {
+                if (col != null) col.enabled = false;
+            }
+            gameObject.SetActive(false);
+
             // ── REBUILD NAVMESH ──
             // เมื่อโครงสร้างพัง (กำแพงถล่ม/พื้นทะลุ) ให้คำนวณ NavMesh ใหม่เพื่อให้ AI หาทางไปต่อได้
             if (SimulationManager.Instance != null && SimulationManager.Instance.IsSimulating)
             {
                 SimulationManager.Instance.RebuildNavMesh();
             }
+        }
 
-            // Deactivate after delay
-            StartCoroutine(DeactivateAfterDelay(5f));
+        private Transform GetVFXContainer()
+        {
+            var go = GameObject.Find("BreakVFXContainer_Runtime");
+            if (go == null)
+            {
+                go = new GameObject("BreakVFXContainer_Runtime");
+            }
+            return go.transform;
         }
 
         /// <summary>

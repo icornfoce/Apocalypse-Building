@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 726d9d048e30d614b8dea35917a79e2c, type: 3}
+  m_Name: High Wind
+  m_EditorClassIdentifier: Assembly-CSharp::Simulation.Mission.DisasterData
+  disasterName: High Wind
+  disasterType: 2
+  duration: 5
+  intensity: 10
+  radius: 0
+  centerOffset: {x: 0, y: 0, z: 0}
+  damagePerSecond: 5
+  peopleDamagePerSecond: 5
+  vfxPrefab: {fileID: 7344904115385140804, guid: 8a4fb4fc631d11b4397cf3f7a9717baa, type: 3}
+  sfx: {fileID: 8300000, guid: 13d2c6d7e56f93c4691df32ddcf02358, type: 3}
+  shakeFrequency: 20
+  floodMaxHeight: 3
+  windDirection: {x: 0, y: 0, z: 1}
+  windForceMultiplier: 1
+  ufoMaxTargets: 3
+  ufoLiftSpeed: 5
+  dragonPrefab: {fileID: 0}
+  fireballPrefab: {fileID: 0}
+  acidRainParticle: {fileID: 0}
+  tornadoSpinSpeed: 10
+  tornadoPullForce: 15
+  tornadoLiftForce: 8
+  zombiePrefab: {fileID: 0}
+  diggerZombiePrefab: {fileID: 0}
+  balloonZombiePrefab: {fileID: 0}
+  zombieSpawnCount: 5
+  diggerZombieCount: 0
+  balloonZombieCount: 0
+  zombieWaveCount: 1

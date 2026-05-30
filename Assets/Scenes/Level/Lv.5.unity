@@ -534,54 +534,6 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 1269961615951085952, guid: e4ee5a16c27d92c42a9b0e41489a2b83, type: 3}
-      propertyPath: m_AnchorMax.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1269961615951085952, guid: e4ee5a16c27d92c42a9b0e41489a2b83, type: 3}
-      propertyPath: m_AnchorMin.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1269961615951085952, guid: e4ee5a16c27d92c42a9b0e41489a2b83, type: 3}
-      propertyPath: m_SizeDelta.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1269961615951085952, guid: e4ee5a16c27d92c42a9b0e41489a2b83, type: 3}
-      propertyPath: m_SizeDelta.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1269961615951085952, guid: e4ee5a16c27d92c42a9b0e41489a2b83, type: 3}
-      propertyPath: m_AnchoredPosition.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1269961615951085952, guid: e4ee5a16c27d92c42a9b0e41489a2b83, type: 3}
-      propertyPath: m_AnchoredPosition.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4400474531612279201, guid: e4ee5a16c27d92c42a9b0e41489a2b83, type: 3}
-      propertyPath: m_AnchorMax.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4400474531612279201, guid: e4ee5a16c27d92c42a9b0e41489a2b83, type: 3}
-      propertyPath: m_AnchorMin.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4400474531612279201, guid: e4ee5a16c27d92c42a9b0e41489a2b83, type: 3}
-      propertyPath: m_SizeDelta.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4400474531612279201, guid: e4ee5a16c27d92c42a9b0e41489a2b83, type: 3}
-      propertyPath: m_SizeDelta.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4400474531612279201, guid: e4ee5a16c27d92c42a9b0e41489a2b83, type: 3}
-      propertyPath: m_AnchoredPosition.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4400474531612279201, guid: e4ee5a16c27d92c42a9b0e41489a2b83, type: 3}
-      propertyPath: m_AnchoredPosition.y
-      value: 0
-      objectReference: {fileID: 0}
     - target: {fileID: 4586056794626386208, guid: e4ee5a16c27d92c42a9b0e41489a2b83, type: 3}
       propertyPath: m_Pivot.x
       value: 0
@@ -827,7 +779,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fadea56639fd104fb52e34736a314d8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.Mission.MissionManager
-  currentMission: {fileID: 11400000, guid: b448cb0cca156f8439051fcf16be27c0, type: 2}
+  currentMission: {fileID: 11400000, guid: f7cdc62c00e1e56448dfe574eebb7b2e, type: 2}
   isMissionActive: 0
   lastStarRating: 0
   simulationTimer: 0

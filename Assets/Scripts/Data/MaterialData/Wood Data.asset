@@ -14,12 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.Data.MaterialData
   materialName: Wood
   priceModifier: 0
-  massModifier: 0
-  hpModifier: 0
+  massMultiplier: 1
+  hpMultiplier: 1
   material: {fileID: 2100000, guid: 489b9b0b868b39344a26f30901a11d2e, type: 2}
   placeSound: {fileID: 8300000, guid: 1ab14403f1320ca448b5ec1e5bec0839, type: 3}
   breakSound: {fileID: 8300000, guid: 3a192a8a41046c24ebfa82d164a5de75, type: 3}
   placeVFX: {fileID: 1076566125589518086, guid: 03719e542f88b1e4c89bfbba2503de75, type: 3}
   breakVFX: {fileID: 5880797563127281583, guid: 265d3a5ba69981a4698ceabcedf368b0, type: 3}
-  compressionModifier: 0
-  tensionModifier: 0
+  compressionMultiplier: 1
+  tensionMultiplier: 1

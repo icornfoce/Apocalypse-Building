@@ -12,7 +12,6 @@ GameObject:
   - component: {fileID: 7892220570156225414}
   - component: {fileID: 1403914948223874745}
   - component: {fileID: 6666948203332966244}
-  - component: {fileID: -4203871360492787512}
   m_Layer: 0
   m_Name: SpikeTrap
   m_TagString: Untagged
@@ -113,18 +112,3 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &-4203871360492787512
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7590346451621211408}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: eb18a600d7aa7e448b397a1fb68b32a7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Simulation.Building.SpikeTrap
-  damage: 25
-  damageInterval: 1
-  personDamageRatio: 0.1

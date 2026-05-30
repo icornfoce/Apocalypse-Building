@@ -139,6 +139,30 @@ namespace Simulation.Mission
             }
         }
 
+        public bool HasLanded => _hasLanded;
+
+        public void PopBalloon()
+        {
+            if (_hasLanded || _isDead) return;
+
+            _hasLanded = true;
+
+            if (balloonObject != null) balloonObject.SetActive(false);
+            if (balloonBurstVFX != null) Instantiate(balloonBurstVFX, transform.position + Vector3.up * 1f, Quaternion.identity);
+
+            if (_agent != null) _agent.enabled = false;
+
+            if (_rb != null)
+            {
+                _rb.isKinematic = false;
+                _rb.useGravity = true;
+            }
+            var col = GetComponent<CapsuleCollider>();
+            if (col != null) col.isTrigger = false;
+
+            Debug.Log($"<color=magenta>[BalloonZombie]</color> Balloon popped! Falling down.");
+        }
+
         private void OnLanded()
         {
             _hasLanded = true;

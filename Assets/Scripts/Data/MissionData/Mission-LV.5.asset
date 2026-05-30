@@ -10,20 +10,22 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0837ce6ae0cc02d4386014dddfbffbab, type: 3}
-  m_Name: Mission-LV.2
+  m_Name: Mission-LV.5
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.Mission.MissionData
   missionName: Lv.2
   description: 
   requiredFloors: 0
   requiredAreaPerFloor: 0
-  requiredPopulation: 3
+  requiredPopulation: 6
   gridColumns: 10
   gridRows: 10
   startingBudget: 5500
   disasters:
-  - disasterData: {fileID: 11400000, guid: 48f7c7d3298968b48adaebc85312cc2e, type: 2}
+  - disasterData: {fileID: 11400000, guid: bb55b614006e412458fedc3527402926, type: 2}
     startTime: 5
-  - disasterData: {fileID: 11400000, guid: 768d32f30bfe4b24886b51ec58094e15, type: 2}
+  - disasterData: {fileID: 11400000, guid: a6bdbd91f8127a040b6b32277e8cce5a, type: 2}
+    startTime: 8
+  - disasterData: {fileID: 11400000, guid: 874313a13026ad04b8ee226a20258b52, type: 2}
     startTime: 12
   simulationDuration: 125
   nextMission: {fileID: 0}

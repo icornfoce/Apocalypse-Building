@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 726d9d048e30d614b8dea35917a79e2c, type: 3}
+  m_Name: Zombie Lv.3
+  m_EditorClassIdentifier: Assembly-CSharp::Simulation.Mission.DisasterData
+  disasterName: Zombie
+  disasterType: 7
+  duration: 10
+  intensity: 10
+  radius: 0
+  centerOffset: {x: 0, y: 0, z: 0}
+  damagePerSecond: 5
+  peopleDamagePerSecond: 0
+  vfxPrefab: {fileID: 0}
+  sfx: {fileID: 0}
+  shakeFrequency: 20
+  floodMaxHeight: 3
+  windDirection: {x: 1, y: 0, z: 0}
+  windForceMultiplier: 50
+  ufoMaxTargets: 3
+  ufoLiftSpeed: 5
+  dragonPrefab: {fileID: 0}
+  fireballPrefab: {fileID: 0}
+  acidRainParticle: {fileID: 0}
+  tornadoSpinSpeed: 10
+  tornadoPullForce: 15
+  tornadoLiftForce: 8
+  zombiePrefab: {fileID: 2533105815544628967, guid: 1b42401e477759e4e9611de4c957a985, type: 3}
+  diggerZombiePrefab: {fileID: 6731510451850877391, guid: 385d6dad5b426da41b95f32d3d5727a4, type: 3}
+  balloonZombiePrefab: {fileID: 1374880148582166778, guid: a137138e84700ea40993116d258991e5, type: 3}
+  zombieSpawnCount: 0
+  diggerZombieCount: 0
+  balloonZombieCount: 5
+  zombieWaveCount: 1

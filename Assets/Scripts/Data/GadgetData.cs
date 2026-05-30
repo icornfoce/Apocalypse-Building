@@ -6,17 +6,29 @@ namespace Simulation.Data
     public class GadgetData : ScriptableObject
     {
         [Header("General Info")]
-        public string furnitureName;
+        public string GadgetName;
         public float Price;
         public float Mass;
         public float HP;
         public Vector3 size = Vector3.one;
-        [Tooltip("If true, this furniture can overlap with others")]
+        [Tooltip("If true, this Gadget can overlap with others")]
         public bool allowOverlap = false;
 
         [Header("Gadget Settings")]
         public bool isSpikeTrap = false;
         public float trapDamage = 20f;
+
+        [Header("Gadget Settings - Balloon Launcher")]
+        public bool isBalloonLauncher = false;
+        public float shootRange = 20f;
+        public float shootCooldown = 1.5f;
+        public GameObject muzzleFlashPrefab;
+        public AudioClip shootSound;
+
+        [Header("Gadget Settings - Tuned Mass Damper")]
+        public bool isTunedMassDamper = false;
+        public float dampingCoefficient = 0.5f;
+        public float restoringStrength = 10f;
 
         [Header("Assets")]
         public GameObject prefab;

@@ -1203,7 +1203,7 @@ namespace Simulation.Building
 
             // สร้าง StructureData จำลองขึ้นมา
             StructureData proxy = ScriptableObject.CreateInstance<StructureData>();
-            proxy.structureName = data.furnitureName;
+            proxy.structureName = data.GadgetName;
             proxy.basePrice = data.Price;
             proxy.baseMass = data.Mass;
             proxy.baseHP = data.HP;
@@ -1937,8 +1937,8 @@ namespace Simulation.Building
                     var stress = unit.GetComponent<Simulation.Physics.StructuralStress>();
                     if (stress != null)
                     {
-                        float comp = unit.Data.baseMaxCompression + newMaterial.compressionModifier;
-                        float tens = unit.Data.baseMaxTension     + newMaterial.tensionModifier;
+                        float comp = unit.Data.baseMaxCompression * newMaterial.compressionMultiplier;
+                        float tens = unit.Data.baseMaxTension     * newMaterial.tensionMultiplier;
                         stress.InitializeStress(unit.CurrentHP, comp, tens);
                     }
 
@@ -1956,8 +1956,8 @@ namespace Simulation.Building
                     var stress = unit.GetComponent<Simulation.Physics.StructuralStress>();
                     if (stress != null)
                     {
-                        float comp = unit.Data.baseMaxCompression + (oldMaterial != null ? oldMaterial.compressionModifier : 0f);
-                        float tens = unit.Data.baseMaxTension     + (oldMaterial != null ? oldMaterial.tensionModifier : 0f);
+                        float comp = unit.Data.baseMaxCompression * (oldMaterial != null ? oldMaterial.compressionMultiplier : 1f);
+                        float tens = unit.Data.baseMaxTension     * (oldMaterial != null ? oldMaterial.tensionMultiplier : 1f);
                         stress.InitializeStress(unit.CurrentHP, comp, tens);
                     }
                 }

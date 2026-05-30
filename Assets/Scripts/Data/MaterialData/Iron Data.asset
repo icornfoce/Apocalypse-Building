@@ -14,12 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.Data.MaterialData
   materialName: Iron
   priceModifier: 100
-  massModifier: 20
-  hpModifier: 100
+  massMultiplier: 1.25
+  hpMultiplier: 2
   material: {fileID: 2100000, guid: 44a3920887fbe134a862256e38341e34, type: 2}
   placeSound: {fileID: 8300000, guid: 45c54dcc7098852419e34f151fd21b43, type: 3}
   breakSound: {fileID: 8300000, guid: 10a92f77c96cdf34dab9bd3df225b9c5, type: 3}
   placeVFX: {fileID: 1076566125589518086, guid: 03719e542f88b1e4c89bfbba2503de75, type: 3}
   breakVFX: {fileID: 5880797563127281583, guid: 265d3a5ba69981a4698ceabcedf368b0, type: 3}
-  compressionModifier: 250
-  tensionModifier: 250
+  compressionMultiplier: 1.25
+  tensionMultiplier: 1.25

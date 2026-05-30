@@ -35,34 +35,59 @@ namespace Simulation.Building
             data = structureData;
             currentMaterial = materialData;
 
-            // HP = Base + Modifier
-            float maxHP = data.baseHP + (currentMaterial != null ? currentMaterial.hpModifier : 0f);
+            // HP = Base * Multiplier
+            float maxHP = data.baseHP * (currentMaterial != null ? currentMaterial.hpMultiplier : 1f);
             _currentHP = maxHP;
 
             _rotation = rotation;
             CacheRenderers();
             ApplyMaterial();
 
-            var stress = GetComponent<Simulation.Physics.StructuralStress>();
-            if (stress != null)
-            {
-                // Final limit = Structure base + Material modifier
-                float compLimit = data.baseMaxCompression + (currentMaterial != null ? currentMaterial.compressionModifier : 0f);
-                float tenLimit  = data.baseMaxTension     + (currentMaterial != null ? currentMaterial.tensionModifier : 0f);
-                stress.InitializeStress(maxHP, compLimit, tenLimit);
-            }
-
             Rigidbody rb = GetComponent<Rigidbody>();
             if (rb != null)
             {
                 bool isSimulating = Simulation.Physics.SimulationManager.Instance != null && Simulation.Physics.SimulationManager.Instance.IsSimulating;
                 rb.isKinematic = !isSimulating;
+                rb.mass = (data.baseMass * (currentMaterial != null ? currentMaterial.massMultiplier : 1f)) / 100f;
 
                 // Concave Mesh Colliders are not supported with dynamic Rigidbodies.
                 // We must ensure all MeshColliders are convex if we intend to simulate physics.
                 foreach (var meshCol in GetComponentsInChildren<MeshCollider>())
                 {
                     meshCol.convex = true;
+                }
+            }
+
+            var stress = GetComponent<Simulation.Physics.StructuralStress>();
+            if (stress != null)
+            {
+                // Final limit = Structure base * Material multiplier
+                float compLimit = data.baseMaxCompression * (currentMaterial != null ? currentMaterial.compressionMultiplier : 1f);
+                float tenLimit  = data.baseMaxTension     * (currentMaterial != null ? currentMaterial.tensionMultiplier : 1f);
+                stress.InitializeStress(maxHP, compLimit, tenLimit);
+            }
+
+            // Auto-inject Gadget behaviors if this unit is a Gadget
+            if (data != null && data.structureType == StructureType.Gadget)
+            {
+                string lowerName = data.structureName.ToLower();
+                if (lowerName.Contains("balloon") || lowerName.Contains("launcher") || lowerName.Contains("shooter"))
+                {
+                    if (GetComponent<BalloonLauncher>() == null)
+                    {
+                        var launcher = gameObject.AddComponent<BalloonLauncher>();
+                        launcher.shootRange = 20f;
+                        launcher.shootCooldown = 1.5f;
+                    }
+                }
+                else if (lowerName.Contains("damper") || lowerName.Contains("tuned") || lowerName.Contains("tmd"))
+                {
+                    if (GetComponent<TunedMassDamper>() == null)
+                    {
+                        var damper = gameObject.AddComponent<TunedMassDamper>();
+                        damper.dampingCoefficient = 0.8f;
+                        damper.restoringStrength = 15f;
+                    }
                 }
             }
         }
@@ -101,6 +126,12 @@ namespace Simulation.Building
         {
             currentMaterial = newMaterial;
             ApplyMaterial();
+
+            Rigidbody rb = GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.mass = (data.baseMass * (currentMaterial != null ? currentMaterial.massMultiplier : 1f)) / 100f;
+            }
         }
 
         public void SetRotation(float newRotation)

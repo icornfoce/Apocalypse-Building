@@ -174,6 +174,24 @@ namespace Simulation.Physics
                 Debug.LogWarning($"[StructuralStress] No Joint found on '{name}'. " +
                                  "Attach a FixedJoint or ConfigurableJoint for stress simulation.", this);
             }
+
+            // Automatically initialize from StructureUnit if available and not already initialized
+            if (_originalBaseHP == 0f)
+            {
+                var unit = GetComponent<StructureUnit>();
+                if (unit != null && unit.Data != null)
+                {
+                    float maxHP = unit.Data.baseHP * (unit.CurrentMaterial != null ? unit.CurrentMaterial.hpMultiplier : 1f);
+                    float compLimit = unit.Data.baseMaxCompression * (unit.CurrentMaterial != null ? unit.CurrentMaterial.compressionMultiplier : 1f);
+                    float tenLimit = unit.Data.baseMaxTension * (unit.CurrentMaterial != null ? unit.CurrentMaterial.tensionMultiplier : 1f);
+                    InitializeStress(maxHP, compLimit, tenLimit);
+
+                    if (_rb != null)
+                    {
+                        _rb.mass = unit.Data.baseMass * (unit.CurrentMaterial != null ? unit.CurrentMaterial.massMultiplier : 1f);
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -731,8 +749,8 @@ namespace Simulation.Physics
 
             // Cache original values for restart/rewind
             _originalBaseHP = maxHP;
-            _originalMaxCompression = compression;
-            _originalMaxTension = tension;
+            _originalMaxCompression = maxCompression;
+            _originalMaxTension = maxTension;
 
             _settlementTimer = SETTLEMENT_DURATION;
 

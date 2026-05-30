@@ -14,12 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.Data.MaterialData
   materialName: Stone
   priceModifier: 50
-  massModifier: 100
-  hpModifier: 75
+  massMultiplier: 2
+  hpMultiplier: 1.75
   material: {fileID: 2100000, guid: 47c2d740284d61c458bc725d4f321617, type: 2}
   placeSound: {fileID: 8300000, guid: b6bf30b25653e0a43a25655225c2eee9, type: 3}
   breakSound: {fileID: 8300000, guid: ba232440360290444bb8e0e0facc7ee2, type: 3}
   placeVFX: {fileID: 1076566125589518086, guid: 03719e542f88b1e4c89bfbba2503de75, type: 3}
   breakVFX: {fileID: 5880797563127281583, guid: 265d3a5ba69981a4698ceabcedf368b0, type: 3}
-  compressionModifier: 500
-  tensionModifier: -200
+  compressionMultiplier: 1.5
+  tensionMultiplier: 0.8

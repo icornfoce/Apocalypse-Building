@@ -25,11 +25,7 @@ namespace Simulation.Mission
         [Tooltip("Y offset ตอนขุดอยู่ใต้ดิน (ค่าลบ = จมลงไป)")]
         public float undergroundYOffset = -2.5f; // เพิ่มความลึกให้พ้น Collider พื้นแน่นอน
 
-        [Header("Effects & Animations")]
-        [Tooltip("Animator สำหรับควบคุม Animation")]
-        public Animator animator;
-        [Tooltip("AudioSource สำหรับเล่นเสียง")]
-        public AudioSource audioSource;
+        // animator and audioSource are inherited from the base ZombieAI class
         
         [Header("Visual Effects (VFX) Prefabs")]
         public GameObject digStartVFX;
@@ -244,7 +240,7 @@ namespace Simulation.Mission
                         else unitAbove.TakeMaxHPDamage(floorDigDamage);
                         
                         // เล่น Animation / VFX / SFX ขณะกำลังขุดโจมตีสิ่งกีดขวางด้านบน
-                        if (animator != null) animator.SetTrigger("DigAttack");
+
                         if (diggingVFX != null) Instantiate(diggingVFX, hitUp.point, Quaternion.identity);
                         if (audioSource != null && diggingSFX != null) audioSource.PlayOneShot(diggingSFX);
                         

@@ -27,11 +27,7 @@ namespace Simulation.Mission
         public GameObject balloonObject;
         public GameObject balloonBurstVFX;
 
-        [Header("Effects & Animations")]
-        [Tooltip("Animator สำหรับควบคุม Animation")]
-        public Animator animator;
-        [Tooltip("AudioSource สำหรับเล่นเสียง")]
-        public AudioSource audioSource;
+        // animator and audioSource are inherited from the base ZombieAI class
 
         [Header("Sound Effects (SFX) Clips")]
         public AudioClip balloonPopSFX;

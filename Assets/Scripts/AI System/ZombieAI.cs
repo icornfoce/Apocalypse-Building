@@ -28,6 +28,21 @@ namespace Simulation.Mission
         [Header("Death")]
         public GameObject deathVFX;
 
+        [Header("Effects & Animations")]
+        [Tooltip("Animator สำหรับควบคุม Animation")]
+        public Animator animator;
+        [Tooltip("AudioSource สำหรับเล่นเสียง")]
+        public AudioSource audioSource;
+
+        [Header("Sound Effects (SFX) Clips")]
+        public AudioClip attackSFX;
+        public AudioClip biteWallSFX;
+        public AudioClip hurtSFX;
+        public AudioClip deathSFX;
+
+        [Header("Visual Effects (VFX) Prefabs")]
+        public GameObject biteWallVFX;
+
         protected float _currentHealth;
         protected NavMeshAgent _agent;
         protected Rigidbody _rb;
@@ -50,6 +65,9 @@ namespace Simulation.Mission
             _rb = GetComponent<Rigidbody>();
             _currentHealth = maxHealth;
             _rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
+
+            if (animator == null) animator = GetComponentInChildren<Animator>();
+            if (audioSource == null) audioSource = GetComponent<AudioSource>();
         }
 
         protected virtual void Start()
@@ -169,6 +187,13 @@ namespace Simulation.Mission
                 // ไม่มีเป้าหมาย — ยืนเฉยๆ
                 if (_agent.enabled && _agent.isOnNavMesh) _agent.isStopped = true;
             }
+
+            // อัปเดต Animation เดิน/เคลื่อนที่
+            if (animator != null)
+            {
+                bool isMoving = _agent != null && _agent.enabled && !_agent.isStopped && _agent.velocity.sqrMagnitude > 0.01f;
+                animator.SetBool("IsMoving", isMoving);
+            }
         }
 
         protected bool CanSeePerson(PersonAI person)
@@ -225,6 +250,11 @@ namespace Simulation.Mission
                 if (_targetPerson != null && !_targetPerson.IsDead)
                 {
                     _targetPerson.TakeDamage(0f, true); // กัดทีเดียวตาย
+
+                    // เล่น Animation / SFX กัดคน
+                    if (animator != null) animator.SetTrigger("Bite");
+                    if (audioSource != null && attackSFX != null) audioSource.PlayOneShot(attackSFX);
+
                     Debug.Log($"<color=red>[Zombie]</color> Attacking person: {_targetPerson.name}");
                 }
             }
@@ -286,6 +316,11 @@ namespace Simulation.Mission
                         {
                             unit.TakeMaxHPDamage(attackDamage);
                         }
+
+                        // เล่น Animation / SFX / VFX กัดกำแพง
+                        if (animator != null) animator.SetTrigger("Bite");
+                        if (audioSource != null && biteWallSFX != null) audioSource.PlayOneShot(biteWallSFX);
+                        if (biteWallVFX != null) Instantiate(biteWallVFX, hit.point, Quaternion.LookRotation(hit.normal));
 
                         Debug.Log($"<color=red>[Zombie]</color> Biting wall: {unit.name}");
                     }
@@ -383,13 +418,29 @@ namespace Simulation.Mission
         {
             if (_isDead) return;
             _currentHealth -= amount;
-            if (_currentHealth <= 0) Die();
+            if (_currentHealth <= 0)
+            {
+                Die();
+            }
+            else
+            {
+                // เล่น Animation / SFX เจ็บ
+                if (animator != null) animator.SetTrigger("Hurt");
+                if (audioSource != null && hurtSFX != null) audioSource.PlayOneShot(hurtSFX);
+            }
         }
 
         protected virtual void Die()
         {
             _isDead = true;
             if (_agent != null) _agent.enabled = false;
+
+            // เล่น Animation ตาย
+            if (animator != null) animator.SetTrigger("Die");
+
+            // เล่นเสียงตายแบบไม่โดนตัดเมื่อตัวละครถูกทำลาย
+            if (deathSFX != null) AudioSource.PlayClipAtPoint(deathSFX, transform.position);
+
             if (deathVFX != null) Instantiate(deathVFX, transform.position, Quaternion.identity);
             Debug.Log($"<color=green>[Zombie]</color> {name} died!");
             Destroy(gameObject, 0.5f);

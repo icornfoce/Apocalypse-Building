@@ -35,10 +35,10 @@ Material:
   stringTagMap:
     RenderType: Transparent
   disabledShaderPasses:
-  - MOTIONVECTORS
-  - DepthOnly
   - SHADOWCASTER
-  m_LockedProperties: 
+  - DepthOnly
+  - MOTIONVECTORS
+  m_LockedProperties: _DetailAlbedoMap
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:

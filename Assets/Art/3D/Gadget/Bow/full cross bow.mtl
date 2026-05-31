@@ -1,0 +1,38 @@
+# Blender 5.1.2 MTL File: 'None'
+# www.blender.org
+
+newmtl Material.002
+Ka 1.000000 1.000000 1.000000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd cross-bow-better/texture_pbr_20250901.png
+map_Ns cross-bow-better/texture_pbr_20250901_roughness.png
+map_refl cross-bow-better/texture_pbr_20250901_metallic.png
+map_Bump -bm 1.000000 cross-bow-better/texture_pbr_20250901_normal.png
+
+newmtl Material.003
+Ka 1.000000 1.000000 1.000000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd bass-bow/texture_pbr_20250901.png
+map_Ns bass-bow/texture_pbr_20250901_roughness.png
+map_refl bass-bow/texture_pbr_20250901_metallic.png
+map_Bump -bm 1.000000 bass-bow/texture_pbr_20250901_normal.png
+
+newmtl Material.004
+Ka 1.000000 1.000000 1.000000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd joint-bow/texture_pbr_20250901.png
+map_Ns joint-bow/texture_pbr_20250901_roughness.png
+map_refl joint-bow/texture_pbr_20250901_metallic.png
+map_Bump -bm 1.000000 joint-bow/texture_pbr_20250901_normal.png

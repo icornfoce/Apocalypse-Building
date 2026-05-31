@@ -1,5 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
+using System.Linq;
+using Unity.AI.Navigation;
 using Simulation.Character;
 using Simulation.Mission;
 
@@ -51,11 +53,30 @@ namespace Simulation.Building
             {
                 _trigger.isTrigger = true;
             }
+
+            // ── NavMesh: Exclude ประตูออกจากการ Bake ──
+            // BoxCollider trigger ของประตูจะถูก NavMeshSurface นับเป็น "กำแพง"
+            // ทำให้ Agent เดินผ่านช่องประตูไม่ได้ → ต้องใส่ NavMeshModifier เพื่อ ignore
+            NavMeshModifier modifier = GetComponent<NavMeshModifier>();
+            if (modifier == null)
+            {
+                modifier = gameObject.AddComponent<NavMeshModifier>();
+            }
+            modifier.overrideArea = true;
+            modifier.area = 1; // area index 1 = "Not Walkable" (built-in)
+            modifier.ignoreFromBuild = true; // ไม่รวมในการ Bake เลย
         }
 
         private void Update()
         {
             if (doorPivot == null) return;
+
+            // ── ล้าง Collider ที่ถูก Destroy ออก (เช่น PersonAI โดน Destroy ตอน StopSimulation) ──
+            _occupants.RemoveWhere(c => c == null);
+            if (_occupants.Count == 0 && _shouldBeOpen)
+            {
+                _shouldBeOpen = false;
+            }
 
             // หมุนประตูอย่างนุ่มนวล
             Quaternion targetRot = _shouldBeOpen ? _openRotation : _closedRotation;
@@ -84,11 +105,32 @@ namespace Simulation.Building
             }
         }
 
+        /// <summary>
+        /// รีเซ็ตประตูกลับสถานะปิดทันที (เรียกจาก SimulationManager.StopSimulation)
+        /// </summary>
+        public void ResetDoor()
+        {
+            _occupants.Clear();
+            _shouldBeOpen = false;
+
+            // Snap ประตูกลับตำแหน่งปิดทันที (ไม่ Slerp)
+            if (doorPivot != null)
+            {
+                doorPivot.localRotation = _closedRotation;
+            }
+        }
+
         private void OnDisable()
         {
             // รีเซ็ตเมื่อถูกปิด (เช่น ตอนพัง)
             _occupants.Clear();
             _shouldBeOpen = false;
+
+            // Snap ปิดทันทีเพื่อไม่ให้ค้างกลางทาง
+            if (doorPivot != null)
+            {
+                doorPivot.localRotation = _closedRotation;
+            }
         }
     }
 }

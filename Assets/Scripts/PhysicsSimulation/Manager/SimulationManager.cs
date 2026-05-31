@@ -176,6 +176,9 @@ namespace Simulation.Physics
             // ลบตัวละครจริงทิ้ง
             ClearCharacters();
 
+            // รีเซ็ตประตูทั้งหมดกลับสถานะปิด
+            ResetAllDoors();
+
             // ลบ Break VFX เก่าทั้งหมดในฉาก
             var container = GameObject.Find("BreakVFXContainer_Runtime");
             if (container != null)
@@ -432,6 +435,18 @@ namespace Simulation.Physics
         // ────────────────────────────────────────────────────────────────
         // Helpers
         // ────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// รีเซ็ตประตูทั้งหมดในฉากกลับสถานะปิด (เรียกตอน StopSimulation)
+        /// </summary>
+        private void ResetAllDoors()
+        {
+            DoorController[] doors = FindObjectsByType<DoorController>(FindObjectsSortMode.None);
+            foreach (var door in doors)
+            {
+                door.ResetDoor();
+            }
+        }
 
         private void FreezeAllStructures()
         {

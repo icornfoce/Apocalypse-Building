@@ -26,4 +26,4 @@ MonoBehaviour:
   - disasterData: {fileID: 11400000, guid: 768d32f30bfe4b24886b51ec58094e15, type: 2}
     startTime: 12
   simulationDuration: 125
-  nextMission: {fileID: 0}
+  nextMission: {fileID: 11400000, guid: b0009db9c23bc8242bbc141d6481806f, type: 2}

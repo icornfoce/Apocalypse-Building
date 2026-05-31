@@ -20,7 +20,7 @@ MonoBehaviour:
   centerOffset: {x: 0, y: 0, z: 0}
   damagePerSecond: 5
   peopleDamagePerSecond: 0
-  vfxPrefab: {fileID: 0}
+  vfxPrefab: {fileID: 7002464472449192111, guid: ac471b28fcc280747ab09695d7a2683a, type: 3}
   sfx: {fileID: 8300000, guid: e72cff4962802134ea32157ad4a512dd, type: 3}
   shakeFrequency: 20
   floodMaxHeight: 3

@@ -20,14 +20,14 @@ MonoBehaviour:
   centerOffset: {x: 0, y: 0, z: 0}
   damagePerSecond: 5
   peopleDamagePerSecond: 0
-  vfxPrefab: {fileID: 0}
+  vfxPrefab: {fileID: 251863112066322982, guid: 50567de12ac2b7f42ba3c5ef261b7f5e, type: 3}
   sfx: {fileID: 8300000, guid: 1ecea4b6d4f7aad4a81ffb1318540215, type: 3}
   shakeFrequency: 20
   floodMaxHeight: 3
   windDirection: {x: 1, y: 0, z: 0}
   windForceMultiplier: 50
   ufoMaxTargets: 3
-  ufoLiftSpeed: 5
+  ufoLiftSpeed: 10
   dragonPrefab: {fileID: 0}
   fireballPrefab: {fileID: 0}
   acidRainParticle: {fileID: 0}

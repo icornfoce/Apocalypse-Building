@@ -15,7 +15,7 @@ MonoBehaviour:
   disasterName: High Wind
   disasterType: 2
   duration: 5
-  intensity: 10
+  intensity: 5
   radius: 0
   centerOffset: {x: 0, y: 0, z: 0}
   damagePerSecond: 5

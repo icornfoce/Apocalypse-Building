@@ -23,7 +23,7 @@ MonoBehaviour:
   placementSinkThrough: 0
   requiresSupport: 0
   placeOnStructureOnly: 0
-  baseMaxCompression: 10
+  baseMaxCompression: 1000
   baseMaxTension: 1000
   prefab: {fileID: 4189080343208526920, guid: a8f7eb34f959c4d4d989f0f46c92006e, type: 3}
   defaultMaterial: {fileID: 11400000, guid: 829f48f1ccaf61443afdeda45981932d, type: 2}

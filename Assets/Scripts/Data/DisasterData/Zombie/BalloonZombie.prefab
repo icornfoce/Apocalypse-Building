@@ -161,16 +161,18 @@ MonoBehaviour:
   attackDamage: 10
   attackInterval: 1.5
   attackRange: 0.6
-  maxHealth: 8
+  maxHealth: 30
   damageImpactThreshold: 3
   deathVFX: {fileID: 5985634496115995773, guid: 463cf9f7af4680240898f6aeba3fe3e6, type: 3}
   flySpeed: 2
-  descendSpeed: 1
   flyHeight: 8
+  dropDistance: 1
+  descendSpeed: 2.5
+  releaseHeight: 2
   floorEatDamage: 20
   floorEatInterval: 0.8
-  balloonObject: {fileID: 0}
-  balloonBurstVFX: {fileID: 0}
+  balloonObject: {fileID: 5204826568801739540}
+  balloonBurstVFX: {fileID: 8525990746615576120, guid: b85d21f3b8fed714bacf0c4fd50fa512, type: 3}
 --- !u!195 &2715120404054149079
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -190,7 +192,7 @@ NavMeshAgent:
   m_AutoBraking: 1
   m_AutoRepath: 1
   m_Height: 2
-  m_BaseOffset: 0
+  m_BaseOffset: 1
   m_WalkableMask: 4294967295
   m_ObstacleAvoidanceType: 4
 --- !u!1 &5204826568801739540

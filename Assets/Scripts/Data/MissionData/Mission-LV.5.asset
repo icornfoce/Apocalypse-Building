@@ -19,7 +19,7 @@ MonoBehaviour:
   requiredPopulation: 6
   gridColumns: 10
   gridRows: 10
-  startingBudget: 5500
+  startingBudget: 15000
   disasters:
   - disasterData: {fileID: 11400000, guid: bb55b614006e412458fedc3527402926, type: 2}
     startTime: 5

@@ -182,10 +182,20 @@ MonoBehaviour:
   attackDamage: 10
   attackInterval: 1.5
   attackRange: 1.5
-  maxHealth: 10
+  maxHealth: 15
   damageImpactThreshold: 3
   deathVFX: {fileID: 5985634496115995773, guid: 463cf9f7af4680240898f6aeba3fe3e6, type: 3}
   digSpeed: 1
   floorDigDamage: 15
   digInterval: 0.8
+  digDistance: 2
+  digWaitTime: 0.5
   undergroundYOffset: -1.5
+  animator: {fileID: 0}
+  audioSource: {fileID: 0}
+  digStartVFX: {fileID: 0}
+  diggingVFX: {fileID: 0}
+  surfaceVFX: {fileID: 0}
+  digStartSFX: {fileID: 0}
+  diggingSFX: {fileID: 0}
+  surfaceSFX: {fileID: 0}

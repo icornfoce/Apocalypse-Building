@@ -99,9 +99,18 @@ namespace Simulation.Mission
                 // กลับมาบนพื้นแล้ว เปิด Agent คืน
                 if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 2f, NavMesh.AllAreas))
                 {
-                    transform.position = hit.position;
+                    // ตั้ง baseOffset ให้ตรงกับ CapsuleCollider เพื่อป้องกันตัวละครจมลงพื้น
+                    var capsule = GetComponent<CapsuleCollider>();
+                    if (capsule != null)
+                    {
+                        _agent.baseOffset = capsule.center.y - capsule.height * 0.5f;
+                    }
+                    // Snap ตำแหน่งลงบน NavMesh พอดี
+                    transform.position = new Vector3(hit.position.x, hit.position.y, hit.position.z);
                     _agent.enabled = true;
                     _rb.isKinematic = true;
+                    // คืนค่า collision mode กลับปกติ (ประหยัด performance)
+                    _rb.collisionDetectionMode = CollisionDetectionMode.Discrete;
                     var col = GetComponent<CapsuleCollider>();
                     if (col != null) col.isTrigger = true;
                 }
@@ -162,7 +171,7 @@ namespace Simulation.Mission
             }
         }
 
-        private bool CanSeePerson(PersonAI person)
+        protected bool CanSeePerson(PersonAI person)
         {
             if (person == null || person.IsDead) return false;
 

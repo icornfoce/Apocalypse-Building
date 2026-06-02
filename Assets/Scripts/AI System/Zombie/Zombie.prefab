@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &6731510451850877391
+--- !u!1 &2533105815544628967
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,52 +8,52 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1734527134427457214}
-  - component: {fileID: 2320717936163849602}
-  - component: {fileID: 6506886783145746476}
-  - component: {fileID: 7052995372789337287}
-  - component: {fileID: 7436252273421040513}
-  - component: {fileID: 3514163496757121037}
-  - component: {fileID: 6287794498773216047}
-  - component: {fileID: -8775401701087927987}
-  - component: {fileID: 7881390168039765654}
+  - component: {fileID: 569694615488653810}
+  - component: {fileID: 1885480034315537157}
+  - component: {fileID: 4942230689359023417}
+  - component: {fileID: 3689471544975669138}
+  - component: {fileID: 8785046792573248770}
+  - component: {fileID: 1191330962855281558}
+  - component: {fileID: 5557688857453799234}
+  - component: {fileID: 3061989120026148917}
+  - component: {fileID: -2365068009904139133}
   m_Layer: 0
-  m_Name: DiggerZombie
+  m_Name: Zombie
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &1734527134427457214
+--- !u!4 &569694615488653810
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6731510451850877391}
+  m_GameObject: {fileID: 2533105815544628967}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -2.44381, y: 0, z: -1.10322}
+  m_LocalPosition: {x: -2.91586, y: 0, z: -1.36119}
   m_LocalScale: {x: 0.5, y: 0.5, z: 0.5}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &2320717936163849602
+--- !u!33 &1885480034315537157
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6731510451850877391}
+  m_GameObject: {fileID: 2533105815544628967}
   m_Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
---- !u!23 &6506886783145746476
+--- !u!23 &4942230689359023417
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6731510451850877391}
+  m_GameObject: {fileID: 2533105815544628967}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -96,13 +96,13 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!136 &7052995372789337287
+--- !u!136 &3689471544975669138
 CapsuleCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6731510451850877391}
+  m_GameObject: {fileID: 2533105815544628967}
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
@@ -119,13 +119,35 @@ CapsuleCollider:
   m_Height: 2
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
---- !u!54 &7436252273421040513
+--- !u!195 &8785046792573248770
+NavMeshAgent:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2533105815544628967}
+  m_Enabled: 1
+  m_AgentTypeID: 0
+  m_Radius: 0.5
+  m_Speed: 3.5
+  m_Acceleration: 8
+  avoidancePriority: 50
+  m_AngularSpeed: 120
+  m_StoppingDistance: 0
+  m_AutoTraverseOffMeshLink: 1
+  m_AutoBraking: 1
+  m_AutoRepath: 1
+  m_Height: 2
+  m_BaseOffset: 1
+  m_WalkableMask: 4294967295
+  m_ObstacleAvoidanceType: 4
+--- !u!54 &1191330962855281558
 Rigidbody:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6731510451850877391}
+  m_GameObject: {fileID: 2533105815544628967}
   serializedVersion: 5
   m_Mass: 1
   m_LinearDamping: 0
@@ -146,73 +168,39 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
---- !u!195 &3514163496757121037
-NavMeshAgent:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6731510451850877391}
-  m_Enabled: 1
-  m_AgentTypeID: 0
-  m_Radius: 0.5
-  m_Speed: 3.5
-  m_Acceleration: 8
-  avoidancePriority: 50
-  m_AngularSpeed: 120
-  m_StoppingDistance: 0
-  m_AutoTraverseOffMeshLink: 1
-  m_AutoBraking: 1
-  m_AutoRepath: 1
-  m_Height: 2
-  m_BaseOffset: 1
-  m_WalkableMask: 4294967295
-  m_ObstacleAvoidanceType: 4
---- !u!114 &6287794498773216047
+--- !u!114 &5557688857453799234
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6731510451850877391}
+  m_GameObject: {fileID: 2533105815544628967}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cc4520d06d582cc4c9b5a7f6d74e3524, type: 3}
+  m_Script: {fileID: 11500000, guid: 840260f3b1f863740b978ea682e1f2e8, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Simulation.Mission.DiggerZombieAI
+  m_EditorClassIdentifier: Assembly-CSharp::Simulation.Mission.ZombieAI
   moveSpeed: 1.5
   attackDamage: 10
   attackInterval: 1.5
-  attackRange: 1.5
-  maxHealth: 15
-  damageImpactThreshold: 3
+  attackRange: 0.6
+  maxHealth: 10
+  damageImpactThreshold: 1
   deathVFX: {fileID: 5985634496115995773, guid: 463cf9f7af4680240898f6aeba3fe3e6, type: 3}
-  animator: {fileID: 7881390168039765654}
-  audioSource: {fileID: -8775401701087927987}
+  animator: {fileID: -2365068009904139133}
+  audioSource: {fileID: 3061989120026148917}
   attackSFX: {fileID: 0}
   biteWallSFX: {fileID: 0}
   hurtSFX: {fileID: 0}
   deathSFX: {fileID: 0}
   biteWallVFX: {fileID: 0}
-  digSpeed: 1
-  floorDigDamage: 15
-  digInterval: 0.8
-  digDistance: 2
-  digWaitTime: 0.5
-  undergroundYOffset: -1.5
-  digStartVFX: {fileID: 0}
-  diggingVFX: {fileID: 0}
-  surfaceVFX: {fileID: 0}
-  digStartSFX: {fileID: 0}
-  diggingSFX: {fileID: 0}
-  surfaceSFX: {fileID: 0}
---- !u!82 &-8775401701087927987
+--- !u!82 &3061989120026148917
 AudioSource:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6731510451850877391}
+  m_GameObject: {fileID: 2533105815544628967}
   m_Enabled: 1
   serializedVersion: 4
   OutputAudioMixerGroup: {fileID: 0}
@@ -303,17 +291,17 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
---- !u!95 &7881390168039765654
+--- !u!95 &-2365068009904139133
 Animator:
   serializedVersion: 7
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6731510451850877391}
+  m_GameObject: {fileID: 2533105815544628967}
   m_Enabled: 1
   m_Avatar: {fileID: 0}
-  m_Controller: {fileID: 9100000, guid: 02f5909ceb8a2dc4a91ec11bcab971f6, type: 2}
+  m_Controller: {fileID: 9100000, guid: 806c0530b8c228e4eb24a7e7a6a99688, type: 2}
   m_CullingMode: 0
   m_UpdateMode: 0
   m_ApplyRootMotion: 0

@@ -21,7 +21,7 @@ MonoBehaviour:
   gridRows: 10
   startingBudget: 99999
   disasters:
-  - disasterData: {fileID: 11400000, guid: bb55b614006e412458fedc3527402926, type: 2}
-    startTime: 2
+  - disasterData: {fileID: 11400000, guid: c68c3bc1489cefe46b5da972520d356e, type: 2}
+    startTime: 5
   simulationDuration: 120
   nextMission: {fileID: 0}

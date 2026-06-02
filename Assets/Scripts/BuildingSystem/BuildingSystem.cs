@@ -1212,6 +1212,7 @@ namespace Simulation.Building
             proxy.defaultMaterial = data.defaultMaterial;
             proxy.allowOverlap = data.allowOverlap;
             proxy.structureType = StructureType.Gadget;
+            proxy.placeOnStructureOnly = true;
             proxy.breakVFX = data.breakVFX;
             proxy.breakSFX = data.breakSound;
             
@@ -2211,7 +2212,10 @@ namespace Simulation.Building
                 }
             }
 
-            if (snapYToGrid)
+            // Gadget: ใช้ Y จาก Surface จริง (ไม่ snap ตาม grid) เพื่อให้วางบนโครงสร้างได้พอดี
+            bool isGadget = activeData != null && activeData.structureType == StructureType.Gadget;
+
+            if (snapYToGrid && !isGadget)
             {
                 float yStep = heightStep > 0f ? heightStep : gridSize;
                 if (yStep > 0f)

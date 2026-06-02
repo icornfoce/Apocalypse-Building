@@ -34,10 +34,10 @@ MonoBehaviour:
   tornadoSpinSpeed: 10
   tornadoPullForce: 15
   tornadoLiftForce: 8
-  zombiePrefab: {fileID: 2533105815544628967, guid: 1b42401e477759e4e9611de4c957a985, type: 3}
-  diggerZombiePrefab: {fileID: 6731510451850877391, guid: 385d6dad5b426da41b95f32d3d5727a4, type: 3}
-  balloonZombiePrefab: {fileID: 1374880148582166778, guid: a137138e84700ea40993116d258991e5, type: 3}
-  zombieSpawnCount: 0
-  diggerZombieCount: 0
-  balloonZombieCount: 2
+  zombiePrefab: {fileID: 4335694116592752656, guid: 048a824f912cc0e40aff947afeaeb440, type: 3}
+  diggerZombiePrefab: {fileID: 2460511033145778816, guid: 51523941ca38b3a44ab1abfbddab716d, type: 3}
+  balloonZombiePrefab: {fileID: 4977283051397768630, guid: 4dbffb9d39a783e4a9f76d111cce7086, type: 3}
+  zombieSpawnCount: 1
+  diggerZombieCount: 1
+  balloonZombieCount: 1
   zombieWaveCount: 1

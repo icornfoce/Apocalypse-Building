@@ -83,7 +83,17 @@ ModelImporter:
   humanDescription:
     serializedVersion: 3
     human: []
-    skeleton: []
+    skeleton:
+    - name: "\u0E0B\u0E2D\u0E21\u0E1A\u0E35\u0E49\u0E15\u0E34\u0E14\u0E25\u0E39\u0E01\u0E42\u0E1B\u0E48\u0E07(Clone)"
+      parentName: 
+      position: {x: -0, y: 0, z: 0}
+      rotation: {x: 0, y: -0, z: -0, w: 1}
+      scale: {x: 1, y: 1, z: 1}
+    - name: default
+      parentName: "\u0E0B\u0E2D\u0E21\u0E1A\u0E35\u0E49\u0E15\u0E34\u0E14\u0E25\u0E39\u0E01\u0E42\u0E1B\u0E48\u0E07(Clone)"
+      position: {x: -0, y: 0, z: 0}
+      rotation: {x: 0, y: -0, z: -0, w: 1}
+      scale: {x: 1, y: 1, z: 1}
     armTwist: 0.5
     foreArmTwist: 0.5
     upperLegTwist: 0.5
@@ -98,7 +108,7 @@ ModelImporter:
     skeletonHasParents: 1
   lastHumanDescriptionAvatarSource: {instanceID: 0}
   autoGenerateAvatarMappingIfUnspecified: 1
-  animationType: 3
+  animationType: 2
   humanoidOversampling: 1
   avatarSetup: 1
   addHumanoidExtraRootOnlyWhenUsingAvatar: 1

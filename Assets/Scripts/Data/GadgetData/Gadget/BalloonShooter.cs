@@ -6,7 +6,8 @@ using Simulation.Physics;
 namespace Simulation.Building
 {
     /// <summary>
-    /// Balloon Launcher — ค้นหา Balloon Zombie บินได้ในระยะ หันไปหา และยิงเพื่อให้ร่วงลงมา
+    /// Balloon Launcher (ธนู) — ค้นหา Balloon Zombie ในระยะ, หันหา, และยิงลูกธนูเพื่อให้ร่วงลงมา
+    /// Pivot แยก 2 แกน: HorizontalPivot (Y) หมุนซ้ายขวา, VerticalPivot (X) ก้มเงย
     /// </summary>
     public class BalloonLauncher : MonoBehaviour
     {
@@ -14,34 +15,51 @@ namespace Simulation.Building
         public float shootRange = 20f;
         public float shootCooldown = 1.5f;
         
-        [Header("Rotation")]
-        [Tooltip("ส่วนหัวที่ใช้หมุนหันหาเป้าหมาย (ถ้าไม่มีจะหมุนทั้งตัว)")]
-        public Transform pivotTransform;
+        [Header("Rotation — Dual Pivot")]
+        [Tooltip("Pivot แนวนอน: หมุนแกน Y (ซ้าย/ขวา) — Auto-find 'HorizontalPivot' ถ้าไม่ assign")]
+        public Transform horizontalPivot;
+        [Tooltip("Pivot แนวตั้ง: หมุนแกน X (ก้ม/เงย) — Auto-find 'VerticalPivot' ถ้าไม่ assign")]
+        public Transform verticalPivot;
         public float rotationSpeed = 5f;
 
+        [Header("Arrow Projectile")]
+        [Tooltip("Prefab ลูกธนู (ถ้าไม่มีจะสร้างแบบ Procedural)")]
+        public GameObject arrowPrefab;
+        [Tooltip("ความเร็วลูกธนู (m/s)")]
+        public float arrowSpeed = 30f;
+
         [Header("Visuals & Audio")]
-        [Tooltip("จุดที่กระสุนออกจากปากกระบอก (ถ้าไม่มีจะกะเอาจากตำแหน่งกลางบน)")]
+        [Tooltip("จุดที่ลูกธนูออก (ถ้าไม่มีจะกะจากตำแหน่งกลางบน)")]
         public Transform muzzlePoint;
         public GameObject muzzleFlashPrefab;
         public AudioClip shootSound;
-        public Color beamColor = new Color(1f, 0.3f, 0f, 0.8f);
 
         private float _shootTimer;
 
         private void Start()
         {
-            if (pivotTransform == null)
+            // Auto-find HorizontalPivot
+            if (horizontalPivot == null)
             {
-                // ลองหาชิ้นส่วนชื่อ Pivot หรือ Head ในลูก
-                pivotTransform = transform.Find("Pivot");
-                if (pivotTransform == null) pivotTransform = transform.Find("Head");
-                if (pivotTransform == null) pivotTransform = transform;
+                horizontalPivot = transform.Find("HorizontalPivot");
+                if (horizontalPivot == null) horizontalPivot = transform.Find("Pivot");
+                if (horizontalPivot == null) horizontalPivot = transform;
             }
 
+            // Auto-find VerticalPivot (ลูกของ HorizontalPivot)
+            if (verticalPivot == null)
+            {
+                verticalPivot = horizontalPivot.Find("VerticalPivot");
+                if (verticalPivot == null) verticalPivot = horizontalPivot.Find("Pitch");
+                // ถ้าไม่มี VerticalPivot แยก ก็ใช้ HorizontalPivot ตัวเดียวทำทั้ง 2 แกน
+                if (verticalPivot == null) verticalPivot = horizontalPivot;
+            }
+
+            // Auto-find MuzzlePoint
             if (muzzlePoint == null)
             {
                 muzzlePoint = transform.Find("Muzzle");
-                if (muzzlePoint == null && pivotTransform != null) muzzlePoint = pivotTransform.Find("Muzzle");
+                if (muzzlePoint == null && verticalPivot != null) muzzlePoint = verticalPivot.Find("Muzzle");
             }
         }
 
@@ -60,7 +78,7 @@ namespace Simulation.Building
 
             if (target != null)
             {
-                // หันส่วนยิงไปหาเป้าหมาย
+                // หันส่วนยิงไปหาเป้าหมาย (แยก 2 แกน)
                 AimAt(target.transform.position);
 
                 // ถ้าระยะเวลา Cooldown หมดแล้ว ให้ยิง!
@@ -95,27 +113,55 @@ namespace Simulation.Building
             return closest;
         }
 
+        /// <summary>
+        /// หันไปหาเป้าหมายด้วย Dual Pivot:
+        /// 1. HorizontalPivot หมุนแกน Y (Yaw ซ้ายขวา)
+        /// 2. VerticalPivot หมุนแกน X (Pitch ก้มเงย)
+        /// </summary>
         private void AimAt(Vector3 targetPosition)
         {
-            if (pivotTransform == null) return;
+            float smoothFactor = rotationSpeed * Time.deltaTime;
 
-            // หันไปหาเป้าหมาย (เน้นแกน Y และ X เล็กน้อย)
-            Vector3 direction = (targetPosition - pivotTransform.position).normalized;
-            Quaternion lookRotation = Quaternion.LookRotation(direction);
-            
-            // หมุนแบบ Smooth
-            pivotTransform.rotation = Quaternion.Slerp(pivotTransform.rotation, lookRotation, rotationSpeed * Time.deltaTime);
+            // ── 1. Horizontal Pivot (Yaw — หมุนซ้ายขวา) ──
+            if (horizontalPivot != null)
+            {
+                Vector3 directionH = targetPosition - horizontalPivot.position;
+                directionH.y = 0f; // ล็อกแนวราบ ไม่ให้เอียง
+                if (directionH.sqrMagnitude > 0.001f)
+                {
+                    Quaternion targetRotH = Quaternion.LookRotation(directionH.normalized);
+                    horizontalPivot.rotation = Quaternion.Slerp(horizontalPivot.rotation, targetRotH, smoothFactor);
+                }
+            }
+
+            // ── 2. Vertical Pivot (Pitch — ก้มเงย) ──
+            if (verticalPivot != null)
+            {
+                Vector3 directionV = targetPosition - verticalPivot.position;
+                if (directionV.sqrMagnitude > 0.001f)
+                {
+                    // คำนวณมุม Pitch (ก้ม/เงย) ในแกน Local X ของ VerticalPivot
+                    Vector3 localDir = horizontalPivot.InverseTransformDirection(directionV.normalized);
+                    float pitch = -Mathf.Atan2(localDir.y, localDir.z) * Mathf.Rad2Deg;
+
+                    // จำกัดมุมก้มเงย (-80 ถึง +80)
+                    pitch = Mathf.Clamp(pitch, -80f, 80f);
+
+                    Quaternion targetRotV = Quaternion.Euler(pitch, 0f, 0f);
+                    verticalPivot.localRotation = Quaternion.Slerp(verticalPivot.localRotation, targetRotV, smoothFactor);
+                }
+            }
         }
 
         private void Shoot(BalloonZombieAI target)
         {
             Vector3 startPos = muzzlePoint != null ? muzzlePoint.position : transform.position + Vector3.up * 1.2f;
-            Vector3 targetPos = target.transform.position + Vector3.up * 0.5f; // เล็งตรงตัว (หรือตัวบอลลูน)
+            Vector3 direction = (target.transform.position - startPos).normalized;
 
             // 1. Muzzle flash
             if (muzzleFlashPrefab != null)
             {
-                Instantiate(muzzleFlashPrefab, startPos, Quaternion.LookRotation(targetPos - startPos));
+                Instantiate(muzzleFlashPrefab, startPos, Quaternion.LookRotation(direction));
             }
 
             // 2. Play Sound
@@ -125,7 +171,7 @@ namespace Simulation.Building
             }
             else
             {
-                // Play a default high-pitched beep/pop if no sound is assigned
+                // เล่นเสียงสังเคราะห์ถ้าไม่มีเสียงกำหนด
                 var tempGO = new GameObject("TempAudio");
                 tempGO.transform.position = startPos;
                 var source = tempGO.AddComponent<AudioSource>();
@@ -135,58 +181,83 @@ namespace Simulation.Building
                 Destroy(tempGO, 1.0f);
             }
 
-            // 3. Create laser tracer / beam visual
-            CreateTracerBeam(startPos, targetPos);
+            // 3. สร้างลูกธนูยิงไปหาเป้าหมาย
+            SpawnArrow(startPos, direction, target);
 
-            // 4. Pop balloon
-            target.PopBalloon();
-
-            Debug.Log($"<color=cyan>[BalloonLauncher]</color> Shot at Balloon Zombie: {target.name}");
+            Debug.Log($"<color=cyan>[BalloonLauncher]</color> Shot arrow at Balloon Zombie: {target.name}");
         }
 
-        private void CreateTracerBeam(Vector3 start, Vector3 end)
+        private void SpawnArrow(Vector3 startPos, Vector3 direction, BalloonZombieAI target)
         {
-            GameObject lineObj = new GameObject("LaserTracer");
-            LineRenderer line = lineObj.AddComponent<LineRenderer>();
-            
-            line.startWidth = 0.15f;
-            line.endWidth = 0.05f;
-            line.positionCount = 2;
-            line.SetPosition(0, start);
-            line.SetPosition(1, end);
-            
-            // สร้าง Material สีส้ม/เหลืองแบบเรืองแสง
-            Shader lineShader = Shader.Find("Sprites/Default");
-            if (lineShader == null) lineShader = Shader.Find("Legacy Shaders/Particles/Additive");
-            Material mat = new Material(lineShader != null ? lineShader : Shader.Find("Hidden/Internal-Colored"));
-            mat.color = beamColor;
-            line.material = mat;
-
-            // ทำลายตัวเองใน 0.15 วินาที โดยให้ค่อยๆ หรี่จาง
-            StartCoroutine(FadeAndDestroyLine(lineObj, line));
-        }
-
-        private System.Collections.IEnumerator FadeAndDestroyLine(GameObject obj, LineRenderer line)
-        {
-            float duration = 0.15f;
-            float elapsed = 0f;
-            Color originalColor = beamColor;
-
-            while (elapsed < duration)
+            GameObject arrowObj;
+            if (arrowPrefab != null)
             {
-                elapsed += Time.deltaTime;
-                float pct = elapsed / duration;
-                Color nextColor = originalColor;
-                nextColor.a = Mathf.Lerp(originalColor.a, 0f, pct);
-                if (line != null)
-                {
-                    line.material.color = nextColor;
-                    line.startWidth = Mathf.Lerp(0.15f, 0f, pct);
-                }
-                yield return null;
+                arrowObj = Instantiate(arrowPrefab, startPos, Quaternion.LookRotation(direction));
+            }
+            else
+            {
+                // สร้างลูกธนูแบบ Procedural
+                arrowObj = CreateProceduralArrow(startPos, direction);
             }
 
-            Destroy(obj);
+            // ติด ArrowProjectile script เพื่อควบคุมการบิน
+            ArrowProjectile projectile = arrowObj.AddComponent<ArrowProjectile>();
+            projectile.Initialize(target, arrowSpeed);
+        }
+
+        /// <summary>
+        /// สร้างลูกธนูจำลองจาก Primitive (Cylinder ลำตัว + ปลายแหลม)
+        /// </summary>
+        private GameObject CreateProceduralArrow(Vector3 position, Vector3 direction)
+        {
+            GameObject arrow = new GameObject("Arrow");
+            arrow.transform.position = position;
+            arrow.transform.rotation = Quaternion.LookRotation(direction);
+
+            // ลำตัวธนู (Cylinder ยาวผอม)
+            GameObject shaft = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            shaft.name = "Shaft";
+            shaft.transform.SetParent(arrow.transform);
+            shaft.transform.localPosition = new Vector3(0f, 0f, 0.3f);
+            shaft.transform.localRotation = Quaternion.Euler(90f, 0f, 0f); // Cylinder ปกติยืนตั้ง → หมุนให้นอนไปข้างหน้า
+            shaft.transform.localScale = new Vector3(0.04f, 0.3f, 0.04f);
+            
+            // ลบ Collider ของ Shaft
+            var shaftCol = shaft.GetComponent<Collider>();
+            if (shaftCol != null) DestroyImmediate(shaftCol);
+
+            // ทำสีลำตัว
+            var shaftRenderer = shaft.GetComponent<Renderer>();
+            if (shaftRenderer != null)
+            {
+                Material shaftMat = new Material(Shader.Find("Standard"));
+                shaftMat.color = new Color(0.55f, 0.35f, 0.15f); // สีไม้
+                shaftRenderer.material = shaftMat;
+            }
+
+            // ปลายธนู (Cube เล็กเฉียงเป็นหัวลูกศร)
+            GameObject tip = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            tip.name = "Tip";
+            tip.transform.SetParent(arrow.transform);
+            tip.transform.localPosition = new Vector3(0f, 0f, 0.6f);
+            tip.transform.localRotation = Quaternion.Euler(0f, 0f, 45f);
+            tip.transform.localScale = new Vector3(0.08f, 0.08f, 0.02f);
+
+            // ลบ Collider ของ Tip
+            var tipCol = tip.GetComponent<Collider>();
+            if (tipCol != null) DestroyImmediate(tipCol);
+
+            // ทำสีหัวลูกศร
+            var tipRenderer = tip.GetComponent<Renderer>();
+            if (tipRenderer != null)
+            {
+                Material tipMat = new Material(Shader.Find("Standard"));
+                tipMat.color = new Color(0.4f, 0.4f, 0.45f); // สีเหล็ก
+                tipMat.SetFloat("_Metallic", 0.8f);
+                tipRenderer.material = tipMat;
+            }
+
+            return arrow;
         }
 
         private AudioClip CreateDefaultShootClip()
@@ -203,6 +274,63 @@ namespace Simulation.Building
             }
             myClip.SetData(samples, 0);
             return myClip;
+        }
+    }
+
+    /// <summary>
+    /// ลูกธนูที่บินไปหาเป้าหมาย (BalloonZombieAI)
+    /// เมื่อถึงหรือเป้าตาย → Pop Balloon + ทำลายตัวเอง
+    /// </summary>
+    public class ArrowProjectile : MonoBehaviour
+    {
+        private BalloonZombieAI _target;
+        private float _speed;
+        private float _lifetime;
+        private const float MAX_LIFETIME = 5f;
+        private const float HIT_DISTANCE = 1.0f;
+
+        public void Initialize(BalloonZombieAI target, float speed)
+        {
+            _target = target;
+            _speed = speed;
+            _lifetime = 0f;
+        }
+
+        private void Update()
+        {
+            _lifetime += Time.deltaTime;
+
+            // ถ้าเป้าตายหรือหายไป หรือเกินเวลา → ทำลาย
+            if (_target == null || _lifetime > MAX_LIFETIME)
+            {
+                Destroy(gameObject);
+                return;
+            }
+
+            // บินตรงไปหาเป้าหมาย
+            Vector3 targetPos = _target.transform.position;
+            Vector3 direction = (targetPos - transform.position).normalized;
+
+            // หมุนหน้าไปทิศที่บิน
+            if (direction.sqrMagnitude > 0.001f)
+            {
+                transform.rotation = Quaternion.LookRotation(direction);
+            }
+
+            // เคลื่อนที่
+            transform.position += direction * _speed * Time.deltaTime;
+
+            // เช็คว่าถึงเป้าหมายหรือยัง
+            float dist = Vector3.Distance(transform.position, targetPos);
+            if (dist <= HIT_DISTANCE)
+            {
+                // โดนแล้ว!
+                if (_target != null && !_target.IsDead && !_target.HasLanded)
+                {
+                    _target.PopBalloon();
+                }
+                Destroy(gameObject);
+            }
         }
     }
 }

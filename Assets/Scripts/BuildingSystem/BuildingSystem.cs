@@ -582,7 +582,10 @@ namespace Simulation.Building
                 // Update ghost previews
                 bool allValid = true;
                 float totalCost = 0f;
-                MaterialData mat = _selectedMaterial != null ? _selectedMaterial : _selectedData.defaultMaterial;
+                // Gadget ใช้ Material เริ่มต้นเท่านั้น (เปลี่ยนไม่ได้)
+                MaterialData mat = (_selectedData.structureType == StructureType.Gadget)
+                    ? _selectedData.defaultMaterial
+                    : (_selectedMaterial != null ? _selectedMaterial : _selectedData.defaultMaterial);
                 float materialPrice = mat != null ? mat.priceModifier : 0f;
                 float itemPrice = _selectedData.basePrice + materialPrice;
 
@@ -1148,7 +1151,11 @@ namespace Simulation.Building
 
             if (Input.GetMouseButton(0) && _hoveredUnit != null && _selectedMaterial != null)
             {
-                ApplyMaterialToStructure(_hoveredUnit, _selectedMaterial);
+                // Gadget เปลี่ยน Material ไม่ได้
+                if (_hoveredUnit.Data == null || _hoveredUnit.Data.structureType != StructureType.Gadget)
+                {
+                    ApplyMaterialToStructure(_hoveredUnit, _selectedMaterial);
+                }
             }
 
             if (Input.GetMouseButtonUp(0))
@@ -1212,7 +1219,7 @@ namespace Simulation.Building
             proxy.defaultMaterial = data.defaultMaterial;
             proxy.allowOverlap = data.allowOverlap;
             proxy.structureType = StructureType.Gadget;
-            proxy.placeOnStructureOnly = true;
+            proxy.placeOnStructureOnly = false;  // Gadget วางบน ground และ floor ได้
             proxy.breakVFX = data.breakVFX;
             proxy.breakSFX = data.breakSound;
             
@@ -1336,7 +1343,10 @@ namespace Simulation.Building
 
         private void PlaceStructure(Vector3 position, float rotation, Collider targetCollider = null)
         {
-            MaterialData mat = _selectedMaterial != null ? _selectedMaterial : _selectedData.defaultMaterial;
+            // Gadget ใช้ Material เริ่มต้นเท่านั้น (เปลี่ยนไม่ได้)
+            MaterialData mat = (_selectedData.structureType == StructureType.Gadget)
+                ? _selectedData.defaultMaterial
+                : (_selectedMaterial != null ? _selectedMaterial : _selectedData.defaultMaterial);
             float materialPrice = mat != null ? mat.priceModifier : 0f;
             float totalCost = _selectedData.basePrice + materialPrice;
 

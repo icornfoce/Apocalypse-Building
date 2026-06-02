@@ -8,7 +8,7 @@ namespace Simulation.Building
     /// Tuned Mass Damper (TMD) — เครื่องลดการสั่นและแกว่งตัวของตึก
     /// 1. ช่วยลดการแกว่งโดยซับและหน่วงแรงสั่นสะเทือน (Damping) บนโครงสร้างที่เชื่อมต่ออยู่ทั้งหมด
     /// 2. ช่วยพยุงและออกแรงพยายามดึงโครงสร้างให้กลับมาอยู่ในแนวตั้งตรง (Restoring Torque)
-    /// 3. มี Pendulum Visual (ลูกตุ้มถ่วง) แกว่งไปมาในทิศทางตรงกันข้ามโชว์กราฟิกสวยงาม
+    /// 3. ใช้ ConfigurableJoint สำหรับเชือกเพื่อให้ลูกตุ้มแกว่งตาม Physics จริง
     /// </summary>
     public class TunedMassDamper : MonoBehaviour
     {
@@ -19,33 +19,32 @@ namespace Simulation.Building
         [Tooltip("ความแรงในการดึงโครงสร้างกลับมาแนวตั้งตรง")]
         public float restoringStrength = 15f;
 
-        [Header("Pendulum Visual Settings")]
-        public float pendulumLength = 1.5f;
-        public float weightSize = 0.4f;
-        public float springConstant = 8f;
-        public float weightDamping = 1.5f;
-        public float inertiaScale = 0.5f;
+        [Header("Pendulum References (จาก Prefab)")]
+        [Tooltip("Transform ของเชือก — Auto-find 'Rope' ถ้าไม่ assign")]
+        public Transform ropeTransform;
+        [Tooltip("Transform ของลูกตุ้ม — Auto-find 'Pendulum' / 'Weight' ถ้าไม่ assign")]
+        public Transform pendulumTransform;
+
+        [Header("ConfigurableJoint Settings")]
+        [Tooltip("Spring Force ของเชือก (ความแข็ง)")]
+        public float ropeSpring = 500f;
+        [Tooltip("Damper Force ของเชือก (ความหน่วง)")]
+        public float ropeDamper = 50f;
+        [Tooltip("ขีดจำกัดระยะห่างสูงสุดของลูกตุ้ม (Linear Limit)")]
+        public float ropeLinearLimit = 0.01f;
+        [Tooltip("มุมแกว่งสูงสุด (องศา)")]
+        public float swingAngleLimit = 45f;
 
         // รายการ Rigidbody และมุมเริ่มต้นของอาคารที่เชื่อมต่อกัน
         private List<Rigidbody> _connectedRigidbodies = new List<Rigidbody>();
         private Dictionary<Rigidbody, Quaternion> _originalRotations = new Dictionary<Rigidbody, Quaternion>();
         private bool _isInitialized = false;
-
-        // สำหรับจำลองฟิสิกส์ภายในของลูกตุ้มถ่วง (Pendulum Mass) ใน Local Space
-        private Transform _weightTransform;
-        private LineRenderer _cableRenderer;
-        private Vector3 _localWeightPos;
-        private Vector3 _localWeightVelocity;
-        private Vector3 _lastTmdPos;
-        private Vector3 _lastTmdVelocity;
+        private ConfigurableJoint _pendulumJoint;
+        private Rigidbody _pendulumRb;
 
         private void Start()
         {
-            _lastTmdPos = transform.position;
-            _lastTmdVelocity = Vector3.zero;
-
-            // สร้างส่วนแสดงผล Pendulum แบบ Procedural
-            CreatePendulumVisual();
+            AutoFindReferences();
         }
 
         private void OnEnable()
@@ -54,13 +53,38 @@ namespace Simulation.Building
             _isInitialized = false;
         }
 
+        /// <summary>
+        /// ค้นหา ropeTransform และ pendulumTransform จาก child อัตโนมัติ
+        /// </summary>
+        private void AutoFindReferences()
+        {
+            if (ropeTransform == null)
+            {
+                ropeTransform = transform.Find("Rope");
+                if (ropeTransform == null) ropeTransform = transform.Find("Cable");
+                if (ropeTransform == null) ropeTransform = transform.Find("String");
+            }
+
+            if (pendulumTransform == null)
+            {
+                pendulumTransform = transform.Find("Pendulum");
+                if (pendulumTransform == null) pendulumTransform = transform.Find("Weight");
+                if (pendulumTransform == null) pendulumTransform = transform.Find("TMD_Weight");
+                // ลองหาจาก Rope child
+                if (pendulumTransform == null && ropeTransform != null)
+                {
+                    pendulumTransform = ropeTransform.Find("Pendulum");
+                    if (pendulumTransform == null) pendulumTransform = ropeTransform.Find("Weight");
+                }
+            }
+        }
+
         private void FixedUpdate()
         {
             // ตรวจสอบสถานะการจำลอง
             if (SimulationManager.Instance == null || !SimulationManager.Instance.IsSimulating)
             {
                 _isInitialized = false;
-                ResetPendulumLocalPos();
                 return;
             }
 
@@ -68,13 +92,107 @@ namespace Simulation.Building
             if (!_isInitialized)
             {
                 InitializeConnectedBuilding();
+                SetupPendulumJoint();
             }
 
-            // 1. ทำงาน Damping และ Restoring บน Rigidbodies ของตึก
+            // ทำงาน Damping และ Restoring บน Rigidbodies ของตึก
             ApplyStabilizationForces();
+        }
 
-            // 2. จำลองฟิสิกส์ของลูกตุ้มถ่วง (Pendulum) เพื่อแสดงผลความสวยงาม
-            SimulatePendulumPhysics();
+        /// <summary>
+        /// สร้าง ConfigurableJoint บนลูกตุ้มเพื่อเชื่อมกับ TMD ผ่านเชือก
+        /// </summary>
+        private void SetupPendulumJoint()
+        {
+            if (pendulumTransform == null)
+            {
+                Debug.LogWarning("[TunedMassDamper] No pendulum transform found! Cannot create ConfigurableJoint.");
+                return;
+            }
+
+            // เพิ่ม Rigidbody ให้ลูกตุ้มถ้ายังไม่มี
+            _pendulumRb = pendulumTransform.GetComponent<Rigidbody>();
+            if (_pendulumRb == null)
+            {
+                _pendulumRb = pendulumTransform.gameObject.AddComponent<Rigidbody>();
+            }
+            _pendulumRb.mass = 5f;
+            _pendulumRb.linearDamping = 0.5f;
+            _pendulumRb.angularDamping = 0.5f;
+            _pendulumRb.useGravity = true;
+            _pendulumRb.isKinematic = false;
+            _pendulumRb.interpolation = RigidbodyInterpolation.Interpolate;
+
+            // ลบ Collider ถ้ามี (ป้องกันชนกับโครงสร้าง)
+            var cols = pendulumTransform.GetComponentsInChildren<Collider>();
+            foreach (var col in cols)
+            {
+                if (col != null) DestroyImmediate(col);
+            }
+
+            // ลบ Joint เก่าถ้ามี
+            var oldJoints = pendulumTransform.GetComponents<Joint>();
+            foreach (var j in oldJoints) DestroyImmediate(j);
+
+            // ── สร้าง ConfigurableJoint ──
+            _pendulumJoint = pendulumTransform.gameObject.AddComponent<ConfigurableJoint>();
+
+            // เชื่อมกับ Rigidbody ของ TMD เอง (ตัวฐาน)
+            Rigidbody tmdRb = GetComponent<Rigidbody>();
+            _pendulumJoint.connectedBody = tmdRb;
+
+            // ── ตั้งค่า Anchor ──
+            // Anchor อยู่ที่ตัวลูกตุ้มเอง (จุดศูนย์กลาง)
+            _pendulumJoint.anchor = Vector3.zero;
+            // Connected Anchor อยู่ที่จุดแขวน (ตำแหน่งเชือกบน TMD ในพิกัด Local ของ TMD)
+            if (ropeTransform != null)
+            {
+                _pendulumJoint.connectedAnchor = transform.InverseTransformPoint(ropeTransform.position);
+            }
+            else
+            {
+                _pendulumJoint.connectedAnchor = Vector3.zero;
+            }
+
+            // ── Linear Motion: ล็อกทุกแกน (ไม่ให้ยืดหด) ──
+            _pendulumJoint.xMotion = ConfigurableJointMotion.Locked;
+            _pendulumJoint.yMotion = ConfigurableJointMotion.Locked;
+            _pendulumJoint.zMotion = ConfigurableJointMotion.Locked;
+
+            // ── Angular Motion: ปล่อยให้แกว่งได้ (Limited) ──
+            _pendulumJoint.angularXMotion = ConfigurableJointMotion.Limited;
+            _pendulumJoint.angularYMotion = ConfigurableJointMotion.Free;
+            _pendulumJoint.angularZMotion = ConfigurableJointMotion.Limited;
+
+            // ── Angular Limits ──
+            SoftJointLimit angularLimit = new SoftJointLimit();
+            angularLimit.limit = swingAngleLimit;
+            angularLimit.bounciness = 0f;
+            angularLimit.contactDistance = 5f;
+            // Low/High Angular X Limit (ก้มเงย)
+            SoftJointLimit lowAngX = new SoftJointLimit();
+            lowAngX.limit = -swingAngleLimit;
+            _pendulumJoint.lowAngularXLimit = lowAngX;
+            SoftJointLimit highAngX = new SoftJointLimit();
+            highAngX.limit = swingAngleLimit;
+            _pendulumJoint.highAngularXLimit = highAngX;
+            // Angular Z Limit (ซ้ายขวา)
+            _pendulumJoint.angularZLimit = angularLimit;
+
+            // ── Angular Drive (Spring + Damper) ── ให้ลูกตุ้มมีแรงพยุงกลับจุดศูนย์กลาง
+            JointDrive angularDrive = new JointDrive();
+            angularDrive.positionSpring = ropeSpring;
+            angularDrive.positionDamper = ropeDamper;
+            angularDrive.maximumForce = float.MaxValue;
+            _pendulumJoint.angularXDrive = angularDrive;
+            _pendulumJoint.angularYZDrive = angularDrive;
+
+            // ปิด Projection เพื่อเพิ่มเสถียรภาพ
+            _pendulumJoint.projectionMode = JointProjectionMode.PositionAndRotation;
+            _pendulumJoint.projectionDistance = 0.01f;
+            _pendulumJoint.projectionAngle = 5f;
+
+            Debug.Log($"<color=green>[TunedMassDamper]</color> ConfigurableJoint created on pendulum '{pendulumTransform.name}'");
         }
 
         private void InitializeConnectedBuilding()
@@ -194,115 +312,6 @@ namespace Simulation.Building
                     }
                 }
             }
-        }
-
-        private void CreatePendulumVisual()
-        {
-            // สร้างเส้นสายสลิง
-            GameObject cableGO = new GameObject("TMD_Cable");
-            cableGO.transform.SetParent(transform);
-            cableGO.transform.localPosition = Vector3.zero;
-
-            _cableRenderer = cableGO.AddComponent<LineRenderer>();
-            _cableRenderer.startWidth = 0.05f;
-            _cableRenderer.endWidth = 0.05f;
-            _cableRenderer.positionCount = 2;
-            _cableRenderer.useWorldSpace = true;
-
-            Shader shader = Shader.Find("Sprites/Default");
-            if (shader == null) shader = Shader.Find("Legacy Shaders/Particles/Alpha Blended Premultiply");
-            Material mat = new Material(shader != null ? shader : Shader.Find("Hidden/Internal-Colored"));
-            mat.color = new Color(0.15f, 0.15f, 0.15f, 1f);
-            _cableRenderer.material = mat;
-
-            // สร้างลูกตุ้มถ่วงสีเงิน
-            GameObject weightGO = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            weightGO.name = "TMD_Weight";
-            weightGO.transform.SetParent(transform);
-            
-            // ลบ Collider ออกแบบทันทีเพื่อป้องกันการชนกระแทกโครงสร้างอื่นก่อนทำลายเสร็จสิ้น
-            var col = weightGO.GetComponent<Collider>();
-            if (col != null) DestroyImmediate(col);
-
-            weightGO.transform.localScale = Vector3.one * weightSize;
-            
-            var renderer = weightGO.GetComponent<Renderer>();
-            if (renderer != null)
-            {
-                Material sphereMat = new Material(Shader.Find("Standard"));
-                sphereMat.color = new Color(0.7f, 0.7f, 0.75f, 1f);
-                sphereMat.SetFloat("_Metallic", 0.9f);
-                sphereMat.SetFloat("_Glossiness", 0.8f);
-                renderer.material = sphereMat;
-            }
-
-            _weightTransform = weightGO.transform;
-            ResetPendulumLocalPos();
-        }
-
-        private void ResetPendulumLocalPos()
-        {
-            _localWeightPos = Vector3.down * pendulumLength;
-            _localWeightVelocity = Vector3.zero;
-            if (_weightTransform != null)
-            {
-                _weightTransform.localPosition = _localWeightPos;
-            }
-            UpdateCableVisual();
-        }
-
-        private void SimulatePendulumPhysics()
-        {
-            if (_weightTransform == null) return;
-
-            float dt = Time.fixedDeltaTime;
-
-            // คำนวณความเร่งของตัว TMD (ตัวฐานของตึก) เพื่อส่งแรงเฉื่อยไปยังลูกตุ้มในทิศตรงข้าม
-            Vector3 currentVel = (transform.position - _lastTmdPos) / (dt > 0 ? dt : 0.02f);
-            Vector3 tmdAcceleration = (currentVel - _lastTmdVelocity) / (dt > 0 ? dt : 0.02f);
-            
-            _lastTmdPos = transform.position;
-            _lastTmdVelocity = currentVel;
-
-            // แปลงความเร่งเป็นทิศทางภายใน (Local Space) เพื่อคำนวณง่ายขึ้น
-            Vector3 localAccel = transform.InverseTransformDirection(tmdAcceleration);
-
-            // 1. แรงดึงกลับจากสปริง (Spring force towards bottom center)
-            Vector3 restPos = Vector3.down * pendulumLength;
-            Vector3 springForce = (restPos - _localWeightPos) * springConstant;
-
-            // 2. แรงเฉื่อยต้านการเคลื่อนที่ (Inertia force due to base acceleration)
-            Vector3 inertiaForce = -localAccel * inertiaScale;
-
-            // 3. แรงต้านหน่วงอากาศ (Damping force)
-            Vector3 dampForce = -_localWeightVelocity * weightDamping;
-
-            // ผลรวมความเร่งของลูกตุ้ม
-            Vector3 totalAccel = springForce + inertiaForce + dampForce;
-            
-            // เพิ่มความเร่งจากแรงโน้มถ่วงจำลองดึงหัวตกเสมอ (ถ้าร่างเอียง)
-            Vector3 localGravity = transform.InverseTransformDirection(UnityEngine.Physics.gravity);
-            totalAccel += (localGravity - Vector3.Project(localGravity, Vector3.up)) * 0.5f;
-
-            // ทำการ Integrate ความเร็วและตำแหน่ง
-            _localWeightVelocity += totalAccel * dt;
-            _localWeightPos += _localWeightVelocity * dt;
-
-            // จำกัดทิศไม่ให้ยืดเกินความยาวสาย (Spherical constraint)
-            _localWeightPos = _localWeightPos.normalized * pendulumLength;
-
-            // อัปเดตตำแหน่งลูกตุ้มและสาย
-            _weightTransform.localPosition = _localWeightPos;
-            UpdateCableVisual();
-        }
-
-        private void UpdateCableVisual()
-        {
-            if (_cableRenderer == null || _weightTransform == null) return;
-            
-            // วาดเส้นจากจุดหมุน TMD ด้านบน ไปหาลูกตุ้มด้านล่าง
-            _cableRenderer.SetPosition(0, transform.position);
-            _cableRenderer.SetPosition(1, _weightTransform.position);
         }
     }
 }

@@ -32,15 +32,23 @@ namespace Simulation.Mission
                 foreach (var unit in structures)
                 {
                     if (unit == null) continue;
-                    Rigidbody rb = unit.GetComponent<Rigidbody>();
-                    if (rb != null && !rb.isKinematic)
+
+                    // Gadget (เช่น TMD, BalloonLauncher) ไม่ถูกสั่นจากแผ่นดินไหว
+                    // เพื่อให้ลูกตุ้มของ TMD ไม่โดนแรง Impulse จากแผ่นดินไหว
+                    bool isGadget = unit.Data != null && unit.Data.structureType == Simulation.Data.StructureType.Gadget;
+
+                    if (!isGadget)
                     {
-                        // สั่นในทุกทิศทาง
-                        Vector3 shakeForce = Random.insideUnitSphere * data.intensity;
-                        rb.AddForce(shakeForce, ForceMode.Impulse);
+                        Rigidbody rb = unit.GetComponent<Rigidbody>();
+                        if (rb != null && !rb.isKinematic)
+                        {
+                            // สั่นในทุกทิศทาง
+                            Vector3 shakeForce = Random.insideUnitSphere * data.intensity;
+                            rb.AddForce(shakeForce, ForceMode.Impulse);
+                        }
                     }
 
-                    // ใส่ดาเมจ
+                    // ใส่ดาเมจ (Gadget ยังโดนดาเมจได้ปกติ)
                     DamageStructure(unit, data.damagePerSecond * interval);
                 }
 

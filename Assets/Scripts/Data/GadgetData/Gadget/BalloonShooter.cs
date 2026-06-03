@@ -18,7 +18,7 @@ namespace Simulation.Building
         [Header("Rotation — Dual Pivot")]
         [Tooltip("Pivot แนวนอน: หมุนแกน Y (ซ้าย/ขวา) — Auto-find 'HorizontalPivot' ถ้าไม่ assign")]
         public Transform horizontalPivot;
-        [Tooltip("Pivot แนวตั้ง: หมุนแกน X (ก้ม/เงย) — Auto-find 'VerticalPivot' ถ้าไม่ assign")]
+        [Tooltip("Pivot แนวตั้ง: หมุนแกน Z (ก้ม/เงย) — Auto-find 'VerticalPivot' ถ้าไม่ assign")]
         public Transform verticalPivot;
         public float rotationSpeed = 5f;
 
@@ -140,14 +140,14 @@ namespace Simulation.Building
                 Vector3 directionV = targetPosition - verticalPivot.position;
                 if (directionV.sqrMagnitude > 0.001f)
                 {
-                    // คำนวณมุม Pitch (ก้ม/เงย) ในแกน Local X ของ VerticalPivot
+                    // คำนวณมุม Pitch (ก้ม/เงย) ในแกน Local Z ของ VerticalPivot
                     Vector3 localDir = horizontalPivot.InverseTransformDirection(directionV.normalized);
-                    float pitch = -Mathf.Atan2(localDir.y, localDir.z) * Mathf.Rad2Deg;
+                    float pitch = Mathf.Atan2(localDir.y, localDir.z) * Mathf.Rad2Deg;
 
                     // จำกัดมุมก้มเงย (-80 ถึง +80)
                     pitch = Mathf.Clamp(pitch, -80f, 80f);
 
-                    Quaternion targetRotV = Quaternion.Euler(pitch, 0f, 0f);
+                    Quaternion targetRotV = Quaternion.Euler(0f, 0f, pitch);
                     verticalPivot.localRotation = Quaternion.Slerp(verticalPivot.localRotation, targetRotV, smoothFactor);
                 }
             }

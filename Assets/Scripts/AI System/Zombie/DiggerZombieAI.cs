@@ -40,7 +40,6 @@ namespace Simulation.Mission
         private DiggerState _currentState = DiggerState.Surface;
         private Vector3 _digStartPos;
         private Vector3 _digTargetPos;
-        private float _minDigDistance = 2.0f; // ระยะทางขั้นต่ำที่ต้องขุดเพื่อให้พ้นกำแพง
         private float _digTimer;
         private float _digWaitTimer;
 

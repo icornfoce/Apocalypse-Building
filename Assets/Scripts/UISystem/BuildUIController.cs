@@ -60,20 +60,31 @@ namespace Simulation.UI
         /// <summary>
         /// เริ่มโหมดสร้าง — รับข้อมูลผ่าน Parameter (ใช้ในระบบ Inventory/Slot ได้)
         /// </summary>
-        public void StartBuildingWithData(StructureData data)
+        public void StartBuildingWithData(UnityEngine.Object data)
         {
             PlayClickSound();
             if (BuildingSystem.Instance == null || data == null) return;
             
-            // เช็คว่าเป็น NPC หรือไม่ (ดูจากประเภทหรือชื่อ)
-            // ถ้าใช่ ให้เปิดหน้าต่างเลือกแทนการวางแบบเดิม
-            if (data.prefab != null && data.prefab.GetComponent<Simulation.Character.PersonTarget>() != null)
+            if (data is StructureData structureData)
             {
-                OpenNPCSelection(data);
-                return;
-            }
+                // เช็คว่าเป็น NPC หรือไม่ (ดูจากประเภทหรือชื่อ)
+                // ถ้าใช่ ให้เปิดหน้าต่างเลือกแทนการวางแบบเดิม
+                if (structureData.prefab != null && structureData.prefab.GetComponent<Simulation.Character.PersonTarget>() != null)
+                {
+                    OpenNPCSelection(structureData);
+                    return;
+                }
 
-            BuildingSystem.Instance.SelectStructure(data);
+                BuildingSystem.Instance.SelectStructure(structureData);
+            }
+            else if (data is GadgetData gadgetData)
+            {
+                BuildingSystem.Instance.SelectFurniture(gadgetData);
+            }
+            else
+            {
+                Debug.LogWarning($"[BuildUIController] StartBuildingWithData received unsupported object type: {data.GetType()}");
+            }
         }
 
         /// <summary>

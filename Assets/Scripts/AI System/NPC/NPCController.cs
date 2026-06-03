@@ -259,7 +259,7 @@ namespace Simulation.NPC
                         continue;
                     }
 
-                    Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                    Ray ray = UnityEngine.Camera.main.ScreenPointToRay(Input.mousePosition);
                     if (UnityEngine.Physics.Raycast(ray, out RaycastHit hit, 100f))
                     {
                         var stress = hit.collider.GetComponentInParent<StructuralStress>();

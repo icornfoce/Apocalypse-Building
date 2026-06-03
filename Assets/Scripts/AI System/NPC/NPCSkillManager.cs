@@ -173,7 +173,7 @@ namespace Simulation.NPC
                     UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
                     return;
 
-                Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                Ray ray = UnityEngine.Camera.main.ScreenPointToRay(Input.mousePosition);
                 if (UnityEngine.Physics.Raycast(ray, out RaycastHit hit, 100f))
                 {
                     // เช็คว่าคลิกที่ NPC หรือไม่
@@ -189,7 +189,7 @@ namespace Simulation.NPC
             // ── Right Click / Click Ground: สั่ง NPC เดิน ──
             if (_selectedNPC != null && Input.GetMouseButtonDown(1))
             {
-                Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                Ray ray = UnityEngine.Camera.main.ScreenPointToRay(Input.mousePosition);
                 int groundMask = LayerMask.GetMask("Ground", "Structure");
                 if (UnityEngine.Physics.Raycast(ray, out RaycastHit hit, 200f, groundMask))
                 {

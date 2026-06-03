@@ -44,10 +44,15 @@ namespace Simulation.Building
             ApplyMaterial();
 
             Rigidbody rb = GetComponent<Rigidbody>();
+            if (rb == null)
+            {
+                rb = gameObject.AddComponent<Rigidbody>();
+            }
             if (rb != null)
             {
                 bool isSimulating = Simulation.Physics.SimulationManager.Instance != null && Simulation.Physics.SimulationManager.Instance.IsSimulating;
                 rb.isKinematic = !isSimulating;
+                rb.useGravity = true;
                 rb.mass = (data.baseMass * (currentMaterial != null ? currentMaterial.massMultiplier : 1f)) / 100f;
 
                 // Concave Mesh Colliders are not supported with dynamic Rigidbodies.
@@ -59,6 +64,10 @@ namespace Simulation.Building
             }
 
             var stress = GetComponent<Simulation.Physics.StructuralStress>();
+            if (stress == null)
+            {
+                stress = gameObject.AddComponent<Simulation.Physics.StructuralStress>();
+            }
             if (stress != null)
             {
                 // Final limit = Structure base * Material multiplier

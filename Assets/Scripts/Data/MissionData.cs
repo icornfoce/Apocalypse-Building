@@ -64,6 +64,14 @@ namespace Simulation.Mission
         [Tooltip("ระยะเวลาจำลองทั้งหมด (วินาที) — เมื่อหมดเวลาจะประเมินผลอัตโนมัติ")]
         public float simulationDuration = 30f;
 
+        [Header("Tax System")]
+        [Tooltip("เปิดใช้ระบบภาษีวัสดุก่อสร้าง")]
+        public bool enableTax = false;
+
+        [Tooltip("อัตราภาษี (เช่น 0.15 = 15% เพิ่มจากราคาปกติ)")]
+        [Range(0f, 1f)]
+        public float taxRate = 0f;
+
         [Header("Progression")]
         [Tooltip("ด่านถัดไป (ถ้ามี)")]
         public MissionData nextMission;

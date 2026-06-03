@@ -386,8 +386,6 @@ namespace Simulation.Physics
         {
             ClearCharacters();
 
-            if (personAIPrefab == null) return;
-
             PersonSpawner[] spawners = FindObjectsByType<PersonSpawner>(FindObjectsSortMode.None);
             PersonTarget[] targets = FindObjectsByType<PersonTarget>(FindObjectsSortMode.None);
 
@@ -396,28 +394,65 @@ namespace Simulation.Physics
                 // สำหรับแต่ละ Target ให้เกิดคนที่ Spawner อันแรกสุดแล้วเดินไปหา
                 foreach (var target in targets)
                 {
-                    PersonSpawner spawner = spawners[0]; // หรือถ้ามีหลายทางเข้าก็ Random.Range ได้
+                    PersonSpawner spawner = spawners[0]; 
                     
                     // ป้องกันการเกิดนอก NavMesh (เช่น จุด Spawn จมดิน หรือลอย)
                     Vector3 spawnPos = spawner.transform.position;
                     if (UnityEngine.AI.NavMesh.SamplePosition(spawnPos, out UnityEngine.AI.NavMeshHit hit, 2.0f, UnityEngine.AI.NavMesh.AllAreas))
                     {
-                        spawnPos = hit.position; // ใช้จุดที่อยู่บนพื้น NavMesh จริงๆ
+                        spawnPos = hit.position; 
                     }
                     else
                     {
-                        // ถ้าหาไม่เจอจริงๆ ลองขยับขึ้นนิดนึง
                         spawnPos += Vector3.up * 0.5f; 
                     }
 
-                    GameObject charObj = Instantiate(personAIPrefab, spawnPos, Quaternion.identity);
-                    _spawnedCharacters.Add(charObj);
-
-                    PersonAI ai = charObj.GetComponent<PersonAI>();
-                    if (ai != null)
+                    // ── NEW: ตรวจสอบว่าเป็น NPC หรือคนธรรมดา ──
+                    GameObject charObj = null;
+                    Simulation.Data.NPCSkillData matchingNPC = null;
+                    var structureUnit = target.GetComponentInParent<StructureUnit>();
+                    
+                    if (structureUnit != null && structureUnit.Data != null)
                     {
-                        ai.InitializeAgent(); // เพิ่มบรรทัดนี้เพื่อเปิด Agent อย่างปลอดภัย
-                        ai.SetTarget(target.transform);
+                        string targetName = structureUnit.Data.structureName;
+                        if (Simulation.NPC.NPCSkillManager.Instance != null)
+                        {
+                            foreach (var npc in Simulation.NPC.NPCSkillManager.Instance.availableNPCs)
+                            {
+                                if (npc.npcName == targetName)
+                                {
+                                    matchingNPC = npc;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (matchingNPC != null)
+                    {
+                        // Spawn NPC แทนคนธรรมดา
+                        var npcController = Simulation.NPC.NPCSkillManager.Instance.SpawnNPC(matchingNPC, spawnPos);
+                        if (npcController != null)
+                        {
+                            charObj = npcController.gameObject;
+                            npcController.MoveTo(target.transform.position); // สั่งเดินไปที่เป้าหมาย
+                        }
+                    }
+                    else if (personAIPrefab != null)
+                    {
+                        // Spawn คนธรรมดา (ถ้าหา NPC ไม่เจอ หรือเป็นด่านปกติ)
+                        charObj = Instantiate(personAIPrefab, spawnPos, Quaternion.identity);
+                        PersonAI ai = charObj.GetComponent<PersonAI>();
+                        if (ai != null)
+                        {
+                            ai.InitializeAgent();
+                            ai.SetTarget(target.transform);
+                        }
+                    }
+
+                    if (charObj != null)
+                    {
+                        _spawnedCharacters.Add(charObj);
                     }
                 }
             }

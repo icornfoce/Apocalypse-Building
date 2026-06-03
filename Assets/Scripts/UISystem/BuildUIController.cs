@@ -64,7 +64,54 @@ namespace Simulation.UI
         {
             PlayClickSound();
             if (BuildingSystem.Instance == null || data == null) return;
+            
+            // เช็คว่าเป็น NPC หรือไม่ (ดูจากประเภทหรือชื่อ)
+            // ถ้าใช่ ให้เปิดหน้าต่างเลือกแทนการวางแบบเดิม
+            if (data.prefab != null && data.prefab.GetComponent<Simulation.Character.PersonTarget>() != null)
+            {
+                OpenNPCSelection(data);
+                return;
+            }
+
             BuildingSystem.Instance.SelectStructure(data);
+        }
+
+        /// <summary>
+        /// เปิดหน้าต่างเลือกตัวละคร NPC
+        /// </summary>
+        public void OpenNPCSelection(StructureData basePersonData)
+        {
+            PlayClickSound();
+            if (Simulation.NPC.NPCSelectionUI.Instance != null)
+            {
+                Simulation.NPC.NPCSelectionUI.Instance.Open((selectedNPCData) => 
+                {
+                    // สร้าง proxy StructureData ที่รวมข้อมูล basePersonData กับ selectedNPCData
+                    StructureData proxy = ScriptableObject.CreateInstance<StructureData>();
+                    proxy.structureName = selectedNPCData.npcName;
+                    proxy.basePrice = basePersonData.basePrice;
+                    proxy.baseMass = basePersonData.baseMass;
+                    proxy.baseHP = basePersonData.baseHP;
+                    proxy.size = basePersonData.size;
+                    
+                    // ใช้ prefab ตัวคนใสๆ เป็นเป้าหมายเหมือนเดิม
+                    proxy.prefab = basePersonData.prefab; 
+                    proxy.defaultMaterial = basePersonData.defaultMaterial;
+                    proxy.allowOverlap = basePersonData.allowOverlap;
+                    proxy.structureType = basePersonData.structureType;
+                    proxy.placeOnStructureOnly = basePersonData.placeOnStructureOnly;
+                    
+                    // เก็บ NPCSkillData ไว้ในชื่อหรือหาที่ส่งต่อ
+                    // แต่ระบบเก่า SimulationManager ใช้ PersonTarget จากฉากเพื่อ Spawn
+                    // ดังนั้นเราต้องให้ PersonTarget รู้ว่ามันคืออาชีพอะไร
+                    // วิธีที่ง่ายที่สุดคือสร้าง PersonTarget พิเศษ หรือแก้ไข PersonTarget นิดหน่อย
+                    
+                    BuildingSystem.Instance.SelectStructure(proxy);
+                    
+                    // หมายเหตุ: การเชื่อมต่อตัว NPC ที่เลือกเข้ากับ PersonTarget 
+                    // จะถูกจัดการใน BuildingSystem หรือ PersonTarget ตอนวางลงไป
+                });
+            }
         }
 
         /// <summary>

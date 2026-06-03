@@ -317,6 +317,15 @@ namespace Simulation.Mission
                             unit.TakeMaxHPDamage(attackDamage);
                         }
 
+                        // ── Architect Buff: สะท้อนดาเมจ 20% กลับไปยังซอมบี้ ──
+                        var aura = unit.GetComponent<Simulation.NPC.ArchitectAura>();
+                        if (aura != null && aura.IsActive)
+                        {
+                            float reflectedDamage = attackDamage * aura.reflectPercent;
+                            TakeDamage(reflectedDamage);
+                            Debug.Log($"<color=magenta>[Architect]</color> Reflected {reflectedDamage:F1} damage to {name}!");
+                        }
+
                         // เล่น Animation / SFX / VFX กัดกำแพง
                         if (animator != null) animator.SetTrigger("Bite");
                         if (audioSource != null && biteWallSFX != null) audioSource.PlayOneShot(biteWallSFX);

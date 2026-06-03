@@ -148,6 +148,39 @@ namespace Simulation.Building
             }
         }
 
+        /// <summary>
+        /// คำนวณราคาจริงหลังหักส่วนลด (Economist) และบวกภาษี (Tax)
+        /// </summary>
+        public float GetEffectivePrice(float basePrice)
+        {
+            float price = basePrice;
+
+            // 1. ส่วนลดจาก Economist NPC (-10%)
+            if (Simulation.NPC.NPCSkillManager.Instance != null)
+            {
+                float discount = Simulation.NPC.NPCSkillManager.Instance.GetDiscountRate();
+                price *= (1f - discount);
+            }
+
+            // 2. ภาษีจาก MissionData (+X%) — ถ้า Politician active จะเป็น 0
+            if (Simulation.NPC.NPCSkillManager.Instance != null)
+            {
+                float tax = Simulation.NPC.NPCSkillManager.Instance.GetEffectiveTaxRate();
+                price *= (1f + tax);
+            }
+            else
+            {
+                // ถ้ายังไม่มี NPCSkillManager ให้ใช้ tax จาก MissionData ตรง
+                var mm = Simulation.Mission.MissionManager.Instance;
+                if (mm != null && mm.CurrentMission != null && mm.CurrentMission.enableTax)
+                {
+                    price *= (1f + mm.CurrentMission.taxRate);
+                }
+            }
+
+            return price;
+        }
+
         private void Awake()
         {
             if (Instance == null) Instance = this;
@@ -587,7 +620,7 @@ namespace Simulation.Building
                     ? _selectedData.defaultMaterial
                     : (_selectedMaterial != null ? _selectedMaterial : _selectedData.defaultMaterial);
                 float materialPrice = mat != null ? mat.priceModifier : 0f;
-                float itemPrice = _selectedData.basePrice + materialPrice;
+                float itemPrice = GetEffectivePrice(_selectedData.basePrice + materialPrice);
 
                 // NEW: Pre-calculate if any piece in the drag group has world support
                 bool groupHasWorldSupport = false;
@@ -1348,7 +1381,7 @@ namespace Simulation.Building
                 ? _selectedData.defaultMaterial
                 : (_selectedMaterial != null ? _selectedMaterial : _selectedData.defaultMaterial);
             float materialPrice = mat != null ? mat.priceModifier : 0f;
-            float totalCost = _selectedData.basePrice + materialPrice;
+            float totalCost = GetEffectivePrice(_selectedData.basePrice + materialPrice);
 
             // ── Door: find and replace the wall underneath ──
             StructureUnit replacedWall = null;

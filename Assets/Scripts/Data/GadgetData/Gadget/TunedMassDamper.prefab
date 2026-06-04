@@ -108,6 +108,7 @@ MonoBehaviour:
   restoringStrength: 15
   ropeTransform: {fileID: 7340047884636714713}
   pendulumTransform: {fileID: 6962456033923801875}
+  anchorTransform: {fileID: 3955067062376759826}
   ropeSpring: 500
   ropeDamper: 50
   ropeLinearLimit: 0.01

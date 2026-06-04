@@ -32,7 +32,7 @@ namespace Simulation.Data
 
         [Header("Assets")]
         public GameObject prefab;
-        public MaterialData defaultMaterial;
+        // public MaterialData defaultMaterial; // Removed for Gadget Material System exclusion
         public AudioClip placeSound;
         public AudioClip breakSound;
         public GameObject placeVFX;

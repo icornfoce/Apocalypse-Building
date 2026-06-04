@@ -33,7 +33,9 @@ namespace Simulation.Building
         public void Initialize(StructureData structureData, MaterialData materialData, float rotation = 0f)
         {
             data = structureData;
-            currentMaterial = materialData;
+            
+            bool isGadget = data != null && data.structureType == StructureType.Gadget;
+            currentMaterial = isGadget ? null : materialData;
 
             // HP = Base * Multiplier
             float maxHP = data.baseHP * (currentMaterial != null ? currentMaterial.hpMultiplier : 1f);
@@ -41,7 +43,10 @@ namespace Simulation.Building
 
             _rotation = rotation;
             CacheRenderers();
-            ApplyMaterial();
+            if (!isGadget)
+            {
+                ApplyMaterial();
+            }
 
             Rigidbody rb = GetComponent<Rigidbody>();
             if (rb == null)
@@ -133,6 +138,7 @@ namespace Simulation.Building
 
         public void ChangeMaterial(MaterialData newMaterial)
         {
+            if (data != null && data.structureType == StructureType.Gadget) return;
             currentMaterial = newMaterial;
             ApplyMaterial();
 

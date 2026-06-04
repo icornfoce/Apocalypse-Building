@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: bd3d69ced3f0b874c8bae6897f9d09d0, type: 3}
-  m_Name: MC Skill
+  m_Name: President
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.Data.NPCSkillData
-  npcName: 
+  npcName: President
   description: 
   icon: {fileID: 0}
   maxHealth: 100
   moveSpeed: 3
-  skillType: 0
+  skillType: 1
   skillCooldown: 0
   skillDuration: 0
   repairPerSecond: 20

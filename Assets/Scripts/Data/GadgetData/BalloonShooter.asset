@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: BalloonShooter
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.Data.GadgetData
   GadgetName: Balloon Shooter
-  Price: 50
+  Price: 100
   Mass: 20
   HP: 200
   size: {x: 1, y: 1, z: 1}

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: SpikeTrap
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.Data.GadgetData
   GadgetName: Spike Trap
-  Price: 50
+  Price: 250
   Mass: 20
   HP: 200
   size: {x: 1, y: 1, z: 1}

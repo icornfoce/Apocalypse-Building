@@ -1249,7 +1249,7 @@ namespace Simulation.Building
             proxy.baseHP = data.HP;
             proxy.size = data.size;
             proxy.prefab = data.prefab;
-            proxy.defaultMaterial = data.defaultMaterial;
+            proxy.defaultMaterial = null;
             proxy.allowOverlap = data.allowOverlap;
             proxy.structureType = StructureType.Gadget;
             proxy.placeOnStructureOnly = false;  // Gadget วางบน ground และ floor ได้

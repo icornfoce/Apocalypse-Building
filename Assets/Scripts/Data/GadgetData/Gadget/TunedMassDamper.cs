@@ -42,15 +42,76 @@ namespace Simulation.Building
         private ConfigurableJoint _pendulumJoint;
         private Rigidbody _pendulumRb;
 
+        private Vector3 _originalPendulumLocalPos;
+        private Quaternion _originalPendulumLocalRot;
+        private bool _hasSavedOriginalTransform = false;
+        private bool _wasSimulatingLastFrame = false;
+
         private void Start()
         {
             AutoFindReferences();
+            SaveOriginalPendulumTransform();
         }
 
         private void OnEnable()
         {
             // ลงทะเบียนอีเวนต์ หรือเตรียมตัวเมื่อเริ่มจำลอง
             _isInitialized = false;
+            _wasSimulatingLastFrame = SimulationManager.Instance != null && SimulationManager.Instance.IsSimulating;
+        }
+
+        private void OnDisable()
+        {
+            ResetPendulum();
+        }
+
+        private void Update()
+        {
+            bool isSimulating = SimulationManager.Instance != null && SimulationManager.Instance.IsSimulating;
+            if (_wasSimulatingLastFrame && !isSimulating)
+            {
+                ResetPendulum();
+            }
+            _wasSimulatingLastFrame = isSimulating;
+        }
+
+        private void SaveOriginalPendulumTransform()
+        {
+            if (pendulumTransform != null && !_hasSavedOriginalTransform)
+            {
+                _originalPendulumLocalPos = pendulumTransform.localPosition;
+                _originalPendulumLocalRot = pendulumTransform.localRotation;
+                _hasSavedOriginalTransform = true;
+            }
+        }
+
+        public void ResetPendulum()
+        {
+            _isInitialized = false;
+
+            if (pendulumTransform != null && _hasSavedOriginalTransform)
+            {
+                // ลบ Joint เก่า
+                if (_pendulumJoint != null)
+                {
+                    DestroyImmediate(_pendulumJoint);
+                    _pendulumJoint = null;
+                }
+                var joints = pendulumTransform.GetComponents<Joint>();
+                foreach (var j in joints) DestroyImmediate(j);
+
+                // รีเซ็ต Rigidbody
+                if (_pendulumRb != null)
+                {
+                    _pendulumRb.linearVelocity = Vector3.zero;
+                    _pendulumRb.angularVelocity = Vector3.zero;
+                    _pendulumRb.isKinematic = true;
+                }
+
+                // คืนตำแหน่งและการหมุนแบบ Local
+                pendulumTransform.localPosition = _originalPendulumLocalPos;
+                pendulumTransform.localRotation = _originalPendulumLocalRot;
+            }
         }
 
         /// <summary>
@@ -109,6 +170,8 @@ namespace Simulation.Building
                 Debug.LogWarning("[TunedMassDamper] No pendulum transform found! Cannot create ConfigurableJoint.");
                 return;
             }
+
+            SaveOriginalPendulumTransform();
 
             // เพิ่ม Rigidbody ให้ลูกตุ้มถ้ายังไม่มี
             _pendulumRb = pendulumTransform.GetComponent<Rigidbody>();

@@ -15,9 +15,10 @@ MonoBehaviour:
   npcName: Officer
   description: 
   icon: {fileID: 0}
+  placementPrice: 1250
   maxHealth: 100
   moveSpeed: 3
-  skillType: 1
+  skillType: 5
   skillCooldown: 0
   skillDuration: 0
   repairPerSecond: 20
@@ -28,7 +29,7 @@ MonoBehaviour:
   maxPillarCondition: 0
   maxAreaCondition: 0
   minFloorCondition: 0
-  prefab: {fileID: 0}
+  prefab: {fileID: 920048339523193700, guid: b4334e1578f12a947a4035fb9964b642, type: 3}
   selectionVFX: {fileID: 0}
   skillActivateVFX: {fileID: 0}
   skillEffectVFX: {fileID: 0}

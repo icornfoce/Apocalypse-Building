@@ -100,7 +100,7 @@ namespace Simulation.UI
                     // สร้าง proxy StructureData ที่รวมข้อมูล basePersonData กับ selectedNPCData
                     StructureData proxy = ScriptableObject.CreateInstance<StructureData>();
                     proxy.structureName = selectedNPCData.npcName;
-                    proxy.basePrice = basePersonData.basePrice;
+                    proxy.basePrice = selectedNPCData.placementPrice;
                     proxy.baseMass = basePersonData.baseMass;
                     proxy.baseHP = basePersonData.baseHP;
                     proxy.size = basePersonData.size;

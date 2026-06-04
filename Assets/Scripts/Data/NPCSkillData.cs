@@ -36,6 +36,8 @@ namespace Simulation.Data
         public string description;
         [Tooltip("ไอคอนสำหรับ UI")]
         public Sprite icon;
+        [Tooltip("ราคาสำหรับวางตัวละคร NPC ตัวนี้")]
+        public int placementPrice = 100;
 
         [Header("Stats")]
         [Tooltip("เลือดสูงสุด")]

@@ -2,31 +2,55 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
 using Simulation.Data;
-using Simulation.Building;
 
 namespace Simulation.NPC
 {
+    [System.Serializable]
+    public class NPCSlot
+    {
+        [Tooltip("ปุ่มของช่องนี้")]
+        public Button button;
+        [Tooltip("ข้อมูล NPC ที่จะใส่ในช่องนี้")]
+        public NPCSkillData npcData;
+        [Tooltip("Text แสดงชื่อ NPC (ถ้ามี)")]
+        public Text nameText;
+        [Tooltip("Text แสดงรายละเอียดสกิล (ถ้ามี)")]
+        public Text descText;
+        [Tooltip("Image แสดงไอคอน NPC (ถ้ามี)")]
+        public Image iconImage;
+    }
+
     /// <summary>
-    /// UI Panel เลือก NPC ตอนกดวาง PersonTarget
-    /// แสดง NPC ทั้ง 6 ตัว ป้องกันวางตัวเดิมซ้ำ
-    /// สร้าง UI แบบ Procedural (ผ่านโค้ด) ให้ใช้งานได้เลย
+    /// UI Panel ควบคุมทั้งการเลือก NPC (Selection) และการแสดงข้อมูล/ใช้สกิล (NPCSkillPanel)
+    /// ออกแบบมาให้จัดวางและออกแบบเองใน Unity Editor ได้อย่างสมบูรณ์แบบ
     /// </summary>
     public class NPCSelectionUI : MonoBehaviour
     {
         public static NPCSelectionUI Instance { get; private set; }
 
-        [Header("References")]
-        [Tooltip("Canvas ที่จะสร้าง UI ไว้ (ถ้าไม่กำหนดจะหาเอง)")]
-        public Canvas parentCanvas;
+        [Header("Selection Panel (ตอนสร้าง/วาง PersonTarget)")]
+        [Tooltip("ตัว Panel การเลือก NPC ที่ออกแบบเองใน Canvas")]
+        [SerializeField] private GameObject selectionPanel;
+        
+        [Tooltip("ช่องใส่ NPC แต่ละตัวที่สร้างเองใน Inspector")]
+        [SerializeField] private List<NPCSlot> npcSlots = new List<NPCSlot>();
 
-        [Header("Settings")]
-        [Tooltip("สีพื้นหลัง Panel")]
-        public Color panelColor = new Color(0.1f, 0.1f, 0.15f, 0.95f);
+        [Tooltip("ข้อมูลต้นแบบของโครงสร้างคน (PersonTarget) สำหรับใช้ตอนเปิดปุ่มตรงๆ")]
+        [SerializeField] private StructureData basePersonData;
 
-        // ── Runtime ──
-        private GameObject _panelRoot;
-        private List<Button> _npcButtons = new List<Button>();
+        [Header("Skill Panel (ตอนจำลอง/คลิก NPC)")]
+        [Tooltip("ตัว Panel แสดงสกิลและสถานะ NPC ในช่วงจำลอง")]
+        [SerializeField] private GameObject skillPanel;
+        [SerializeField] private Text skillNPCNameText;
+        [SerializeField] private Text skillNPCHealthText;
+        [SerializeField] private Text skillNPCSkillText;
+        [SerializeField] private Text skillNPCStatusText;
+        [SerializeField] private Button skillNPCUseButton;
+        [SerializeField] private Image skillNPCHealthBar;
+
+        // ── Runtime State ──
         private System.Action<NPCSkillData> _onSelected;
+        private NPCController _currentNPC;
         private bool _isOpen = false;
 
         public bool IsOpen => _isOpen;
@@ -34,243 +58,249 @@ namespace Simulation.NPC
         private void Awake()
         {
             if (Instance == null) Instance = this;
-            else { Destroy(this); return; }
+            else { Destroy(gameObject); return; }
         }
 
+        private void Start()
+        {
+            // ซ่อน Panel เริ่มต้น
+            if (selectionPanel != null) selectionPanel.SetActive(false);
+            if (skillPanel != null) skillPanel.SetActive(false);
+
+            // ลงทะเบียน Events สำหรับโหมดจำลอง (Skill Panel)
+            if (NPCSkillManager.Instance != null)
+            {
+                NPCSkillManager.Instance.OnNPCSelected += ShowSkillPanel;
+                NPCSkillManager.Instance.OnNPCDeselected += HideSkillPanel;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (NPCSkillManager.Instance != null)
+            {
+                NPCSkillManager.Instance.OnNPCSelected -= ShowSkillPanel;
+                NPCSkillManager.Instance.OnNPCDeselected -= HideSkillPanel;
+            }
+        }
+
+        private void Update()
+        {
+            // อัปเดตข้อมูล NPC ใน Skill Panel แบบ Realtime
+            if (_currentNPC != null && skillPanel != null && skillPanel.activeSelf)
+            {
+                if (skillNPCHealthText != null)
+                {
+                    skillNPCHealthText.text = $"HP: {_currentNPC.CurrentHealth:F0}/{_currentNPC.Data.maxHealth:F0}";
+                }
+
+                if (skillNPCHealthBar != null)
+                {
+                    skillNPCHealthBar.fillAmount = _currentNPC.HealthRatio;
+                    skillNPCHealthBar.color = Color.Lerp(Color.red, Color.green, _currentNPC.HealthRatio);
+                }
+
+                if (skillNPCStatusText != null)
+                {
+                    skillNPCStatusText.text = _currentNPC.SkillActive ? "สกิลทำงานอยู่..." : "พร้อมใช้งาน";
+                    skillNPCStatusText.color = _currentNPC.SkillActive ? Color.yellow : Color.green;
+                }
+            }
+        }
+
+        // ────────────────────────────────────────────────────────────────
+        // Selection Panel Logic (ตอนสร้าง)
+        // ────────────────────────────────────────────────────────────────
+
         /// <summary>
-        /// เปิด Panel เลือก NPC — เรียกจาก BuildingSystem ตอนกดวาง PersonTarget
+        /// เปิด Panel เลือก NPC — เรียกจาก BuildUIController ตอนกดวาง PersonTarget
         /// </summary>
         public void Open(System.Action<NPCSkillData> onSelected)
         {
             _onSelected = onSelected;
-
-            if (_panelRoot != null) Destroy(_panelRoot);
-            CreatePanel();
             _isOpen = true;
+
+            if (selectionPanel != null)
+            {
+                selectionPanel.SetActive(true);
+            }
+
+            SetupSlots();
         }
 
         /// <summary>
-        /// ปิด Panel
+        /// เปิดหน้าต่างเลือก NPC โดยตรง (ไม่มี callback สำหรับเรียกใช้ผ่านปุ่ม UI ตรงๆ)
+        /// </summary>
+        public void OpenSelectionPanel()
+        {
+            _onSelected = null;
+            _isOpen = true;
+
+            if (selectionPanel != null)
+            {
+                selectionPanel.SetActive(true);
+            }
+
+            SetupSlots();
+        }
+
+        /// <summary>
+        /// ปิด Panel เลือก NPC
         /// </summary>
         public void Close()
         {
             _isOpen = false;
-            if (_panelRoot != null)
+            if (selectionPanel != null)
             {
-                Destroy(_panelRoot);
-                _panelRoot = null;
+                selectionPanel.SetActive(false);
             }
-            _npcButtons.Clear();
         }
 
-        private void CreatePanel()
+        private void SetupSlots()
         {
-            if (parentCanvas == null)
+            foreach (var slot in npcSlots)
             {
-                parentCanvas = FindAnyObjectByType<Canvas>();
-                if (parentCanvas == null)
+                if (slot == null || slot.button == null || slot.npcData == null) continue;
+
+                var data = slot.npcData;
+                bool isPlaced = NPCSkillManager.Instance != null && NPCSkillManager.Instance.IsNPCPlaced(data.skillType);
+
+                // ตั้งค่าหน้าตาของช่อง (ถ้ากำหนด Component ไว้)
+                if (slot.nameText != null) slot.nameText.text = data.npcName;
+                if (slot.descText != null) slot.descText.text = isPlaced ? "(วางแล้ว)" : data.description;
+                if (slot.iconImage != null) slot.iconImage.sprite = data.icon;
+
+                // เปลี่ยนความโปร่งใสหรือสีของปุ่มตามสถานะการวาง
+                var image = slot.button.GetComponent<Image>();
+                if (image != null)
                 {
-                    Debug.LogError("[NPCSelectionUI] No Canvas found!");
-                    return;
+                    image.color = isPlaced ? new Color(0.5f, 0.5f, 0.5f, 0.7f) : Color.white;
+                }
+
+                slot.button.interactable = !isPlaced;
+
+                // ผูก Event ปุ่มกด
+                slot.button.onClick.RemoveAllListeners();
+                slot.button.onClick.AddListener(() =>
+                {
+                    if (_onSelected != null)
+                    {
+                        _onSelected.Invoke(data);
+                    }
+                    else if (basePersonData != null && Simulation.Building.BuildingSystem.Instance != null)
+                    {
+                        // พฤติกรรมเริ่มต้น: สร้าง proxy StructureData และเลือกใน BuildingSystem
+                        StructureData proxy = ScriptableObject.CreateInstance<StructureData>();
+                        proxy.structureName = data.npcName;
+                        proxy.basePrice = data.placementPrice;
+                        proxy.baseMass = basePersonData.baseMass;
+                        proxy.baseHP = basePersonData.baseHP;
+                        proxy.size = basePersonData.size;
+                        proxy.prefab = basePersonData.prefab;
+                        proxy.defaultMaterial = basePersonData.defaultMaterial;
+                        proxy.allowOverlap = basePersonData.allowOverlap;
+                        proxy.structureType = basePersonData.structureType;
+                        proxy.placeOnStructureOnly = basePersonData.placeOnStructureOnly;
+                        
+                        Simulation.Building.BuildingSystem.Instance.SelectStructure(proxy);
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[NPCSelectionUI] No callback or basePersonData assigned for selection!");
+                    }
+                    Close();
+                });
+            }
+        }
+
+        // ────────────────────────────────────────────────────────────────
+        // Skill Panel Logic (ตอนจำลอง)
+        // ────────────────────────────────────────────────────────────────
+
+        public void ShowSkillPanel(NPCController npc)
+        {
+            _currentNPC = npc;
+            if (skillPanel != null)
+            {
+                skillPanel.SetActive(true);
+            }
+
+            if (npc == null || npc.Data == null) return;
+
+            // ตั้งข้อมูลเริ่มต้นในแผงควบคุมสกิล
+            if (skillNPCNameText != null)
+            {
+                skillNPCNameText.text = npc.Data.npcName;
+                skillNPCNameText.color = GetSkillColor(npc.Data.skillType);
+            }
+
+            if (skillNPCSkillText != null)
+            {
+                skillNPCSkillText.text = $"สกิล: {GetSkillName(npc.Data.skillType)}";
+            }
+
+            bool isPassive = npc.Data.skillType == NPCSkillType.Economist
+                          || npc.Data.skillType == NPCSkillType.Architect
+                          || npc.Data.skillType == NPCSkillType.Politician;
+
+            if (skillNPCUseButton != null)
+            {
+                skillNPCUseButton.interactable = !isPassive;
+                
+                var btnTextComp = skillNPCUseButton.GetComponentInChildren<Text>();
+                if (btnTextComp != null)
+                {
+                    btnTextComp.text = isPassive ? "สกิลอัตโนมัติ (Passive)" : "ใช้สกิล";
+                }
+
+                skillNPCUseButton.onClick.RemoveAllListeners();
+                if (!isPassive)
+                {
+                    skillNPCUseButton.onClick.AddListener(() =>
+                    {
+                        if (NPCSkillManager.Instance != null)
+                        {
+                            NPCSkillManager.Instance.ActivateSelectedSkill();
+                        }
+                    });
                 }
             }
-
-            var manager = NPCSkillManager.Instance;
-            if (manager == null || manager.availableNPCs == null || manager.availableNPCs.Count == 0)
-            {
-                Debug.LogWarning("[NPCSelectionUI] No available NPCs in NPCSkillManager!");
-                return;
-            }
-
-            // ── Panel Root ──
-            _panelRoot = new GameObject("NPCSelectionPanel");
-            _panelRoot.transform.SetParent(parentCanvas.transform, false);
-
-            // Full-screen darken overlay
-            var overlay = _panelRoot.AddComponent<Image>();
-            overlay.color = new Color(0, 0, 0, 0.5f);
-            var overlayRect = _panelRoot.GetComponent<RectTransform>();
-            overlayRect.anchorMin = Vector2.zero;
-            overlayRect.anchorMax = Vector2.one;
-            overlayRect.sizeDelta = Vector2.zero;
-
-            // ── Center Panel ──
-            GameObject panel = new GameObject("Panel");
-            panel.transform.SetParent(_panelRoot.transform, false);
-            var panelImg = panel.AddComponent<Image>();
-            panelImg.color = panelColor;
-
-            var panelRect = panel.GetComponent<RectTransform>();
-            panelRect.anchorMin = new Vector2(0.5f, 0.5f);
-            panelRect.anchorMax = new Vector2(0.5f, 0.5f);
-            panelRect.sizeDelta = new Vector2(700, 500);
-            panelRect.anchoredPosition = Vector2.zero;
-
-            // ── Title ──
-            GameObject titleObj = new GameObject("Title");
-            titleObj.transform.SetParent(panel.transform, false);
-            var titleText = titleObj.AddComponent<Text>();
-            titleText.text = "เลือกตัวละคร NPC";
-            titleText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            titleText.fontSize = 28;
-            titleText.fontStyle = FontStyle.Bold;
-            titleText.color = Color.white;
-            titleText.alignment = TextAnchor.MiddleCenter;
-
-            var titleRect = titleObj.GetComponent<RectTransform>();
-            titleRect.anchorMin = new Vector2(0, 1);
-            titleRect.anchorMax = new Vector2(1, 1);
-            titleRect.sizeDelta = new Vector2(0, 50);
-            titleRect.anchoredPosition = new Vector2(0, -25);
-
-            // ── Grid Layout สำหรับ NPC Buttons ──
-            GameObject grid = new GameObject("Grid");
-            grid.transform.SetParent(panel.transform, false);
-
-            var gridLayout = grid.AddComponent<GridLayoutGroup>();
-            gridLayout.cellSize = new Vector2(200, 130);
-            gridLayout.spacing = new Vector2(15, 15);
-            gridLayout.padding = new RectOffset(20, 20, 10, 10);
-            gridLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-            gridLayout.constraintCount = 3;
-            gridLayout.childAlignment = TextAnchor.MiddleCenter;
-
-            var gridRect = grid.GetComponent<RectTransform>();
-            gridRect.anchorMin = new Vector2(0, 0);
-            gridRect.anchorMax = new Vector2(1, 1);
-            gridRect.offsetMin = new Vector2(10, 60);
-            gridRect.offsetMax = new Vector2(-10, -60);
-
-            // ── NPC Buttons ──
-            _npcButtons.Clear();
-            foreach (var npcData in manager.availableNPCs)
-            {
-                if (npcData == null) continue;
-                CreateNPCButton(grid.transform, npcData);
-            }
-
-            // ── Close Button ──
-            GameObject closeBtn = CreateButton(panel.transform, "✕", 36, new Color(0.8f, 0.2f, 0.2f));
-            var closeRect = closeBtn.GetComponent<RectTransform>();
-            closeRect.anchorMin = new Vector2(1, 1);
-            closeRect.anchorMax = new Vector2(1, 1);
-            closeRect.sizeDelta = new Vector2(40, 40);
-            closeRect.anchoredPosition = new Vector2(-25, -25);
-            closeBtn.GetComponent<Button>().onClick.AddListener(Close);
         }
 
-        private void CreateNPCButton(Transform parent, NPCSkillData data)
+        public void HideSkillPanel()
         {
-            bool isPlaced = NPCSkillManager.Instance.IsNPCPlaced(data.skillType);
-
-            // ── Button Container ──
-            GameObject btnObj = new GameObject($"Btn_{data.npcName}");
-            btnObj.transform.SetParent(parent, false);
-
-            var btnImg = btnObj.AddComponent<Image>();
-            btnImg.color = isPlaced
-                ? new Color(0.3f, 0.3f, 0.3f, 0.7f) // สีเทาถ้าวางแล้ว
-                : GetSkillColor(data.skillType);
-
-            var btn = btnObj.AddComponent<Button>();
-            btn.interactable = !isPlaced;
-
-            // ── Name ──
-            GameObject nameObj = new GameObject("Name");
-            nameObj.transform.SetParent(btnObj.transform, false);
-            var nameText = nameObj.AddComponent<Text>();
-            nameText.text = data.npcName;
-            nameText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            nameText.fontSize = 18;
-            nameText.fontStyle = FontStyle.Bold;
-            nameText.color = Color.white;
-            nameText.alignment = TextAnchor.UpperCenter;
-
-            var nameRect = nameObj.GetComponent<RectTransform>();
-            nameRect.anchorMin = new Vector2(0, 0.5f);
-            nameRect.anchorMax = new Vector2(1, 1);
-            nameRect.offsetMin = new Vector2(5, 0);
-            nameRect.offsetMax = new Vector2(-5, -5);
-
-            // ── Description ──
-            GameObject descObj = new GameObject("Desc");
-            descObj.transform.SetParent(btnObj.transform, false);
-            var descText = descObj.AddComponent<Text>();
-            descText.text = isPlaced ? "(วางแล้ว)" : GetSkillDescription(data.skillType);
-            descText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            descText.fontSize = 12;
-            descText.color = isPlaced ? Color.gray : new Color(0.9f, 0.9f, 0.9f);
-            descText.alignment = TextAnchor.UpperCenter;
-
-            var descRect = descObj.GetComponent<RectTransform>();
-            descRect.anchorMin = new Vector2(0, 0);
-            descRect.anchorMax = new Vector2(1, 0.5f);
-            descRect.offsetMin = new Vector2(5, 5);
-            descRect.offsetMax = new Vector2(-5, 0);
-
-            // ── Click Handler ──
-            NPCSkillData capturedData = data;
-            btn.onClick.AddListener(() =>
+            _currentNPC = null;
+            if (skillPanel != null)
             {
-                _onSelected?.Invoke(capturedData);
-                Close();
-            });
-
-            _npcButtons.Add(btn);
-        }
-
-        private GameObject CreateButton(Transform parent, string text, int fontSize, Color color)
-        {
-            GameObject btnObj = new GameObject("Button");
-            btnObj.transform.SetParent(parent, false);
-
-            var img = btnObj.AddComponent<Image>();
-            img.color = color;
-
-            var btn = btnObj.AddComponent<Button>();
-
-            GameObject textObj = new GameObject("Text");
-            textObj.transform.SetParent(btnObj.transform, false);
-            var t = textObj.AddComponent<Text>();
-            t.text = text;
-            t.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            t.fontSize = fontSize;
-            t.color = Color.white;
-            t.alignment = TextAnchor.MiddleCenter;
-
-            var textRect = textObj.GetComponent<RectTransform>();
-            textRect.anchorMin = Vector2.zero;
-            textRect.anchorMax = Vector2.one;
-            textRect.sizeDelta = Vector2.zero;
-
-            return btnObj;
+                skillPanel.SetActive(false);
+            }
         }
 
         private Color GetSkillColor(NPCSkillType type)
         {
             switch (type)
             {
-                case NPCSkillType.Engineer:  return new Color(0.2f, 0.5f, 0.2f, 0.85f); // เขียว
-                case NPCSkillType.Builder:   return new Color(0.6f, 0.4f, 0.15f, 0.85f); // ส้ม
-                case NPCSkillType.Economist: return new Color(0.15f, 0.35f, 0.6f, 0.85f); // น้ำเงิน
-                case NPCSkillType.Architect: return new Color(0.5f, 0.2f, 0.6f, 0.85f); // ม่วง
-                case NPCSkillType.Politician:return new Color(0.15f, 0.15f, 0.5f, 0.85f); // น้ำเงินเข้ม
-                case NPCSkillType.Commander: return new Color(0.6f, 0.15f, 0.15f, 0.85f); // แดง
-                default: return new Color(0.3f, 0.3f, 0.3f, 0.85f);
+                case NPCSkillType.Engineer:  return new Color(0.3f, 0.8f, 0.3f);
+                case NPCSkillType.Builder:   return new Color(0.9f, 0.6f, 0.2f);
+                case NPCSkillType.Economist: return new Color(0.3f, 0.5f, 0.9f);
+                case NPCSkillType.Architect: return new Color(0.7f, 0.3f, 0.9f);
+                case NPCSkillType.Politician:return new Color(0.2f, 0.2f, 0.8f);
+                case NPCSkillType.Commander: return new Color(0.9f, 0.2f, 0.2f);
+                default: return Color.white;
             }
         }
 
-        private string GetSkillDescription(NPCSkillType type)
+        private string GetSkillName(NPCSkillType type)
         {
             switch (type)
             {
-                case NPCSkillType.Engineer:  return "แสดงแรงเค้นเป็นแถบสี";
-                case NPCSkillType.Builder:   return "ซ่อมโครงสร้างเสียหาย";
-                case NPCSkillType.Economist: return "ลดราคาก่อสร้าง 10%\n(Auto)";
-                case NPCSkillType.Architect: return "บัฟสะท้อนดาเมจ 20%\n(ตามเงื่อนไข)";
-                case NPCSkillType.Politician:return "ยกเลิกภาษี 100%\n(Auto)";
-                case NPCSkillType.Commander: return "เรียกทหารมายิงซอมบี้";
-                default: return "";
+                case NPCSkillType.Engineer:  return "แสดงแรงเค้น";
+                case NPCSkillType.Builder:   return "ซ่อมโครงสร้าง";
+                case NPCSkillType.Economist: return "ลดราคา 10% (Auto)";
+                case NPCSkillType.Architect: return "สะท้อนดาเมจ 20%";
+                case NPCSkillType.Politician:return "ยกเลิกภาษี (Auto)";
+                case NPCSkillType.Commander: return "เรียกทหารยิง";
+                default: return "ไม่ทราบ";
             }
         }
     }

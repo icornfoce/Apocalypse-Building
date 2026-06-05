@@ -664,7 +664,9 @@ namespace Simulation.Building
                         doorValid = FindWallAtPosition(pos, ghostBuilder.CurrentRotation) != null;
                     }
 
-                    if (!(isClear && hasSupport && isOnStructure && doorValid))
+                    bool gadgetValid = IsValidGadgetPlacement(pos, ghostBuilder.CurrentRotation, _selectedData, _currentHitCollider);
+
+                    if (!(isClear && hasSupport && isOnStructure && doorValid && gadgetValid))
                     {
                         allValid = false;
                     }
@@ -1056,7 +1058,9 @@ namespace Simulation.Building
                         // A group is supported if at least one of its members touches a support
                         bool hasSupport = groupHasSupport;
 
-                        if (!isClear || !hasSupport) { allValid = false; break; }
+                        bool gadgetValid = IsValidGadgetPlacement(piecePos, pieceRot, unit.Data, _currentHitCollider);
+
+                        if (!isClear || !hasSupport || !gadgetValid) { allValid = false; break; }
                     }
                 }
                 else
@@ -1075,7 +1079,9 @@ namespace Simulation.Building
                         isOnStructure = isFloor && isTopSurface;
                     }
                     
-                    allValid = isClear && hasSupport && isOnStructure;
+                    bool gadgetValid = IsValidGadgetPlacement(placePos, ghostBuilder.CurrentRotation, _movingUnit.Data, _currentHitCollider);
+                    
+                    allValid = isClear && hasSupport && isOnStructure && gadgetValid;
                 }
                 
                 ghostBuilder.SetValid(allValid);
@@ -2725,6 +2731,69 @@ namespace Simulation.Building
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// ตรวจสอบการวางของ Gadget โดยห้ามวางบนอย่างอื่นยกเว้น Ground, Floor, หรือ Pillar
+        /// และห้ามวางทับซ้อนหรือวางทับบน Gadget ตัวอื่น
+        /// ใช้ hitCollider จากระบบ Raycast หลัก (เมาส์) โดยตรง แทนการยิง Raycast ใหม่
+        /// เพื่อป้องกัน Raycast ทะลุรูของ Gadget ไปชน Ground
+        /// </summary>
+        private bool IsValidGadgetPlacement(Vector3 position, float rotation, StructureData data, Collider hitCollider)
+        {
+            if (data == null || data.structureType != StructureType.Gadget) return true;
+
+            // 1. ตรวจสอบว่าเมาส์ชี้ไปที่พื้นผิวที่อนุญาตหรือไม่ (Ground, Floor, Pillar เท่านั้น)
+            //    ใช้ hitCollider จากระบบ Raycast หลักซึ่งให้ความสำคัญ Structure ก่อน Ground
+            //    จึงไม่มีปัญหา Raycast ทะลุรูของ Gadget
+            if (hitCollider == null) return false;
+
+            // เช็คว่าเป็น Ground Layer หรือไม่
+            bool isGround = ((1 << hitCollider.gameObject.layer) & groundLayer.value) != 0;
+            
+            if (!isGround)
+            {
+                // ไม่ใช่ Ground → เช็คว่าเป็น Structure ที่อนุญาตหรือไม่
+                StructureUnit hitUnit = hitCollider.GetComponentInParent<StructureUnit>();
+                if (hitUnit == null || hitUnit.Data == null) return false;
+                
+                // ห้ามวางบน Gadget ตัวอื่น
+                if (hitUnit.Data.structureType == StructureType.Gadget) return false;
+                
+                // อนุญาตเฉพาะ Floor หรือ Pillar
+                bool isFloor = hitUnit.Data.structureType == StructureType.Floor;
+                bool isPillar = (hitUnit.Data == pillarReference) || 
+                               hitUnit.Data.structureName.IndexOf("pillar", System.StringComparison.OrdinalIgnoreCase) >= 0 || 
+                               hitUnit.Data.structureName.IndexOf("column", System.StringComparison.OrdinalIgnoreCase) >= 0 || 
+                               hitUnit.Data.structureName.IndexOf("เสา", System.StringComparison.OrdinalIgnoreCase) >= 0;
+                
+                if (!isFloor && !isPillar) return false;
+            }
+
+            // 2. ตรวจสอบว่าไม่ไปทับซ้อนกับ Gadget ตัวอื่นที่วางไว้แล้ว
+            Bounds boundsA = GetGridBounds(position, rotation, data);
+            
+            foreach (var unit in _placedStructures)
+            {
+                if (unit == null || unit == _movingUnit || _movingGroup.Contains(unit)) continue;
+                if (unit.Data == null || unit.Data.structureType != StructureType.Gadget) continue;
+
+                Bounds boundsB = GetGridBounds(unit.transform.position, unit.Rotation, unit.Data);
+                
+                if (boundsA.Intersects(boundsB))
+                {
+                    return false;
+                }
+                
+                // ห้ามวางตรงตำแหน่ง XZ เดียวกัน (ป้องกันต่อชั้นขึ้นไปบน Gadget)
+                float xzDist = Vector2.Distance(new Vector2(position.x, position.z), new Vector2(unit.transform.position.x, unit.transform.position.z));
+                if (xzDist < gridSize * 0.5f)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         /// <summary>

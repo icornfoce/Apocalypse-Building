@@ -2833,8 +2833,32 @@ namespace Simulation.Building
                 int floor = GetFloorFromY(hitUnit.transform.position.y);
                 if (floor < 2) return false;
 
-                // ต้องเอา Hitbox TMD ไปชนกับ Hitbox floor ด้านล่าง (y-) เท่านั้น
-                if (hitNormal.y > -0.5f) return false;
+                // ตรวจสอบว่ามีพื้น (Floor) อยู่ตรงด้านบนของตำแหน่งที่จะวางจริงหรือไม่
+                float pivotToTop = GetPivotToTopOffset(data.prefab);
+                Vector3 checkStart = position + new Vector3(0, pivotToTop - 0.1f, 0);
+                Vector3 boxHalfExtents = new Vector3(0.4f, 0.05f, 0.4f);
+                RaycastHit[] hits = UnityEngine.Physics.BoxCastAll(
+                    checkStart,
+                    boxHalfExtents,
+                    Vector3.up,
+                    Quaternion.identity,
+                    0.4f,
+                    structureLayer
+                );
+                
+                bool foundFloorAbove = false;
+                foreach (var hit in hits)
+                {
+                    if (hit.collider.gameObject.name.Contains("Ghost")) continue;
+                    var u = hit.collider.GetComponentInParent<StructureUnit>();
+                    if (u != null && u.Data != null && u.Data.structureType == StructureType.Floor)
+                    {
+                        foundFloorAbove = true;
+                        break;
+                    }
+                }
+
+                if (!foundFloorAbove) return false;
             }
             else
             {

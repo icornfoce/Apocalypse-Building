@@ -1401,14 +1401,15 @@ namespace Simulation.Building
                 }
             }
 
-            GameObject obj = Instantiate(_selectedData.prefab, position, Quaternion.Euler(0, rotation, 0));
+            float snappedRotation = Mathf.Round(rotation / 90f) * 90f;
+            GameObject obj = Instantiate(_selectedData.prefab, position, Quaternion.Euler(0, snappedRotation, 0));
 
             // ── Door Frame Replacement ──
             // If this is a door and it has a replacement prefab (like a DoorFrame),
             // instantiate it and parent it to the door so they are managed together.
             if (_selectedData.structureType == StructureType.Door && _selectedData.doorReplacementPrefab != null)
             {
-                GameObject frame = Instantiate(_selectedData.doorReplacementPrefab, position, Quaternion.Euler(0, rotation, 0));
+                GameObject frame = Instantiate(_selectedData.doorReplacementPrefab, position, Quaternion.Euler(0, snappedRotation, 0));
                 frame.transform.SetParent(obj.transform);
             }
 
@@ -1416,7 +1417,7 @@ namespace Simulation.Building
             obj.name = $"{_selectedData.prefab.name} {GetGridPositionString(position)}";
 
             StructureUnit unit = obj.GetComponent<StructureUnit>() ?? obj.AddComponent<StructureUnit>();
-            unit.Initialize(_selectedData, mat, rotation);
+            unit.Initialize(_selectedData, mat, snappedRotation);
 
             // หากเป็นการวางประตู ให้เก็บมูลค่ากำแพงที่โดนทับไว้เพื่อคืนตอนขาย
             if (replacedWall != null)
@@ -1570,15 +1571,16 @@ namespace Simulation.Building
         private void ConfirmMove(Vector3 position, float rotation, Collider targetCollider = null)
         {
             Vector3 oldPos = _moveOriginalPos;
-            float oldRot = _moveOriginalRot;
+            float oldRot = Mathf.Round(_moveOriginalRot / 90f) * 90f;
+            float snappedRotation = Mathf.Round(rotation / 90f) * 90f;
             Collider oldTarget = _moveOriginalTargetCol;
             StructureUnit unit = _movingUnit;
 
             ExecuteCommand(
                 execute: () => {
                     unit.transform.position = position;
-                    unit.transform.rotation = Quaternion.Euler(0, rotation, 0);
-                    unit.SetRotation(rotation);
+                    unit.transform.rotation = Quaternion.Euler(0, snappedRotation, 0);
+                    unit.SetRotation(snappedRotation);
                     unit.name = $"{unit.Data.prefab.name} {GetGridPositionString(position)}";
                     unit.gameObject.SetActive(true);
                     unit.SetHighlight(false);
@@ -2146,7 +2148,11 @@ namespace Simulation.Building
             // เมื่อคลิกด้านข้างของ Structure ให้เลื่อนตำแหน่งไปตาม normal
             // เพื่อบังคับให้ snap ไปช่องถัดไปแทนช่องเดิม
             bool isSideHit = Mathf.Abs(hitNormal.y) < 0.5f;
-            if (isSideHit && hitCollider != null
+            if (activeData != null && IsTunedMassDamper(activeData))
+            {
+                isSideHit = false;
+            }
+            else if (isSideHit && hitCollider != null
                 && hitCollider.GetComponentInParent<StructureUnit>() != null)
             {
                 float absX = Mathf.Abs(hitNormal.x);
@@ -2287,6 +2293,12 @@ namespace Simulation.Building
                     float topY    = hitUnit.transform.position.y + hitUnitPivotToTop;
 
                     bool isBottomHit = hitNormal.y <= -0.5f;
+
+                    if (activeData != null && IsTunedMassDamper(activeData) && hitUnit.Data.structureType == StructureType.Floor)
+                    {
+                        isBottomHit = true;
+                        isSideHit = false;
+                    }
 
                     if (isSideHit)
                     {

@@ -664,7 +664,7 @@ namespace Simulation.Building
                         doorValid = FindWallAtPosition(pos, ghostBuilder.CurrentRotation) != null;
                     }
 
-                    bool gadgetValid = IsValidGadgetPlacement(pos, ghostBuilder.CurrentRotation, _selectedData, _currentHitCollider);
+                    bool gadgetValid = IsValidGadgetPlacement(pos, ghostBuilder.CurrentRotation, _selectedData, _currentHitCollider, _currentHitNormal);
 
                     if (!(isClear && hasSupport && isOnStructure && doorValid && gadgetValid))
                     {
@@ -1058,7 +1058,7 @@ namespace Simulation.Building
                         // A group is supported if at least one of its members touches a support
                         bool hasSupport = groupHasSupport;
 
-                        bool gadgetValid = IsValidGadgetPlacement(piecePos, pieceRot, unit.Data, _currentHitCollider);
+                        bool gadgetValid = IsValidGadgetPlacement(piecePos, pieceRot, unit.Data, _currentHitCollider, _currentHitNormal);
 
                         if (!isClear || !hasSupport || !gadgetValid) { allValid = false; break; }
                     }
@@ -1079,7 +1079,7 @@ namespace Simulation.Building
                         isOnStructure = isFloor && isTopSurface;
                     }
                     
-                    bool gadgetValid = IsValidGadgetPlacement(placePos, ghostBuilder.CurrentRotation, _movingUnit.Data, _currentHitCollider);
+                    bool gadgetValid = IsValidGadgetPlacement(placePos, ghostBuilder.CurrentRotation, _movingUnit.Data, _currentHitCollider, _currentHitNormal);
                     
                     allValid = isClear && hasSupport && isOnStructure && gadgetValid;
                 }
@@ -1621,73 +1621,122 @@ namespace Simulation.Building
             Joint[] existingJoints = structureObj.GetComponents<Joint>();
             foreach (var j in existingJoints) DestroyImmediate(j);
 
-            // 2. Find the actual collider directly beneath this specific structure.
-            // This is crucial for drag-placement, as the mouse-hit collider (targetCollider)
-            // might not be the one supporting this specific instance in a line of structures.
+            // 2. Find the actual collider directly beneath this specific structure (or above if TMD).
             Collider actualTarget = null;
             
-            // Raycast/Boxcast down from slightly ABOVE the bottom of the structure
-            float pivotToBottom = GetPivotToBottomOffset(structureObj);
-            
-            // We start slightly ABOVE the bottom to catch the surface we are placed on,
-            // but we must ignore our own colliders.
-            Vector3 rayStart = structureObj.transform.position - new Vector3(0, pivotToBottom - 0.1f, 0);
-
-            // ใช้ BoxCast แทน Raycast เพื่อเพิ่มพื้นที่ตรวจจับฐานด้านล่าง (สำคัญมากสำหรับพื้นที่อยู่บนขอบกำแพง)
-            Collider myCol = structureObj.GetComponentInChildren<Collider>();
-            Vector3 boxHalfExtents = myCol != null ? myCol.bounds.extents : new Vector3(0.5f, 0.05f, 0.5f);
-            boxHalfExtents.y = 0.05f; // ทำให้บางในแนวตั้งเพื่อหาแผ่นรองรับ
-            boxHalfExtents.x = Mathf.Max(0.05f, boxHalfExtents.x - 0.02f); // หดขอบเล็กน้อยมากๆ เท่านั้น เพื่อไม่ให้พลาดเสา/คานที่ขอบ
-            boxHalfExtents.z = Mathf.Max(0.05f, boxHalfExtents.z - 0.02f);
-
-            RaycastHit[] hits = UnityEngine.Physics.BoxCastAll(
-                rayStart, 
-                boxHalfExtents, 
-                Vector3.down, 
-                Quaternion.identity, 
-                0.4f, 
-                groundLayer | structureLayer
-            );
-            System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
-
-            foreach (var hit in hits)
+            bool isTmd = IsTunedMassDamper(newUnit.Data);
+            if (isTmd)
             {
-                // Skip if we hit ourselves (check root to be safe with compound colliders)
-                if (hit.collider.gameObject == structureObj || hit.collider.transform.IsChildOf(structureObj.transform))
-                    continue;
+                // สำหรับ TMD: ค้นหาโครงสร้าง (Floor) ด้านบนเพื่อยึด Joint
+                float pivotToTop = GetPivotToTopOffset(structureObj);
+                Vector3 rayStart = structureObj.transform.position + new Vector3(0, pivotToTop - 0.1f, 0);
+                
+                Collider myCol = structureObj.GetComponentInChildren<Collider>();
+                Vector3 boxHalfExtents = myCol != null ? myCol.bounds.extents : new Vector3(0.5f, 0.05f, 0.5f);
+                boxHalfExtents.y = 0.05f;
+                boxHalfExtents.x = Mathf.Max(0.05f, boxHalfExtents.x - 0.02f);
+                boxHalfExtents.z = Mathf.Max(0.05f, boxHalfExtents.z - 0.02f);
 
-                actualTarget = hit.collider;
-                break;
+                RaycastHit[] hits = UnityEngine.Physics.BoxCastAll(
+                    rayStart, 
+                    boxHalfExtents, 
+                    Vector3.up, 
+                    Quaternion.identity, 
+                    0.4f, 
+                    structureLayer
+                );
+                System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+
+                foreach (var hit in hits)
+                {
+                    if (hit.collider.gameObject == structureObj || hit.collider.transform.IsChildOf(structureObj.transform))
+                        continue;
+
+                    var hitUnit = hit.collider.GetComponentInParent<StructureUnit>();
+                    if (hitUnit != null && hitUnit.Data != null && hitUnit.Data.structureType == StructureType.Floor)
+                    {
+                        actualTarget = hit.collider;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                // Raycast/Boxcast down from slightly ABOVE the bottom of the structure
+                float pivotToBottom = GetPivotToBottomOffset(structureObj);
+                
+                // We start slightly ABOVE the bottom to catch the surface we are placed on,
+                // but we must ignore our own colliders.
+                Vector3 rayStart = structureObj.transform.position - new Vector3(0, pivotToBottom - 0.1f, 0);
+
+                // ใช้ BoxCast แทน Raycast เพื่อเพิ่มพื้นที่ตรวจจับฐานด้านล่าง (สำคัญมากสำหรับพื้นที่อยู่บนขอบกำแพง)
+                Collider myCol = structureObj.GetComponentInChildren<Collider>();
+                Vector3 boxHalfExtents = myCol != null ? myCol.bounds.extents : new Vector3(0.5f, 0.05f, 0.5f);
+                boxHalfExtents.y = 0.05f; // ทำให้บางในแนวตั้งเพื่อหาแผ่นรองรับ
+                boxHalfExtents.x = Mathf.Max(0.05f, boxHalfExtents.x - 0.02f); // หดขอบเล็กน้อยมากๆ เท่านั้น เพื่อไม่ให้พลาดเสา/คานที่ขอบ
+                boxHalfExtents.z = Mathf.Max(0.05f, boxHalfExtents.z - 0.02f);
+
+                RaycastHit[] hits = UnityEngine.Physics.BoxCastAll(
+                    rayStart, 
+                    boxHalfExtents, 
+                    Vector3.down, 
+                    Quaternion.identity, 
+                    0.4f, 
+                    groundLayer | structureLayer
+                );
+                System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+
+                foreach (var hit in hits)
+                {
+                    // Skip if we hit ourselves (check root to be safe with compound colliders)
+                    if (hit.collider.gameObject == structureObj || hit.collider.transform.IsChildOf(structureObj.transform))
+                        continue;
+
+                    actualTarget = hit.collider;
+                    break;
+                }
             }
 
             // Fallback to targetCollider ONLY if it's adjacent/touching
             // This prevents dragged structures from forming long invisible joints to the start point
             if (actualTarget == null && targetCollider != null)
             {
-                bool isTouching = false;
-                Collider[] myCols = structureObj.GetComponentsInChildren<Collider>();
-                Collider[] targetCols = targetCollider.GetComponentsInChildren<Collider>();
-                
-                UnityEngine.Physics.SyncTransforms();
-
-                foreach (var mc in myCols)
+                if (isTmd)
                 {
-                    Bounds expanded = mc.bounds;
-                    expanded.Expand(0.2f); // tolerance for adjacency
-                    foreach (var tc in targetCols)
+                    var hitUnit = targetCollider.GetComponentInParent<StructureUnit>();
+                    if (hitUnit == null || hitUnit.Data == null || hitUnit.Data.structureType != StructureType.Floor)
                     {
-                        if (expanded.Intersects(tc.bounds))
-                        {
-                            isTouching = true;
-                            break;
-                        }
+                        targetCollider = null;
                     }
-                    if (isTouching) break;
                 }
 
-                if (isTouching)
+                if (targetCollider != null)
                 {
-                    actualTarget = targetCollider;
+                    bool isTouching = false;
+                    Collider[] myCols = structureObj.GetComponentsInChildren<Collider>();
+                    Collider[] targetCols = targetCollider.GetComponentsInChildren<Collider>();
+                    
+                    UnityEngine.Physics.SyncTransforms();
+
+                    foreach (var mc in myCols)
+                    {
+                        Bounds expanded = mc.bounds;
+                        expanded.Expand(0.2f); // tolerance for adjacency
+                        foreach (var tc in targetCols)
+                        {
+                            if (expanded.Intersects(tc.bounds))
+                            {
+                                isTouching = true;
+                                break;
+                            }
+                        }
+                        if (isTouching) break;
+                    }
+
+                    if (isTouching)
+                    {
+                        actualTarget = targetCollider;
+                    }
                 }
             }
 
@@ -1785,6 +1834,8 @@ namespace Simulation.Building
             StructureUnit newUnit = structureObj.GetComponent<StructureUnit>();
             Rigidbody newRb = structureObj.GetComponent<Rigidbody>();
             if (newUnit == null || newRb == null) return;
+
+            if (newUnit.Data != null && newUnit.Data.structureType == StructureType.Gadget) return; // Gadget ทั้งหมดเชื่อมต่อเฉพาะ Joint หลักเท่านั้น (TMD เกาะด้านบน, ตัวอื่นเกาะด้านล่าง)
 
             // หา connected body ของ main joint เพื่อไม่สร้างซ้ำ
             Joint mainJoint = structureObj.GetComponent<Joint>();
@@ -2733,41 +2784,69 @@ namespace Simulation.Building
             return false;
         }
 
+        private bool IsTunedMassDamper(StructureData data)
+        {
+            if (data == null || data.structureType != StructureType.Gadget) return false;
+            string lowerName = data.structureName.ToLower();
+            return lowerName.Contains("damper") || lowerName.Contains("tuned") || lowerName.Contains("tmd");
+        }
+
         /// <summary>
         /// ตรวจสอบการวางของ Gadget โดยห้ามวางบนอย่างอื่นยกเว้น Ground, Floor, หรือ Pillar
         /// และห้ามวางทับซ้อนหรือวางทับบน Gadget ตัวอื่น
         /// ใช้ hitCollider จากระบบ Raycast หลัก (เมาส์) โดยตรง แทนการยิง Raycast ใหม่
         /// เพื่อป้องกัน Raycast ทะลุรูของ Gadget ไปชน Ground
         /// </summary>
-        private bool IsValidGadgetPlacement(Vector3 position, float rotation, StructureData data, Collider hitCollider)
+        private bool IsValidGadgetPlacement(Vector3 position, float rotation, StructureData data, Collider hitCollider, Vector3 hitNormal)
         {
             if (data == null || data.structureType != StructureType.Gadget) return true;
 
-            // 1. ตรวจสอบว่าเมาส์ชี้ไปที่พื้นผิวที่อนุญาตหรือไม่ (Ground, Floor, Pillar เท่านั้น)
-            //    ใช้ hitCollider จากระบบ Raycast หลักซึ่งให้ความสำคัญ Structure ก่อน Ground
-            //    จึงไม่มีปัญหา Raycast ทะลุรูของ Gadget
+            // 1. ตรวจสอบว่าเมาส์ชี้ไปที่พื้นผิวที่อนุญาตหรือไม่ (Ground, Floor, Pillar เท่านั้น สำหรับ gadget ทั่วไป)
             if (hitCollider == null) return false;
+
+            bool isTmd = IsTunedMassDamper(data);
 
             // เช็คว่าเป็น Ground Layer หรือไม่
             bool isGround = ((1 << hitCollider.gameObject.layer) & groundLayer.value) != 0;
             
-            if (!isGround)
+            if (isTmd)
             {
-                // ไม่ใช่ Ground → เช็คว่าเป็น Structure ที่อนุญาตหรือไม่
+                // TMD: ต้องวางบน floor เท่านั้น (ห้ามวางบน Ground หรือ Pillar)
+                if (isGround) return false;
+
                 StructureUnit hitUnit = hitCollider.GetComponentInParent<StructureUnit>();
-                if (hitUnit == null || hitUnit.Data == null) return false;
-                
-                // ห้ามวางบน Gadget ตัวอื่น
-                if (hitUnit.Data.structureType == StructureType.Gadget) return false;
-                
-                // อนุญาตเฉพาะ Floor หรือ Pillar
-                bool isFloor = hitUnit.Data.structureType == StructureType.Floor;
-                bool isPillar = (hitUnit.Data == pillarReference) || 
-                               hitUnit.Data.structureName.IndexOf("pillar", System.StringComparison.OrdinalIgnoreCase) >= 0 || 
-                               hitUnit.Data.structureName.IndexOf("column", System.StringComparison.OrdinalIgnoreCase) >= 0 || 
-                               hitUnit.Data.structureName.IndexOf("เสา", System.StringComparison.OrdinalIgnoreCase) >= 0;
-                
-                if (!isFloor && !isPillar) return false;
+                if (hitUnit == null || hitUnit.Data == null || hitUnit.Data.structureType != StructureType.Floor) return false;
+
+                // ต้องอยู่บนชั้น 2 ขึ้นไปเท่านั้น
+                int floor = GetFloorFromY(hitUnit.transform.position.y);
+                if (floor < 2) return false;
+
+                // ต้องเอา Hitbox TMD ไปชนกับ Hitbox floor ด้านล่าง (y-) เท่านั้น
+                if (hitNormal.y > -0.5f) return false;
+            }
+            else
+            {
+                // Gadget อื่นๆ ทั้งหมด ยกเว้น TMD: ให้วางด้านบน (y+) เท่านั้น
+                if (hitNormal.y < 0.5f) return false;
+
+                if (!isGround)
+                {
+                    // ไม่ใช่ Ground → เช็คว่าเป็น Structure ที่อนุญาตหรือไม่
+                    StructureUnit hitUnit = hitCollider.GetComponentInParent<StructureUnit>();
+                    if (hitUnit == null || hitUnit.Data == null) return false;
+                    
+                    // ห้ามวางบน Gadget ตัวอื่น
+                    if (hitUnit.Data.structureType == StructureType.Gadget) return false;
+                    
+                    // อนุญาตเฉพาะ Floor หรือ Pillar
+                    bool isFloor = hitUnit.Data.structureType == StructureType.Floor;
+                    bool isPillar = (hitUnit.Data == pillarReference) || 
+                                   hitUnit.Data.structureName.IndexOf("pillar", System.StringComparison.OrdinalIgnoreCase) >= 0 || 
+                                   hitUnit.Data.structureName.IndexOf("column", System.StringComparison.OrdinalIgnoreCase) >= 0 || 
+                                   hitUnit.Data.structureName.IndexOf("เสา", System.StringComparison.OrdinalIgnoreCase) >= 0;
+                    
+                    if (!isFloor && !isPillar) return false;
+                }
             }
 
             // 2. ตรวจสอบว่าไม่ไปทับซ้อนกับ Gadget ตัวอื่นที่วางไว้แล้ว

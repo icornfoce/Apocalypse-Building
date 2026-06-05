@@ -148,7 +148,11 @@ namespace Simulation.Mission
                 // ถ้าเป็นพื้นหรือบันได ไม่ต้องขุด ให้เดินผ่านไปเลย
                 if (unit != null && unit.Data != null)
                 {
-                    if (unit.Data.structureType == Simulation.Data.StructureType.Floor || unit.Data.structureName.ToLower().Contains("stair"))
+                    bool isFloor = unit.Data.structureType == Simulation.Data.StructureType.Floor;
+                    bool isStair = unit.Data.structureName.ToLower().Contains("stair");
+                    bool isSpikeTrap = unit.GetComponentInChildren<SpikeTrap>() != null;
+
+                    if (isFloor || isStair || isSpikeTrap)
                         return;
                 }
 
@@ -229,24 +233,28 @@ namespace Simulation.Mission
                 StructureUnit unitAbove = hitUp.collider.GetComponentInParent<StructureUnit>();
                 if (unitAbove != null)
                 {
-                    // ถ้าเจอพื้นหรืออย่างอื่นขวางด้านบน ให้โจมตีมันจนพัง
-                    _digTimer += Time.deltaTime;
-                    if (_digTimer >= digInterval)
+                    bool isSpikeTrap = unitAbove.GetComponentInChildren<SpikeTrap>() != null;
+                    if (!isSpikeTrap)
                     {
-                        _digTimer = 0f;
-                        var stress = unitAbove.GetComponent<Simulation.Physics.StructuralStress>();
-                        if (stress != null) stress.ApplyMaxHPDamage(floorDigDamage);
-                        else unitAbove.TakeMaxHPDamage(floorDigDamage);
-                        
-                        // เล่น Animation / VFX / SFX ขณะกำลังขุดโจมตีสิ่งกีดขวางด้านบน
+                        // ถ้าเจอพื้นหรืออย่างอื่นขวางด้านบน ให้โจมตีมันจนพัง
+                        _digTimer += Time.deltaTime;
+                        if (_digTimer >= digInterval)
+                        {
+                            _digTimer = 0f;
+                            var stress = unitAbove.GetComponent<Simulation.Physics.StructuralStress>();
+                            if (stress != null) stress.ApplyMaxHPDamage(floorDigDamage);
+                            else unitAbove.TakeMaxHPDamage(floorDigDamage);
+                            
+                            // เล่น Animation / VFX / SFX ขณะกำลังขุดโจมตีสิ่งกีดขวางด้านบน
 
-                        if (diggingVFX != null) Instantiate(diggingVFX, hitUp.point, Quaternion.identity);
-                        if (audioSource != null && diggingSFX != null) audioSource.PlayOneShot(diggingSFX);
-                        
-                        Debug.Log($"<color=orange>[DiggerZombie]</color> Blocked above by {unitAbove.name}. Attacking structure!");
+                            if (diggingVFX != null) Instantiate(diggingVFX, hitUp.point, Quaternion.identity);
+                            if (audioSource != null && diggingSFX != null) audioSource.PlayOneShot(diggingSFX);
+                            
+                            Debug.Log($"<color=orange>[DiggerZombie]</color> Blocked above by {unitAbove.name}. Attacking structure!");
+                        }
+                        // ทำลายสิ่งกีดขวางอยู่ ยังไม่โผล่ขึ้นไป
+                        return;
                     }
-                    // ทำลายสิ่งกีดขวางอยู่ ยังไม่โผล่ขึ้นไป
-                    return;
                 }
             }
 

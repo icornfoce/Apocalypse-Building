@@ -284,8 +284,9 @@ namespace Simulation.Mission
                 {
                     bool isStair = unit.Data.structureName.ToLower().Contains("stair") || (unit.Data.prefab != null && unit.Data.prefab.name.ToLower().Contains("stair"));
                     bool isFloor = unit.Data.structureType == Simulation.Data.StructureType.Floor;
+                    bool isSpikeTrap = unit.GetComponentInChildren<SpikeTrap>() != null;
                     
-                    if (isStair || isFloor)
+                    if (isStair || isFloor || isSpikeTrap)
                     {
                         ResetWallAttack(false);
                         return;

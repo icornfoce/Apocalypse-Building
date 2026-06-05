@@ -778,6 +778,7 @@ GameObject:
   - component: {fileID: 1858835443}
   - component: {fileID: 1858835444}
   - component: {fileID: 1858835445}
+  - component: {fileID: 1858835446}
   m_Layer: 0
   m_Name: Manager
   m_TagString: Untagged
@@ -831,6 +832,21 @@ MonoBehaviour:
   isMissionActive: 0
   lastStarRating: 0
   simulationTimer: 0
+--- !u!114 &1858835446
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1858835442}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 176a9ced7108dee4a8ed40eb4b6b53ea, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Simulation.NPC.NPCSkillManager
+  availableNPCs: []
+  _selectedNPC: {fileID: 0}
+  defaultSelectionVFX: {fileID: 0}
 --- !u!1 &1898330697
 GameObject:
   m_ObjectHideFlags: 0

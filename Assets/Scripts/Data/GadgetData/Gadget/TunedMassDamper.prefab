@@ -108,7 +108,6 @@ MonoBehaviour:
   restoringStrength: 15
   ropeTransform: {fileID: 7340047884636714713}
   pendulumTransform: {fileID: 6962456033923801875}
-  anchorTransform: {fileID: 3955067062376759826}
   ropeSpring: 500
   ropeDamper: 50
   ropeLinearLimit: 0.01
@@ -319,7 +318,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1716463614601563793}
   - component: {fileID: 1870102183687888909}
-  - component: {fileID: 988077588200298451}
   m_Layer: 0
   m_Name: Roupe
   m_TagString: Untagged
@@ -419,27 +417,6 @@ SkinnedMeshRenderer:
     m_Center: {x: 0.00001667923, y: 0.026965106, z: 0.0004600675}
     m_Extent: {x: 0.0009251751, y: 0.027350748, z: 0.0011861465}
   m_DirtyAABB: 0
---- !u!65 &988077588200298451
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1587445500013324107}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.0037007004, y: 0.109402984, z: 0.0047445907}
-  m_Center: {x: -0.00003915059, y: 0.0434307, z: 0.0033806404}
 --- !u!1 &1662373198919509075
 GameObject:
   m_ObjectHideFlags: 0
@@ -777,7 +754,7 @@ GameObject:
   - component: {fileID: 3955067062376759826}
   - component: {fileID: 2064731713572635225}
   - component: {fileID: 8715396976275128897}
-  - component: {fileID: 7556769776953289986}
+  - component: {fileID: 328389009469473906}
   m_Layer: 0
   m_Name: default
   m_TagString: Untagged
@@ -857,7 +834,7 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &7556769776953289986
+--- !u!65 &328389009469473906
 BoxCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

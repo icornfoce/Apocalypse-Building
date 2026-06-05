@@ -120,6 +120,9 @@ namespace Simulation.Physics
         /// <summary>True after the joint has been destroyed and colliders disabled.</summary>
         public bool IsBroken => _isBroken;
 
+        /// <summary>True if the structure has been detached from its joints but not fully broken yet.</summary>
+        public bool IsDetached => _isDetached;
+
         /// <summary>Last computed combined force magnitude on the joint (N).</summary>
         public float LastForceMagnitude { get; private set; }
 

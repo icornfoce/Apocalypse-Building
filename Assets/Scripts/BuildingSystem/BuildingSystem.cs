@@ -2798,8 +2798,10 @@ namespace Simulation.Building
 
         private bool IsTunedMassDamper(StructureData data)
         {
-            if (data == null || data.structureType != StructureType.Gadget) return false;
-            string lowerName = data.structureName.ToLower();
+            if (data == null) return false;
+            if (data.prefab != null && data.prefab.GetComponentInChildren<TunedMassDamper>() != null) return true;
+            if (data.structureType != StructureType.Gadget) return false;
+            string lowerName = !string.IsNullOrEmpty(data.structureName) ? data.structureName.ToLower() : "";
             return lowerName.Contains("damper") || lowerName.Contains("tuned") || lowerName.Contains("tmd");
         }
 
@@ -2903,6 +2905,66 @@ namespace Simulation.Building
                 // ห้ามวางตรงตำแหน่ง XZ เดียวกัน (ป้องกันต่อชั้นขึ้นไปบน Gadget)
                 float xzDist = Vector2.Distance(new Vector2(position.x, position.z), new Vector2(unit.transform.position.x, unit.transform.position.z));
                 if (xzDist < gridSize * 0.5f)
+                {
+                    return false;
+                }
+            }
+
+            // 3. สำหรับ SpikeTrap และ BalloonLauncher ต้องตรวจสอบว่ามีพื้นดิน (Ground) หรือพื้นสิ่งก่อสร้าง (Floor) รองรับด้านล่างโดยตรงหรือไม่
+            bool isSpikeOrBalloon = false;
+            if (data.prefab != null)
+            {
+                if (data.prefab.GetComponentInChildren<SpikeTrap>() != null || 
+                    data.prefab.GetComponentInChildren<BalloonLauncher>() != null)
+                {
+                    isSpikeOrBalloon = true;
+                }
+            }
+
+            if (!isSpikeOrBalloon)
+            {
+                string lowerName = !string.IsNullOrEmpty(data.structureName) ? data.structureName.ToLower() : "";
+                if (lowerName.Contains("spike") || lowerName.Contains("balloon") || lowerName.Contains("launcher") || lowerName.Contains("shooter"))
+                {
+                    isSpikeOrBalloon = true;
+                }
+            }
+
+            if (isSpikeOrBalloon)
+            {
+                float pivotToBottom = GetPivotToBottomOffset(data);
+                Vector3 checkStart = position - new Vector3(0, pivotToBottom - 0.1f, 0);
+                Vector3 boxHalfExtents = new Vector3(data.size.x * gridSize * 0.4f, 0.05f, data.size.z * gridSize * 0.4f);
+                
+                RaycastHit[] hitsUnder = UnityEngine.Physics.BoxCastAll(
+                    checkStart,
+                    boxHalfExtents,
+                    Vector3.down,
+                    Quaternion.Euler(0, rotation, 0),
+                    0.3f,
+                    groundLayer | structureLayer
+                );
+
+                bool foundSupportBelow = false;
+                foreach (var hit in hitsUnder)
+                {
+                    if (hit.collider == null) continue;
+                    if (hit.collider.gameObject.name.Contains("Ghost")) continue;
+                    
+                    StructureUnit hitUnit = hit.collider.GetComponentInParent<StructureUnit>();
+                    if (hitUnit != null && (hitUnit == _movingUnit || _movingGroup.Contains(hitUnit))) continue;
+
+                    bool isGroundHit = ((1 << hit.collider.gameObject.layer) & groundLayer.value) != 0;
+                    bool isFloorHit = hitUnit != null && hitUnit.Data != null && hitUnit.Data.structureType == StructureType.Floor;
+
+                    if (isGroundHit || isFloorHit)
+                    {
+                        foundSupportBelow = true;
+                        break;
+                    }
+                }
+
+                if (!foundSupportBelow)
                 {
                     return false;
                 }

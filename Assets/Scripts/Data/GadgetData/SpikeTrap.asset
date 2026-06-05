@@ -17,7 +17,7 @@ MonoBehaviour:
   Mass: 20
   HP: 200
   size: {x: 1, y: 1, z: 1}
-  allowOverlap: 1
+  allowOverlap: 0
   isSpikeTrap: 1
   trapDamage: 20
   isBalloonLauncher: 0

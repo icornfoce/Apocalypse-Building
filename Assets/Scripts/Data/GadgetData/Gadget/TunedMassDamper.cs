@@ -73,6 +73,25 @@ namespace Simulation.Building
                 ResetPendulum();
             }
             _wasSimulatingLastFrame = isSimulating;
+
+            if (!isSimulating)
+            {
+                if (pendulumTransform != null)
+                {
+                    var rb = pendulumTransform.GetComponent<Rigidbody>();
+                    if (rb != null)
+                    {
+                        rb.isKinematic = true;
+                        rb.linearVelocity = Vector3.zero;
+                        rb.angularVelocity = Vector3.zero;
+                    }
+                    if (_hasSavedOriginalTransform)
+                    {
+                        pendulumTransform.localPosition = _originalPendulumLocalPos;
+                        pendulumTransform.localRotation = _originalPendulumLocalRot;
+                    }
+                }
+            }
         }
 
         private void SaveOriginalPendulumTransform()
@@ -186,11 +205,23 @@ namespace Simulation.Building
             _pendulumRb.isKinematic = false;
             _pendulumRb.interpolation = RigidbodyInterpolation.Interpolate;
 
-            // ลบ Collider ถ้ามี (ป้องกันชนกับโครงสร้าง)
-            var cols = pendulumTransform.GetComponentsInChildren<Collider>();
-            foreach (var col in cols)
+            // สั่งให้ Collider ของลูกตุ้มมองข้ามการชนกับโครงสร้างตึกทั้งหมดในฉาก (ป้องกันการดันกันเองทำให้ตลกลอยตัว/ตกช้า)
+            Collider[] pendulumCols = pendulumTransform.GetComponentsInChildren<Collider>();
+            StructureUnit[] allStructures = Object.FindObjectsByType<StructureUnit>(FindObjectsSortMode.None);
+            foreach (var structUnit in allStructures)
             {
-                if (col != null) DestroyImmediate(col);
+                if (structUnit == null) continue;
+                Collider[] structCols = structUnit.GetComponentsInChildren<Collider>();
+                foreach (var sCol in structCols)
+                {
+                    foreach (var pCol in pendulumCols)
+                    {
+                        if (sCol != null && pCol != null && sCol != pCol)
+                        {
+                            UnityEngine.Physics.IgnoreCollision(sCol, pCol, true);
+                        }
+                    }
+                }
             }
 
             // ลบ Joint เก่าถ้ามี
@@ -330,8 +361,44 @@ namespace Simulation.Building
             Debug.Log($"<color=green>[TunedMassDamper]</color> Initialized damping on {visited.Count} building structures.");
         }
 
+        private bool IsBuildingGrounded()
+        {
+            // Check TMD's own joints (Fixed to world/ground has connectedBody == null)
+            Joint[] myJoints = GetComponents<Joint>();
+            foreach (var j in myJoints)
+            {
+                if (j != null && j.connectedBody == null) return true;
+            }
+
+            // Check all connected rigidbodies' joints
+            foreach (var rb in _connectedRigidbodies)
+            {
+                if (rb == null) continue;
+                Joint[] joints = rb.GetComponents<Joint>();
+                foreach (var j in joints)
+                {
+                    if (j != null && j.connectedBody == null) return true;
+                }
+            }
+
+            return false;
+        }
+
         private void ApplyStabilizationForces()
         {
+            // ถ้าตัว TMD เองพัง หรือหลุดร่วง ให้หยุดทำงานทันที
+            var myStress = GetComponent<StructuralStress>();
+            if (myStress != null && (myStress.IsBroken || myStress.IsDetached))
+            {
+                return;
+            }
+
+            // ถ้าโครงสร้างไม่ได้เชื่อมต่อกับพื้นดิน (ลอยอยู่กลางอากาศหรือพังครืนลงมาทั้งหมด) ให้งดการพยุงแรง
+            if (!IsBuildingGrounded())
+            {
+                return;
+            }
+
             for (int i = _connectedRigidbodies.Count - 1; i >= 0; i--)
             {
                 Rigidbody rb = _connectedRigidbodies[i];
@@ -341,7 +408,12 @@ namespace Simulation.Building
                     continue;
                 }
 
-                // ข้ามโครงสร้างที่หลุดร่วง/ถล่มไปแล้ว (ไม่มี Joint เกาะ)
+                // ข้ามโครงสร้างที่หลุดร่วง/ถล่มไปแล้ว (ไม่มี Joint เกาะ หรือสถานะพัง/หลุด)
+                var stress = rb.GetComponent<StructuralStress>();
+                if (stress != null && (stress.IsBroken || stress.IsDetached))
+                {
+                    continue;
+                }
                 if (rb.GetComponent<Joint>() == null)
                 {
                     continue;
@@ -368,6 +440,8 @@ namespace Simulation.Building
                     if (Mathf.Abs(angle) > 0.1f && axis.sqrMagnitude > 0.001f)
                     {
                         Vector3 restoringTorque = axis.normalized * (angle * restoringStrength * Mathf.Deg2Rad);
+                        restoringTorque.y = 0f; // เอาแรงพยุงในแกน Y ออก (ไม่พยุง/บิดคืนในแกนดิ่ง)
+
                         if (!float.IsNaN(restoringTorque.x) && !float.IsNaN(restoringTorque.y) && !float.IsNaN(restoringTorque.z))
                         {
                             rb.AddTorque(restoringTorque, ForceMode.Acceleration);

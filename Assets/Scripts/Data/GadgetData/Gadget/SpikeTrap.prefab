@@ -10,15 +10,15 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: 9ef328e78a27a4d4290a8135446df262, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -2.876999
+      value: -3.7239256
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 9ef328e78a27a4d4290a8135446df262, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.00000009563041
+      value: 0.00000023797293
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 9ef328e78a27a4d4290a8135446df262, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 3.9669728
+      value: -2.9723039
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 9ef328e78a27a4d4290a8135446df262, type: 3}
       propertyPath: m_LocalRotation.w
@@ -57,8 +57,16 @@ PrefabInstance:
       value: SpikeTrap
       objectReference: {fileID: 0}
     - target: {fileID: 1151388028547126963, guid: 9ef328e78a27a4d4290a8135446df262, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 1.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151388028547126963, guid: 9ef328e78a27a4d4290a8135446df262, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 1.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151388028547126963, guid: 9ef328e78a27a4d4290a8135446df262, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.01
+      value: 0.15
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -66,17 +74,32 @@ PrefabInstance:
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 9ef328e78a27a4d4290a8135446df262, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 6347275129838920921}
+      addedObject: {fileID: -678408025751388328}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 9ef328e78a27a4d4290a8135446df262, type: 3}
       insertIndex: -1
-      addedObject: {fileID: -678408025751388328}
+      addedObject: {fileID: 7903672157310293688}
   m_SourcePrefab: {fileID: 100100000, guid: 9ef328e78a27a4d4290a8135446df262, type: 3}
 --- !u!1 &6157308971158673754 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 9ef328e78a27a4d4290a8135446df262, type: 3}
   m_PrefabInstance: {fileID: 6463314396351308811}
   m_PrefabAsset: {fileID: 0}
---- !u!65 &6347275129838920921
+--- !u!114 &-678408025751388328
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6157308971158673754}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eb18a600d7aa7e448b397a1fb68b32a7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Simulation.Building.SpikeTrap
+  damage: 25
+  damageInterval: 1
+  personDamageRatio: 0.1
+--- !u!65 &7903672157310293688
 BoxCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -96,19 +119,4 @@ BoxCollider:
   m_Enabled: 1
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
-  m_Center: {x: 0, y: 0.5, z: 0}
---- !u!114 &-678408025751388328
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6157308971158673754}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: eb18a600d7aa7e448b397a1fb68b32a7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Simulation.Building.SpikeTrap
-  damage: 25
-  damageInterval: 1
-  personDamageRatio: 0.1
+  m_Center: {x: 0, y: 0.65, z: 0}

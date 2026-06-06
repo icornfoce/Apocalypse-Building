@@ -41,6 +41,7 @@ namespace Simulation.Building
         // รายการ Rigidbody และมุมเริ่มต้นของอาคารที่เชื่อมต่อกัน
         private List<Rigidbody> _connectedRigidbodies = new List<Rigidbody>();
         private Dictionary<Rigidbody, Quaternion> _originalRotations = new Dictionary<Rigidbody, Quaternion>();
+        private Quaternion _myOriginalRotation;
         private bool _isInitialized = false;
         private ConfigurableJoint _pendulumJoint;
         private Rigidbody _pendulumRb;
@@ -97,9 +98,12 @@ namespace Simulation.Building
                     {
                         if (st.rb != null)
                         {
-                            st.rb.isKinematic = true;
-                            st.rb.linearVelocity = Vector3.zero;
-                            st.rb.angularVelocity = Vector3.zero;
+                            if (!st.rb.isKinematic)
+                            {
+                                st.rb.linearVelocity = Vector3.zero;
+                                st.rb.angularVelocity = Vector3.zero;
+                                st.rb.isKinematic = true;
+                            }
                         }
                         if (st.transform != null)
                         {
@@ -123,7 +127,13 @@ namespace Simulation.Building
                     foreach (var rb in rbs)
                     {
                         if (rb.gameObject == this.gameObject) continue;
-                        _savedTransforms.Add(new SavedTransform { transform = rb.transform, localPos = rb.transform.localPosition, localRot = rb.transform.localRotation, rb = rb });
+                        
+                        _savedTransforms.Add(new SavedTransform { 
+                            transform = rb.transform, 
+                            localPos = rb.transform.localPosition, 
+                            localRot = rb.transform.localRotation, 
+                            rb = rb
+                        });
                     }
                 }
 
@@ -162,9 +172,14 @@ namespace Simulation.Building
                 {
                     if (st.rb != null)
                     {
-                        st.rb.linearVelocity = Vector3.zero;
-                        st.rb.angularVelocity = Vector3.zero;
-                        st.rb.isKinematic = true;
+                        if (!st.rb.isKinematic)
+                        {
+                            st.rb.linearVelocity = Vector3.zero;
+                            st.rb.angularVelocity = Vector3.zero;
+                            st.rb.isKinematic = true;
+                        }
+
+                        // ไม่ทำการคืนชีพ Joint เนื่องจากไม่ได้บันทึกข้อมูล Joint
                     }
                     if (st.transform != null)
                     {
@@ -246,111 +261,65 @@ namespace Simulation.Building
             _pendulumRb.useGravity = true;
             _pendulumRb.isKinematic = false;
             _pendulumRb.interpolation = RigidbodyInterpolation.Interpolate;
+            _pendulumRb.collisionDetectionMode = CollisionDetectionMode.Continuous;
 
             // ปลดล็อก (isKinematic = false) ให้กับชิ้นส่วนเชือกทุกชิ้น (16 joints) ที่ถูกล็อกไว้
+            // พร้อมตั้งค่า Break Force เพื่อให้เชือกขาดได้เมื่อโดนกระชากหรือตึกถล่ม
             foreach (var st in _savedTransforms)
             {
                 if (st.rb != null && st.rb != _pendulumRb)
                 {
                     st.rb.isKinematic = false;
                     st.rb.useGravity = true;
-                }
-            }
+                    st.rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
 
-            // สั่งให้ Collider ของลูกตุ้มมองข้ามการชนกับโครงสร้างตึกทั้งหมดในฉาก (ป้องกันการดันกันเองทำให้ตลกลอยตัว/ตกช้า)
-            Collider[] pendulumCols = pendulumTransform.GetComponentsInChildren<Collider>();
-            StructureUnit[] allStructures = Object.FindObjectsByType<StructureUnit>(FindObjectsSortMode.None);
-            foreach (var structUnit in allStructures)
-            {
-                if (structUnit == null) continue;
-                Collider[] structCols = structUnit.GetComponentsInChildren<Collider>();
-                foreach (var sCol in structCols)
-                {
-                    foreach (var pCol in pendulumCols)
+                    Joint[] ropeJoints = st.rb.GetComponents<Joint>();
+                    foreach (var rj in ropeJoints)
                     {
-                        if (sCol != null && pCol != null && sCol != pCol)
-                        {
-                            UnityEngine.Physics.IgnoreCollision(sCol, pCol, true);
-                        }
+                        // ตั้งค่าให้เชือกทนแรงกระชากได้ระดับหนึ่ง (ถ้ากระชากแรงมาก หรือตึกถล่ม เชือกจะขาด)
+                        rj.breakForce = 2000f; 
+                        rj.breakTorque = 2000f;
                     }
                 }
             }
 
-            // ลบ Joint เก่าถ้ามี (ลบเฉพาะ Joint บน pendulum ที่อาจตกค้าง แต่ไม่ลบลูกโซ่ของเชือก)
-            var oldJoints = pendulumTransform.GetComponents<Joint>();
-            foreach (var j in oldJoints)
+            // สั่งให้ Collider ของลูกตุ้มและเชือก มองข้ามการชนกับโครงสร้างของตัว TMD เองทั้งหมด
+            // (แก้ปัญหาทะลุพื้น เพราะถ้าชนกันเองจะเกิดแรงผลักมหาศาลทำให้วัตถุบั๊กทะลุพื้น)
+            Collider[] pendulumCols = ropeTransform != null ? ropeTransform.GetComponentsInChildren<Collider>() : pendulumTransform.GetComponentsInChildren<Collider>();
+            Collider[] allTmdCols = GetComponentsInChildren<Collider>(); 
+
+            foreach (var sCol in allTmdCols)
             {
-                // ป้องกันไม่ให้ไปทำลาย Joint ที่เป็นลูกโซ่เชื่อมกันเองใน Prefab
-                // ถ้า Joint ไม่ได้เชื่อมกับตัว TMD หลัก แสดงว่าอาจเป็น Joint ของเชือก ให้ข้ามไป
-                if (j.connectedBody != GetComponent<Rigidbody>()) continue;
-                DestroyImmediate(j);
+                // ตรวจสอบว่า sCol ไม่ใช่ส่วนหนึ่งของลูกตุ้มหรือเชือก
+                bool isPendulumPart = false;
+                foreach (var pCol in pendulumCols)
+                {
+                    if (sCol == pCol)
+                    {
+                        isPendulumPart = true;
+                        break;
+                    }
+                }
+
+                if (isPendulumPart) continue;
+
+                foreach (var pCol in pendulumCols)
+                {
+                    if (sCol != null && pCol != null && sCol != pCol)
+                    {
+                        UnityEngine.Physics.IgnoreCollision(sCol, pCol, true);
+                    }
+                }
             }
 
-            // ── สร้าง ConfigurableJoint ──
-            _pendulumJoint = pendulumTransform.gameObject.AddComponent<ConfigurableJoint>();
-
-            // เชื่อมกับ Rigidbody ของ TMD เอง (ตัวฐาน)
-            Rigidbody tmdRb = GetComponent<Rigidbody>();
-            _pendulumJoint.connectedBody = tmdRb;
-
-            // ── ตั้งค่า Anchor ──
-            // Anchor อยู่ที่ตัวลูกตุ้มเอง (จุดศูนย์กลาง)
-            _pendulumJoint.anchor = Vector3.zero;
-            // Connected Anchor อยู่ที่จุดแขวน (ตำแหน่งเชือกบน TMD ในพิกัด Local ของ TMD)
-            if (ropeTransform != null)
-            {
-                _pendulumJoint.connectedAnchor = transform.InverseTransformPoint(ropeTransform.position);
-            }
-            else
-            {
-                _pendulumJoint.connectedAnchor = Vector3.zero;
-            }
-
-            // ── Linear Motion: ล็อกทุกแกน (ไม่ให้ยืดหด) ──
-            _pendulumJoint.xMotion = ConfigurableJointMotion.Locked;
-            _pendulumJoint.yMotion = ConfigurableJointMotion.Locked;
-            _pendulumJoint.zMotion = ConfigurableJointMotion.Locked;
-
-            // ── Angular Motion: ปล่อยให้แกว่งได้ (Limited) ──
-            _pendulumJoint.angularXMotion = ConfigurableJointMotion.Limited;
-            _pendulumJoint.angularYMotion = ConfigurableJointMotion.Free;
-            _pendulumJoint.angularZMotion = ConfigurableJointMotion.Limited;
-
-            // ── Angular Limits ──
-            SoftJointLimit angularLimit = new SoftJointLimit();
-            angularLimit.limit = swingAngleLimit;
-            angularLimit.bounciness = 0f;
-            angularLimit.contactDistance = 5f;
-            // Low/High Angular X Limit (ก้มเงย)
-            SoftJointLimit lowAngX = new SoftJointLimit();
-            lowAngX.limit = -swingAngleLimit;
-            _pendulumJoint.lowAngularXLimit = lowAngX;
-            SoftJointLimit highAngX = new SoftJointLimit();
-            highAngX.limit = swingAngleLimit;
-            _pendulumJoint.highAngularXLimit = highAngX;
-            // Angular Z Limit (ซ้ายขวา)
-            _pendulumJoint.angularZLimit = angularLimit;
-
-            // ── Angular Drive (Spring + Damper) ── ให้ลูกตุ้มมีแรงพยุงกลับจุดศูนย์กลาง
-            JointDrive angularDrive = new JointDrive();
-            angularDrive.positionSpring = ropeSpring;
-            angularDrive.positionDamper = ropeDamper;
-            angularDrive.maximumForce = float.MaxValue;
-            _pendulumJoint.angularXDrive = angularDrive;
-            _pendulumJoint.angularYZDrive = angularDrive;
-
-            // ปิด Projection เพื่อเพิ่มเสถียรภาพ
-            _pendulumJoint.projectionMode = JointProjectionMode.PositionAndRotation;
-            _pendulumJoint.projectionDistance = 0.01f;
-            _pendulumJoint.projectionAngle = 5f;
-
-            Debug.Log($"<color=green>[TunedMassDamper]</color> ConfigurableJoint created on pendulum '{pendulumTransform.name}'");
+            Debug.Log($"<color=green>[TunedMassDamper]</color> Joints unlocked for pendulum '{pendulumTransform.name}'");
         }
 
         private void InitializeConnectedBuilding()
         {
             _connectedRigidbodies.Clear();
             _originalRotations.Clear();
+            _myOriginalRotation = transform.rotation;
 
             StructureUnit myUnit = GetComponent<StructureUnit>();
             if (myUnit == null) return;
@@ -458,12 +427,23 @@ namespace Simulation.Building
             }
 
             // 4. GRAVITY COMPENSATION: เพิ่มแรงดึงลงที่ตัว TMD เพื่อชดเชยอาการตกช้า (ดึงเฉพาะตัว TMD)
-            if (extraGravityCompensation > 0f)
+            // ให้ทำงานเฉพาะเมื่อมี restoringStrength และโครงสร้างมีการเอียง (แปลว่า Restoring กำลังออกแรงฝืนอยู่)
+            if (extraGravityCompensation > 0f && restoringStrength > 0f)
             {
                 Rigidbody myRb = GetComponent<Rigidbody>();
                 if (myRb != null)
                 {
-                    myRb.AddForce(Vector3.down * extraGravityCompensation, ForceMode.Acceleration);
+                    Quaternion deltaRot = _myOriginalRotation * Quaternion.Inverse(myRb.transform.rotation);
+                    deltaRot.ToAngleAxis(out float angle, out Vector3 axis);
+                    if (angle > 180f) angle -= 360f;
+
+                    // ถ้ามีการเอียงเกิน 0.1 องศา แสดงว่า restoringTorque กำลังพยายามดึงกลับ
+                    if (Mathf.Abs(angle) > 0.1f)
+                    {
+                        // สัดส่วนแรงตามมุมตก (ยิ่งเอียงยิ่งดึงลงมากสุดที่ 100%) เพื่อความสมูท
+                        float fallMultiplier = Mathf.Clamp01(Mathf.Abs(angle) / 10f);
+                        myRb.AddForce(Vector3.down * (extraGravityCompensation * fallMultiplier), ForceMode.Acceleration);
+                    }
                 }
             }
 

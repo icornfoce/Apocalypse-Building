@@ -106,10 +106,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.Building.TunedMassDamper
   dampingCoefficient: 0.8
   restoringStrength: 15
-  extraGravityCompensation: 4500
+  extraGravityCompensation: 50
   ropeTransform: {fileID: 7340047884636714713}
   pendulumTransform: {fileID: 6962456033923801875}
-  ropeSpring: 500
+  ropeSpring: 50
   ropeDamper: 50
   ropeLinearLimit: 0.01
   swingAngleLimit: 45

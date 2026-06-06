@@ -328,8 +328,11 @@ namespace Simulation.Physics
 
             float impact = collision.impulse.magnitude;
 
-            // ── 0. ชิ้นส่วนที่หลุดออก (Detached): กระแทกอะไรก็ตามนิดเดียว → พังทันที ไม่เด้ง ──
-            if (_isDetached && !_isBroken && impact > 0.5f)
+            var unit = GetComponent<Building.StructureUnit>();
+            bool isGadget = unit != null && unit.Data != null && unit.Data.structureType == Simulation.Data.StructureType.Gadget;
+
+            // ── 0. ชิ้นส่วนที่หลุดออก (Detached) หรือ Gadget: กระแทกอะไรก็ตามนิดเดียว → พังทันที ไม่เด้ง ──
+            if ((_isDetached || isGadget) && !_isBroken && impact > 0.5f)
             {
                 _currentHP = 0f;
                 Break();
@@ -373,7 +376,6 @@ namespace Simulation.Physics
                 Building.BuildingSystem.Instance?.TriggerCameraShake(
                     Mathf.Clamp(impact * 0.01f, 0.3f, 2f));
 
-                var unit = GetComponent<Building.StructureUnit>();
                 if (unit != null && unit.CurrentMaterial != null)
                 {
                     ContactPoint contact = collision.GetContact(0);

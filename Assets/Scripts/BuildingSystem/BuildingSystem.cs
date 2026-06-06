@@ -185,7 +185,43 @@ namespace Simulation.Building
         {
             if (Instance == null) Instance = this;
             else { Destroy(gameObject); return; }
+
+#if UNITY_EDITOR
+            AutoAssignAudioClips();
+#endif
         }
+
+#if UNITY_EDITOR
+        private void Reset()
+        {
+            AutoAssignAudioClips();
+        }
+
+        private void OnValidate()
+        {
+            AutoAssignAudioClips();
+        }
+
+        private void AutoAssignAudioClips()
+        {
+            if (generalUndoSound == null)
+            {
+                generalUndoSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/SFX/UI/Undo - Redo.mp3");
+            }
+            if (generalRedoSound == null)
+            {
+                generalRedoSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/SFX/UI/Undo - Redo.mp3");
+            }
+            if (generalErrorSound == null)
+            {
+                generalErrorSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/SFX/UI/Error.mp3");
+            }
+            if (generalSellSound == null)
+            {
+                generalSellSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/SFX/UI/Sell.mp3");
+            }
+        }
+#endif
 
         private void Start()
         {
@@ -321,12 +357,17 @@ namespace Simulation.Building
                 action.Undo();
                 _redoStack.Push(action);
                 
-                if (generalUndoSound != null) AudioSource.PlayClipAtPoint(generalUndoSound, mainCamera.transform.position);
+                if (generalUndoSound != null)
+                {
+                    Vector3 playPos = mainCamera != null ? mainCamera.transform.position : Vector3.zero;
+                    AudioSource.PlayClipAtPoint(generalUndoSound, playPos);
+                }
                 RecalculateMaxFloor();
             }
             else if (generalErrorSound != null)
             {
-                AudioSource.PlayClipAtPoint(generalErrorSound, mainCamera.transform.position);
+                Vector3 playPos = mainCamera != null ? mainCamera.transform.position : Vector3.zero;
+                AudioSource.PlayClipAtPoint(generalErrorSound, playPos);
             }
         }
 
@@ -338,12 +379,17 @@ namespace Simulation.Building
                 action.Redo();
                 _undoStack.Push(action);
 
-                if (generalRedoSound != null) AudioSource.PlayClipAtPoint(generalRedoSound, mainCamera.transform.position);
+                if (generalRedoSound != null)
+                {
+                    Vector3 playPos = mainCamera != null ? mainCamera.transform.position : Vector3.zero;
+                    AudioSource.PlayClipAtPoint(generalRedoSound, playPos);
+                }
                 RecalculateMaxFloor();
             }
             else if (generalErrorSound != null)
             {
-                AudioSource.PlayClipAtPoint(generalErrorSound, mainCamera.transform.position);
+                Vector3 playPos = mainCamera != null ? mainCamera.transform.position : Vector3.zero;
+                AudioSource.PlayClipAtPoint(generalErrorSound, playPos);
             }
         }
 

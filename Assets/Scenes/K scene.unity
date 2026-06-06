@@ -1705,6 +1705,63 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 10, y: 2.220446e-16, z: 10}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!1001 &2701102329544602676
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 5740142615590929758, guid: cc9db0b5934148941876c70678833791, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -8.181136
+      objectReference: {fileID: 0}
+    - target: {fileID: 5740142615590929758, guid: cc9db0b5934148941876c70678833791, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 2.31
+      objectReference: {fileID: 0}
+    - target: {fileID: 5740142615590929758, guid: cc9db0b5934148941876c70678833791, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 20.03
+      objectReference: {fileID: 0}
+    - target: {fileID: 5740142615590929758, guid: cc9db0b5934148941876c70678833791, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5740142615590929758, guid: cc9db0b5934148941876c70678833791, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5740142615590929758, guid: cc9db0b5934148941876c70678833791, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5740142615590929758, guid: cc9db0b5934148941876c70678833791, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5740142615590929758, guid: cc9db0b5934148941876c70678833791, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5740142615590929758, guid: cc9db0b5934148941876c70678833791, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5740142615590929758, guid: cc9db0b5934148941876c70678833791, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8859795949416070224, guid: cc9db0b5934148941876c70678833791, type: 3}
+      propertyPath: m_Name
+      value: msVFX_Stylized Smoke 2
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: cc9db0b5934148941876c70678833791, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -1717,3 +1774,4 @@ SceneRoots:
   - {fileID: 792335898}
   - {fileID: 323096075}
   - {fileID: 714112805}
+  - {fileID: 2701102329544602676}

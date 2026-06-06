@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -7,6 +8,20 @@ using Simulation.Physics;
 
 namespace Simulation.UI
 {
+    [System.Serializable]
+    public class StarEntry
+    {
+        [Tooltip("รูป Texture ของดาวดวงนี้ (ลาก Texture มาใส่ได้เลย)")]
+        public Texture starTexture;
+        [Tooltip("RawImage Component ที่จะใช้แสดง Texture นี้")]
+        public RawImage displayImage;
+        [Tooltip("เสียงที่เล่นตอนดาวดวงนี้ขึ้น")]
+        public AudioClip sound;
+        [Range(0f, 1f)]
+        [Tooltip("ความดังของเสียงดาวดวงนี้")]
+        public float volume = 1f;
+    }
+
     /// <summary>
     /// UI สำหรับแสดงข้อมูลด่าน, งบประมาณ และผลการประเมิน
     /// </summary>
@@ -37,7 +52,8 @@ namespace Simulation.UI
         [Header("Results UI (Inside MissionResults Screen)")]
         [SerializeField] private Button restartButton;
         [SerializeField] private TextMeshProUGUI resultTitleText;
-        [SerializeField] private GameObject[] starIcons;
+        [Tooltip("รายการดาว แต่ละดวงใส่ Icon และเสียงของตัวเองได้เลย")]
+        [SerializeField] private StarEntry[] starEntries;
 
         [Header("Progression UI")]
         [SerializeField] private Button nextLevelButton;
@@ -48,6 +64,20 @@ namespace Simulation.UI
         [SerializeField] private TextMeshProUGUI errorText;
         [SerializeField] private float errorDisplayDuration = 3f;
 
+        [Header("Sound Effects")]
+        [Tooltip("เสียงที่เล่นเมื่อกดเริ่มแล้วผ่านเงื่อนไข (เกมเริ่ม)")]
+        [SerializeField] private AudioClip startSuccessSound;
+        [Tooltip("เสียงที่เล่นเมื่อกดเริ่มแล้วไม่ผ่านเงื่อนไข")]
+        [SerializeField] private AudioClip startFailSound;
+        [Range(0f, 1f)]
+        [SerializeField] private float sfxVolume = 1f;
+
+        [Header("Star Reveal Settings")]
+        [Tooltip("ระยะเวลาหน่วง (วินาที) ระหว่างการขึ้นดาวแต่ละดวง")]
+        [SerializeField] private float starRevealDelay = 0.5f;
+
+        private AudioSource _sfxSource;
+
         [Header("Style")]
         [SerializeField] private Color completedColor = new Color(0f, 0.6f, 0f); // เขียวเข้ม
 
@@ -57,6 +87,11 @@ namespace Simulation.UI
 
         private void Start()
         {
+            // สร้าง AudioSource สำหรับเสียง SFX
+            _sfxSource = gameObject.AddComponent<AudioSource>();
+            _sfxSource.playOnAwake = false;
+            _sfxSource.spatialBlend = 0f;
+
             // เชื่อมต่อ Events จาก MissionManager
             if (MissionManager.Instance != null)
             {
@@ -225,6 +260,10 @@ namespace Simulation.UI
             if (resultsPanel != null) resultsPanel.SetActive(false);
 
             if (errorText != null) errorText.gameObject.SetActive(false);
+
+            // เล่นเสียงเมื่อเริ่มภารกิจสำเร็จ (ผ่านเงื่อนไขแล้ว)
+            if (startSuccessSound != null && _sfxSource != null)
+                _sfxSource.PlayOneShot(startSuccessSound, sfxVolume);
         }
 
         private void HandleMissionCompleted(int stars)
@@ -236,14 +275,49 @@ namespace Simulation.UI
             if (missionPanel != null) missionPanel.SetActive(false);
 
             if (resultTitleText != null) resultTitleText.text = "MISSION COMPLETE!";
-            
-            // แสดงดาวตามจำนวนที่ได้
-            if (starIcons != null)
+
+            // ซ่อนดาวทั้งหมดก่อน แล้วค่อยๆ ขึ้นทีละดวงพร้อมเสียง
+            if (starEntries != null)
             {
-                for (int i = 0; i < starIcons.Length; i++)
+                foreach (var entry in starEntries)
                 {
-                    if (starIcons[i] != null) starIcons[i].SetActive(i < stars);
+                    if (entry?.displayImage != null)
+                        entry.displayImage.gameObject.SetActive(false);
                 }
+
+                StartCoroutine(RevealStarsSequentially(stars));
+            }
+        }
+
+        /// <summary>
+        /// ค่อยๆ แสดงดาวทีละดวงพร้อมเสียงเฉพาะของดาวดวงนั้น
+        /// </summary>
+        private IEnumerator RevealStarsSequentially(int stars)
+        {
+            for (int i = 0; i < starEntries.Length; i++)
+            {
+                if (i >= stars) break; // แสดงแค่จำนวนดาวที่ได้
+
+                // แสดงผลดาวดวงแรกทันที ดวงถัดๆ ไปค่อยหน่วงเวลา
+                if (i > 0)
+                {
+                    yield return new WaitForSeconds(starRevealDelay);
+                }
+
+                var entry = starEntries[i];
+                if (entry == null) continue;
+
+                // แสดงดาว พร้อมเซ็ต Texture ลงบน RawImage
+                if (entry.displayImage != null)
+                {
+                    if (entry.starTexture != null)
+                        entry.displayImage.texture = entry.starTexture;
+                    entry.displayImage.gameObject.SetActive(true);
+                }
+
+                // เล่นเสียงเฉพาะของดาวดวงนี้
+                if (entry.sound != null && _sfxSource != null)
+                    _sfxSource.PlayOneShot(entry.sound, entry.volume);
             }
         }
 
@@ -256,6 +330,10 @@ namespace Simulation.UI
                 CancelInvoke(nameof(HideError));
                 Invoke(nameof(HideError), errorDisplayDuration);
             }
+
+            // เล่นเสียงเมื่อไม่ผ่านเงื่อนไข
+            if (startFailSound != null && _sfxSource != null)
+                _sfxSource.PlayOneShot(startFailSound, sfxVolume);
         }
 
         private void HideError()

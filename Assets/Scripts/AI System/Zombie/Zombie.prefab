@@ -1659,11 +1659,11 @@ MonoBehaviour:
   deathVFX: {fileID: 5985634496115995773, guid: 463cf9f7af4680240898f6aeba3fe3e6, type: 3}
   animator: {fileID: 5296222078310483575}
   audioSource: {fileID: 8937111016197037902}
-  attackSFX: {fileID: 0}
-  biteWallSFX: {fileID: 0}
-  hurtSFX: {fileID: 0}
-  deathSFX: {fileID: 0}
-  biteWallVFX: {fileID: 0}
+  attackSFX: {fileID: 8300000, guid: 7a01fffc6b1dd02439732a6f0ecb54e3, type: 3}
+  biteWallSFX: {fileID: 8300000, guid: 77fa75b8b8e474b44a936e8d053cf592, type: 3}
+  hurtSFX: {fileID: 8300000, guid: 37b4ca8d784ef11449822e717a3b706f, type: 3}
+  deathSFX: {fileID: 8300000, guid: 25735f2b4fe09924b8cf1502158f09ad, type: 3}
+  biteWallVFX: {fileID: 8859795949416070224, guid: cc9db0b5934148941876c70678833791, type: 3}
 --- !u!195 &630841034212576777
 NavMeshAgent:
   m_ObjectHideFlags: 0

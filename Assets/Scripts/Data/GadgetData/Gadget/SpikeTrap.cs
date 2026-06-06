@@ -75,6 +75,14 @@ namespace Simulation.Building
             if (person != null)
             {
                 person.TakeDamage(damage * personDamageRatio);
+                return;
+            }
+
+            // ถ้าเป็น NPC พิเศษ ดาเมจน้อยลงเช่นกัน
+            var npcCtrl = other.GetComponentInParent<Simulation.NPC.NPCController>();
+            if (npcCtrl != null)
+            {
+                npcCtrl.TakeDamage(damage * personDamageRatio);
             }
         }
     }

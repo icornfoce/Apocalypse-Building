@@ -92,7 +92,7 @@ namespace Simulation.Mission
                         FindTarget();
                     }
 
-                    if (_targetPerson != null)
+                    if (_targetPerson != null || _targetNPCController != null)
                     {
                         FlyTowardsTarget();
                     }
@@ -146,9 +146,10 @@ namespace Simulation.Mission
                     FindTarget();
                 }
 
-                if (_targetPerson != null)
+                if (_targetPerson != null || _targetNPCController != null)
                 {
-                    float dist = Vector3.Distance(transform.position, _targetPerson.transform.position);
+                    Transform targetTransform = _targetPerson != null ? _targetPerson.transform : _targetNPCController.transform;
+                    float dist = Vector3.Distance(transform.position, targetTransform.position);
 
                     if (dist <= attackRange)
                     {
@@ -157,7 +158,11 @@ namespace Simulation.Mission
                     }
                     else
                     {
-                        if (CanSeePerson(_targetPerson))
+                        bool canSee = false;
+                        if (_targetPerson != null) canSee = CanSeePerson(_targetPerson);
+                        else if (_targetNPCController != null) canSee = CanSeeNPC(_targetNPCController);
+
+                        if (canSee)
                         {
                             if (_isAttackingWall) ResetWallAttack(true);
                         }
@@ -171,7 +176,7 @@ namespace Simulation.Mission
                             if (!_isAttackingWall)
                             {
                                 _agent.isStopped = false;
-                                _agent.SetDestination(_targetPerson.transform.position);
+                                _agent.SetDestination(targetTransform.position);
                             }
                             else
                             {
@@ -186,7 +191,7 @@ namespace Simulation.Mission
                 }
 
                 // ถ้าไม่มีทางลงให้กัดพื้นลง
-                if (_targetPerson != null)
+                if (_targetPerson != null || _targetNPCController != null)
                 {
                     TryEatFloorDown();
                 }
@@ -195,7 +200,8 @@ namespace Simulation.Mission
 
         private void FlyTowardsTarget()
         {
-            Vector3 targetPos = _targetPerson.transform.position;
+            Transform targetTransform = _targetPerson != null ? _targetPerson.transform : _targetNPCController.transform;
+            Vector3 targetPos = targetTransform.position;
             float horizontalDist = Vector2.Distance(
                 new Vector2(transform.position.x, transform.position.z),
                 new Vector2(targetPos.x, targetPos.z));
@@ -236,16 +242,17 @@ namespace Simulation.Mission
 
         private void TryEatFloorDown()
         {
-            if (_targetPerson == null || _agent == null || !_agent.enabled) return;
+            if ((_targetPerson == null && _targetNPCController == null) || _agent == null || !_agent.enabled) return;
 
+            Transform targetTransform = _targetPerson != null ? _targetPerson.transform : _targetNPCController.transform;
             // Target is below us
-            float verticalDist = transform.position.y - _targetPerson.transform.position.y;
+            float verticalDist = transform.position.y - targetTransform.position.y;
             if (verticalDist > 1.5f)
             {
                 // Check if there is no way down (e.g. agent path is partial or no path, or we are close horizontally but stuck above)
                 float horizontalDist = Vector2.Distance(
                     new Vector2(transform.position.x, transform.position.z),
-                    new Vector2(_targetPerson.transform.position.x, _targetPerson.transform.position.z)
+                    new Vector2(targetTransform.position.x, targetTransform.position.z)
                 );
 
                 bool noWayDown = false;

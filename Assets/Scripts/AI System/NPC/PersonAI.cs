@@ -401,13 +401,6 @@ namespace Simulation.Character
                 }
             }
 
-            var npcCtrl = GetComponent<Simulation.NPC.NPCController>();
-            if (npcCtrl != null && !npcCtrl.IsDead)
-            {
-                npcCtrl.TakeDamage(999999f);
-                return;
-            }
-
             if (deathVFX != null) Instantiate(deathVFX, transform.position, Quaternion.identity);
             Destroy(gameObject);
         }

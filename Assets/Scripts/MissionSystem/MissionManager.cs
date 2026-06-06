@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Simulation.Building;
 using Simulation.Character;
 using Simulation.Physics;
+using Simulation.NPC;
 
 namespace Simulation.Mission
 {
@@ -90,15 +91,29 @@ namespace Simulation.Mission
             }
             else if (isMissionActive && simulationTimer > 2f)
             {
-                // 1. เช็คว่าคนตายหมดหรือยัง
-                var people = GameObject.FindObjectsByType<PersonAI>(FindObjectsSortMode.None);
+                // 1. เช็คว่าคนตายหมดหรือยัง (ทั้ง PersonAI และ NPCController)
                 bool anyAlive = false;
+
+                var people = GameObject.FindObjectsByType<PersonAI>(FindObjectsSortMode.None);
                 foreach (var p in people)
                 {
                     if (p != null && !p.IsDead && p.countsTowardsPopulation)
                     {
                         anyAlive = true;
                         break;
+                    }
+                }
+
+                if (!anyAlive)
+                {
+                    var npcs = GameObject.FindObjectsByType<NPCController>(FindObjectsSortMode.None);
+                    foreach (var npc in npcs)
+                    {
+                        if (npc != null && !npc.IsDead && npc.countsTowardsPopulation)
+                        {
+                            anyAlive = true;
+                            break;
+                        }
                     }
                 }
 
@@ -488,17 +503,26 @@ namespace Simulation.Mission
         }
 
         /// <summary>
-        /// นับจำนวนคนที่ยังมีชีวิตอยู่ (PersonAI ที่ยังอยู่ในฉาก)
+        /// นับจำนวนคนที่ยังมีชีวิตอยู่ (PersonAI + NPCController ที่ยังอยู่ในฉาก)
         /// </summary>
         private int CountAlivePeople()
         {
-            PersonAI[] people = FindObjectsByType<PersonAI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             int alive = 0;
+
+            PersonAI[] people = FindObjectsByType<PersonAI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             foreach (var p in people)
             {
                 if (p == null || p.gameObject.name.Contains("Ghost")) continue;
                 if (p.countsTowardsPopulation) alive++;
             }
+
+            NPCController[] npcs = FindObjectsByType<NPCController>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            foreach (var npc in npcs)
+            {
+                if (npc == null || npc.gameObject.name.Contains("Ghost")) continue;
+                if (npc.countsTowardsPopulation && !npc.IsDead) alive++;
+            }
+
             return alive;
         }
 

@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.AI;
 using Simulation.Character;
 using Simulation.Building;
+using Simulation.NPC;
 
 namespace Simulation.Mission
 {
@@ -47,6 +48,7 @@ namespace Simulation.Mission
         protected NavMeshAgent _agent;
         protected Rigidbody _rb;
         protected PersonAI _targetPerson;
+        protected NPCController _targetNPCController;
         protected float _personAttackTimer;
         protected float _wallAttackTimer;
         protected bool _isDead = false;
@@ -151,9 +153,14 @@ namespace Simulation.Mission
                 FindTarget();
             }
 
-            if (_targetPerson != null)
+            // ── หาตำแหน่งเป้าหมาย (PersonAI หรือ NPCController) ──
+            Transform targetTransform = null;
+            if (_targetPerson != null) targetTransform = _targetPerson.transform;
+            else if (_targetNPCController != null) targetTransform = _targetNPCController.transform;
+
+            if (targetTransform != null)
             {
-                float dist = Vector3.Distance(transform.position, _targetPerson.transform.position);
+                float dist = Vector3.Distance(transform.position, targetTransform.position);
 
                 if (dist <= attackRange)
                 {
@@ -163,14 +170,18 @@ namespace Simulation.Mission
                 }
                 else
                 {
-                    // เช็คว่าเห็นคนหรือไม่ — ถ้าเห็น ให้เลิกสนใจกำแพงและวิ่งไปหาทันที
-                    if (CanSeePerson(_targetPerson))
+                    // เช็คว่าเห็นเป้าหมายหรือไม่ — ถ้าเห็น ให้เลิกสนใจกำแพงและวิ่งไปหาทันที
+                    bool canSee = false;
+                    if (_targetPerson != null) canSee = CanSeePerson(_targetPerson);
+                    else if (_targetNPCController != null) canSee = CanSeeNPC(_targetNPCController);
+
+                    if (canSee)
                     {
                         if (_isAttackingWall) ResetWallAttack(true);
                     }
                     else
                     {
-                        // ถ้าไม่เห็นคน ค่อยเช็คกำแพงขวางทาง
+                        // ถ้าไม่เห็นเป้าหมาย ค่อยเช็คกำแพงขวางทาง
                         CheckForWalls();
                     }
 
@@ -180,7 +191,7 @@ namespace Simulation.Mission
                         if (!_isAttackingWall)
                         {
                             _agent.isStopped = false;
-                            _agent.SetDestination(_targetPerson.transform.position);
+                            _agent.SetDestination(targetTransform.position);
                         }
                         else
                         {
@@ -206,17 +217,27 @@ namespace Simulation.Mission
         protected bool CanSeePerson(PersonAI person)
         {
             if (person == null || person.IsDead) return false;
+            return CanSeeTransform(person.transform);
+        }
 
+        protected bool CanSeeNPC(NPCController npc)
+        {
+            if (npc == null || npc.IsDead) return false;
+            return CanSeeTransform(npc.transform);
+        }
+
+        private bool CanSeeTransform(Transform target)
+        {
             // เช็ค Line of Sight (LOS)
             Vector3 start = transform.position + Vector3.up * 1.5f;
-            Vector3 end = person.transform.position + Vector3.up * 1.0f;
+            Vector3 end = target.position + Vector3.up * 1.0f;
             Vector3 dir = (end - start).normalized;
             float dist = Vector3.Distance(start, end);
 
-            // ยิง Ray ไปหาคน ถ้าไม่ติดอะไรเลย (รวมถึงกำแพง) แสดงว่าเห็น
+            // ยิง Ray ไปหาเป้าหมาย ถ้าไม่ติดอะไรเลย (รวมถึงกำแพง) แสดงว่าเห็น
             if (UnityEngine.Physics.Raycast(start, dir, out RaycastHit hit, dist + 0.5f))
             {
-                if (hit.collider.gameObject == person.gameObject || hit.collider.transform.IsChildOf(person.transform))
+                if (hit.collider.gameObject == target.gameObject || hit.collider.transform.IsChildOf(target))
                 {
                     return true;
                 }
@@ -228,11 +249,14 @@ namespace Simulation.Mission
         {
             // ถ้าเป้าหมายปัจจุบันยังมีชีวิต ไม่ต้องหาใหม่
             if (_targetPerson != null && !_targetPerson.IsDead) return;
+            if (_targetNPCController != null && !_targetNPCController.IsDead) return;
 
-            PersonAI[] allPeople = Object.FindObjectsByType<PersonAI>(FindObjectsSortMode.None);
             float minDist = float.MaxValue;
             _targetPerson = null;
+            _targetNPCController = null;
 
+            // หา PersonAI (คนธรรมดา)
+            PersonAI[] allPeople = Object.FindObjectsByType<PersonAI>(FindObjectsSortMode.None);
             foreach (var p in allPeople)
             {
                 if (p == null || p.IsDead) continue;
@@ -241,6 +265,21 @@ namespace Simulation.Mission
                 {
                     minDist = d;
                     _targetPerson = p;
+                    _targetNPCController = null; // เคลียร์อีกตัว
+                }
+            }
+
+            // หา NPCController (NPC พิเศษ)
+            NPCController[] allNPCs = Object.FindObjectsByType<NPCController>(FindObjectsSortMode.None);
+            foreach (var npc in allNPCs)
+            {
+                if (npc == null || npc.IsDead) continue;
+                float d = Vector3.Distance(transform.position, npc.transform.position);
+                if (d < minDist)
+                {
+                    minDist = d;
+                    _targetNPCController = npc;
+                    _targetPerson = null; // เคลียร์อีกตัว
                 }
             }
         }
@@ -253,15 +292,27 @@ namespace Simulation.Mission
             if (_personAttackTimer >= attackInterval)
             {
                 _personAttackTimer = 0f;
+
+                string targetName = null;
+
                 if (_targetPerson != null && !_targetPerson.IsDead)
                 {
                     _targetPerson.TakeDamage(0f, true); // กัดทีเดียวตาย
+                    targetName = _targetPerson.name;
+                }
+                else if (_targetNPCController != null && !_targetNPCController.IsDead)
+                {
+                    _targetNPCController.TakeDamage(0f, true); // กัดทีเดียวตาย
+                    targetName = _targetNPCController.name;
+                }
 
+                if (targetName != null)
+                {
                     // เล่น Animation / SFX กัดคน
                     if (animator != null) animator.SetTrigger("Bite");
                     if (audioSource != null && attackSFX != null) audioSource.PlayOneShot(attackSFX);
 
-                    Debug.Log($"<color=red>[Zombie]</color> Attacking person: {_targetPerson.name}");
+                    Debug.Log($"<color=red>[Zombie]</color> Attacking: {targetName}");
                 }
             }
         }
@@ -274,10 +325,17 @@ namespace Simulation.Mission
             {
                 direction = _agent.velocity.normalized;
             }
-            else if (_targetPerson != null)
+            else
             {
-                direction = (_targetPerson.transform.position - transform.position).normalized;
-                direction.y = 0;
+                Transform targetTransform = null;
+                if (_targetPerson != null) targetTransform = _targetPerson.transform;
+                else if (_targetNPCController != null) targetTransform = _targetNPCController.transform;
+
+                if (targetTransform != null)
+                {
+                    direction = (targetTransform.position - transform.position).normalized;
+                    direction.y = 0;
+                }
             }
 
             Ray ray = new Ray(transform.position + Vector3.up * 0.5f, direction);

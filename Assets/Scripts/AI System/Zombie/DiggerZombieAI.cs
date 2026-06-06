@@ -68,14 +68,19 @@ namespace Simulation.Mission
                 FindTarget();
             }
 
-            if (_targetPerson == null)
+            // หา target ที่ใกล้ที่สุด (PersonAI หรือ NPCController)
+            Transform targetTransform = null;
+            if (_targetPerson != null) targetTransform = _targetPerson.transform;
+            else if (_targetNPCController != null) targetTransform = _targetNPCController.transform;
+
+            if (targetTransform == null)
             {
                 if (_agent.enabled && _agent.isOnNavMesh) _agent.isStopped = true;
                 return;
             }
 
             // 3. จัดการ State การเดิน/ขุด
-            float dist = Vector3.Distance(transform.position, _targetPerson.transform.position);
+            float dist = Vector3.Distance(transform.position, targetTransform.position);
 
             if (_currentState == DiggerState.Surface)
             {
@@ -89,7 +94,7 @@ namespace Simulation.Mission
                     if (_agent.enabled && _agent.isOnNavMesh)
                     {
                         _agent.isStopped = false;
-                        _agent.SetDestination(_targetPerson.transform.position);
+                        _agent.SetDestination(targetTransform.position);
                     }
                     
                     // เช็คกำแพงขวางหน้าเพื่อเริ่มขุด
@@ -209,7 +214,7 @@ namespace Simulation.Mission
 
         private void MoveUnderground()
         {
-            if (_targetPerson == null) return;
+            if (_targetPerson == null && _targetNPCController == null) return;
 
             // คำนวณเป้าหมายขุดในระดับความลึกปัจจุบัน
             Vector3 targetPosOnXZ = new Vector3(_digTargetPos.x, transform.position.y, _digTargetPos.z);

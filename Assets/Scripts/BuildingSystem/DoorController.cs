@@ -4,6 +4,7 @@ using System.Linq;
 using Unity.AI.Navigation;
 using Simulation.Character;
 using Simulation.Mission;
+using Simulation.NPC;
 
 namespace Simulation.Building
 {
@@ -85,8 +86,9 @@ namespace Simulation.Building
 
         private void OnTriggerEnter(Collider other)
         {
-            // เช็คว่าเป็นคน (PersonAI) เท่านั้น (ซอมบี้เปิดไม่ได้)
-            if (other.GetComponentInParent<PersonAI>() != null)
+            // เช็คว่าเป็นคน (PersonAI หรือ NPCController) เท่านั้น (ซอมบี้เปิดไม่ได้)
+            if (other.GetComponentInParent<PersonAI>() != null ||
+                other.GetComponentInParent<NPCController>() != null)
             {
                 _occupants.Add(other);
                 _shouldBeOpen = true;

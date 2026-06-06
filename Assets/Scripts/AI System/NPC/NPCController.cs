@@ -6,12 +6,13 @@ using Simulation.Data;
 using Simulation.Building;
 using Simulation.Physics;
 using Simulation.Mission;
+using Simulation.Character;
 
 namespace Simulation.NPC
 {
     /// <summary>
     /// NPCController — แปะที่ตัว NPC แต่ละตัว
-    /// จัดการ: เลือด, เดิน, สกิล, VFX/SFX, Animation
+    /// จัดการ: เลือด, เดิน, สกิล, VFX/SFX, Animation, หนีซอมบี้, โดนของทับ
     /// สกิลทั้ง 6:
     ///   1. Engineer  — Toggle Stress Visualization
     ///   2. Builder   — เดินไปซ่อมโครงสร้าง
@@ -21,6 +22,8 @@ namespace Simulation.NPC
     ///   6. Commander — เรียกทหารมายิง
     /// </summary>
     [RequireComponent(typeof(NavMeshAgent))]
+    [RequireComponent(typeof(Rigidbody))]
+    [RequireComponent(typeof(CapsuleCollider))]
     public class NPCController : MonoBehaviour
     {
         [Header("Data (Runtime)")]
@@ -32,10 +35,27 @@ namespace Simulation.NPC
         [SerializeField] private bool _isSelected = false;
         [SerializeField] private bool _skillActive = false;
 
+        [Header("Mission Settings")]
+        [Tooltip("ถ้านับเป็นคนในภารกิจ จะถูกนำไปคำนวณจำนวนคนรอดและดาว")]
+        public bool countsTowardsPopulation = true;
+
+        [Header("Flee Behavior")]
+        [Tooltip("ระยะที่ NPC มองเห็นซอมบี้แล้วจะเริ่มวิ่งหนี")]
+        public float detectionRange = 7f;
+        [Tooltip("ความเร็วตอนวิ่งหนี")]
+        public float fleeSpeed = 4f;
+        [Tooltip("VFX ที่จะขึ้นบนหัวตอนตกใจหนี")]
+        public GameObject panicVFXPrefab;
+
+        [Header("Crush Damage")]
+        [Tooltip("ความแรงจากการชนขั้นต่ำที่จะทำให้ลดเลือด")]
+        public float damageImpactThreshold = 3f;
+
         // Components
         private NavMeshAgent _agent;
         private Animator _animator;
         private AudioSource _audioSource;
+        private Rigidbody _rb;
 
         // Skill Runtime
         private float _skillCooldownTimer = 0f;
@@ -45,6 +65,11 @@ namespace Simulation.NPC
         private Coroutine _soldierCoroutine;
         private List<GameObject> _spawnedSoldiers = new List<GameObject>();
 
+        // Flee Runtime
+        private GameObject _activePanicVFX;
+        private float _panicTimer;
+        private Vector3 _fleeDirection;
+
         // ── Public Properties ──
         public NPCSkillData Data => _data;
         public bool IsDead => _isDead;
@@ -52,6 +77,7 @@ namespace Simulation.NPC
         public bool SkillActive => _skillActive;
         public float CurrentHealth => _currentHealth;
         public float HealthRatio => _data != null && _data.maxHealth > 0 ? Mathf.Clamp01(_currentHealth / _data.maxHealth) : 0f;
+        public bool IsFleeing => _panicTimer > 0;
 
         // ────────────────────────────────────────────────────────────────
         // Initialization
@@ -62,12 +88,17 @@ namespace Simulation.NPC
             _data = data;
             _currentHealth = data.maxHealth;
 
+            _rb = GetComponent<Rigidbody>();
+            if (_rb == null) _rb = gameObject.AddComponent<Rigidbody>();
+            _rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
+
             _agent = GetComponent<NavMeshAgent>();
             if (_agent == null) _agent = gameObject.AddComponent<NavMeshAgent>();
             _agent.speed = data.moveSpeed;
             _agent.stoppingDistance = 0.5f;
             _agent.radius = 0.35f;
             _agent.height = 1.8f;
+            _agent.obstacleAvoidanceType = ObstacleAvoidanceType.LowQualityObstacleAvoidance;
 
             _animator = GetComponentInChildren<Animator>();
             _audioSource = GetComponent<AudioSource>();
@@ -80,20 +111,32 @@ namespace Simulation.NPC
             {
                 transform.position = hit.position;
                 _agent.enabled = true;
+                _rb.isKinematic = true;
+
+                var col = GetComponent<CapsuleCollider>();
+                if (col != null) col.isTrigger = true;
             }
-
-            // Rigidbody setup
-            var rb = GetComponent<Rigidbody>();
-            if (rb != null) rb.isKinematic = true;
-
-            // Collider setup
-            var col = GetComponent<CapsuleCollider>();
-            if (col != null) col.isTrigger = true;
+            else
+            {
+                _agent.enabled = false;
+                _rb.isKinematic = false;
+                var col = GetComponent<CapsuleCollider>();
+                if (col != null) col.isTrigger = false;
+            }
         }
 
         // ────────────────────────────────────────────────────────────────
         // Unity Lifecycle
         // ────────────────────────────────────────────────────────────────
+
+        private void Awake()
+        {
+            _rb = GetComponent<Rigidbody>();
+            if (_rb != null)
+            {
+                _rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
+            }
+        }
 
         private void Update()
         {
@@ -106,6 +149,46 @@ namespace Simulation.NPC
             if (_isRepairing && _repairTarget != null)
             {
                 HandleRepairTick();
+            }
+
+            // ── Floor check: ถ้าไม่มีพื้นรองรับ ให้ตก ──
+            int floorMask = LayerMask.GetMask("Ground", "Structure");
+            float rayDist = 0.8f;
+            bool hasFloor = UnityEngine.Physics.Raycast(
+                transform.position + Vector3.up * 0.1f, Vector3.down,
+                out RaycastHit floorHit, rayDist, floorMask, QueryTriggerInteraction.Ignore
+            );
+
+            if (_agent != null && _agent.enabled && _agent.isOnNavMesh && hasFloor)
+            {
+                // ── ระบบตรวจจับซอมบี้และวิ่งหนี ──
+                HandleFleeBehavior();
+
+                if (IsFleeing)
+                {
+                    _agent.isStopped = false;
+                    _agent.speed = fleeSpeed;
+
+                    Vector3 fleePos = transform.position + _fleeDirection * 5f;
+                    if (NavMesh.SamplePosition(fleePos, out NavMeshHit hit, 3f, NavMesh.AllAreas))
+                    {
+                        _agent.SetDestination(hit.position);
+                    }
+                }
+                else
+                {
+                    // คืนค่า speed ปกติเมื่อไม่หนี
+                    if (_data != null) _agent.speed = _data.moveSpeed;
+                }
+            }
+            else if (_agent != null && _agent.enabled && (!_agent.isOnNavMesh || !hasFloor))
+            {
+                // ร่วงหรือไม่มีพื้น — ปิด Agent ให้ตกลงมา
+                StopFleeing();
+                _agent.enabled = false;
+                if (_rb != null) _rb.isKinematic = false;
+                var col = GetComponent<CapsuleCollider>();
+                if (col != null) col.isTrigger = false;
             }
 
             // Animation: เดิน
@@ -121,6 +204,123 @@ namespace Simulation.NPC
                             && _agent.velocity.sqrMagnitude > 0.01f;
 
             _animator.SetBool("IsMoving", isMoving);
+        }
+
+        // ────────────────────────────────────────────────────────────────
+        // Flee from Zombie
+        // ────────────────────────────────────────────────────────────────
+
+        private void HandleFleeBehavior()
+        {
+            // ค้นหาซอมบี้ใกล้ๆ
+            ZombieAI nearbyZombie = FindVisibleZombie();
+
+            if (nearbyZombie != null)
+            {
+                // พบซอมบี้! เริ่มตกใจและวิ่งหนี
+                _panicTimer = 3f;
+                _fleeDirection = (transform.position - nearbyZombie.transform.position).normalized;
+                _fleeDirection.y = 0;
+
+                ShowPanicVFX(true);
+            }
+            else
+            {
+                // ไม่พบซอมบี้ ค่อยๆ ลดเวลาตกใจ
+                if (_panicTimer > 0)
+                {
+                    _panicTimer -= Time.deltaTime;
+                    if (_panicTimer <= 0)
+                    {
+                        StopFleeing();
+                    }
+                }
+            }
+        }
+
+        private ZombieAI FindVisibleZombie()
+        {
+            if (detectionRange <= 0) return null;
+
+            // ตรวจสอบในรัศมีรอบตัว
+            Collider[] hits = UnityEngine.Physics.OverlapSphere(transform.position, detectionRange);
+
+            foreach (var hit in hits)
+            {
+                // ข้ามถ้าเป็นตัวเอง
+                if (hit.transform.root == transform.root) continue;
+
+                var zombie = hit.GetComponentInParent<ZombieAI>();
+                if (zombie != null && !zombie.IsDead)
+                {
+                    // เช็ค LOS
+                    Vector3 start = transform.position + Vector3.up * 1.0f;
+                    Vector3 end = hit.bounds.center;
+                    Vector3 dir = (end - start).normalized;
+                    float dist = Vector3.Distance(start, end);
+
+                    // ถ้าเป้าหมายอยู่ใกล้มาก ให้ถือว่าเห็นเลย
+                    if (dist < 0.5f) return zombie;
+
+                    RaycastHit[] allHits = UnityEngine.Physics.RaycastAll(start, dir, dist + 0.5f, ~0, QueryTriggerInteraction.Collide);
+                    System.Array.Sort(allHits, (a, b) => a.distance.CompareTo(b.distance));
+
+                    bool foundZombie = false;
+                    foreach (var hitInfo in allHits)
+                    {
+                        if (hitInfo.collider.transform.root == transform.root) continue;
+
+                        if (hitInfo.collider.gameObject == zombie.gameObject || hitInfo.collider.transform.IsChildOf(zombie.transform))
+                        {
+                            foundZombie = true;
+                            break;
+                        }
+                        else
+                        {
+                            return null; // ถูกบัง
+                        }
+                    }
+
+                    if (foundZombie) return zombie;
+
+                    // ถ้า Raycast ไม่โดนอะไรเลย แต่ OverlapSphere เจอ
+                    if (allHits.Length == 0)
+                    {
+                        return zombie;
+                    }
+                }
+            }
+            return null;
+        }
+
+        private void ShowPanicVFX(bool show)
+        {
+            if (show)
+            {
+                if (_activePanicVFX == null && panicVFXPrefab != null)
+                {
+                    _activePanicVFX = Instantiate(panicVFXPrefab, transform);
+                    _activePanicVFX.transform.localPosition = Vector3.up * 2.2f;
+                }
+            }
+            else
+            {
+                if (_activePanicVFX != null)
+                {
+                    Destroy(_activePanicVFX);
+                    _activePanicVFX = null;
+                }
+            }
+        }
+
+        private void StopFleeing()
+        {
+            _panicTimer = 0;
+            ShowPanicVFX(false);
+            if (_agent != null && _agent.enabled && _agent.isOnNavMesh)
+            {
+                _agent.ResetPath();
+            }
         }
 
         // ────────────────────────────────────────────────────────────────
@@ -320,12 +520,9 @@ namespace Simulation.NPC
                 // ซ่อม HP
                 float repairAmount = (_data != null ? _data.repairPerSecond : 20f) * Time.deltaTime;
 
-                // เรียก RepairFull เพื่อคืน HP (ในกรณีนี้เราค่อยๆ ซ่อม)
-                // StructuralStress ไม่มี RepairPartial ดังนั้นเราจะเรียก RepairFull เมื่อถึง 100%
-                // แต่เราสามารถ fake ได้โดยตรวจสอบ HealthRatio
                 if (_repairTarget.HealthRatio < 1f)
                 {
-                    _repairTarget.RepairFull(); // ซ่อมเต็ม (ใช้ RepairFull ที่มีอยู่แล้ว)
+                    _repairTarget.RepairFull();
 
                     // SFX ซ่อม
                     if (_data != null && _data.skillEffectSFX != null && !_audioSource.isPlaying)
@@ -520,6 +717,58 @@ namespace Simulation.NPC
         }
 
         // ────────────────────────────────────────────────────────────────
+        // Collision / Crush Damage
+        // ────────────────────────────────────────────────────────────────
+
+        private void OnTriggerEnter(Collider other)
+        {
+            if (_isDead) return;
+            Rigidbody otherRb = other.attachedRigidbody;
+            if (otherRb != null)
+            {
+                float impact = otherRb.linearVelocity.magnitude;
+                if (impact > damageImpactThreshold)
+                {
+                    float massFactor = Mathf.Clamp(otherRb.mass, 1f, 500f);
+                    TakeDamage(impact * massFactor * 2f);
+
+                    // กระเด้งกลับ (Knockback / Bounce)
+                    ApplyBounce(otherRb, impact);
+                }
+            }
+        }
+
+        private void OnCollisionEnter(Collision collision)
+        {
+            if (_isDead) return;
+            float impact = collision.relativeVelocity.magnitude;
+            if (impact > damageImpactThreshold)
+            {
+                float massFactor = 1f;
+                if (collision.rigidbody != null)
+                {
+                    massFactor = Mathf.Clamp(collision.rigidbody.mass, 1f, 500f);
+                    // กระเด้งกลับ (Knockback / Bounce)
+                    ApplyBounce(collision.rigidbody, impact);
+                }
+                TakeDamage(impact * massFactor * 2f);
+            }
+        }
+
+        /// <summary>
+        /// ทำให้วัตถุที่ตกลงมาโดนกระเด้งออกไป
+        /// </summary>
+        private void ApplyBounce(Rigidbody otherRb, float impact)
+        {
+            Vector3 bounceDir = (otherRb.transform.position - transform.position).normalized;
+            bounceDir.y = Mathf.Abs(bounceDir.y) + 0.8f;
+            bounceDir = bounceDir.normalized;
+
+            float bounceForce = Mathf.Clamp(impact * 2f, 3f, 20f);
+            otherRb.AddForce(bounceDir * bounceForce, ForceMode.VelocityChange);
+        }
+
+        // ────────────────────────────────────────────────────────────────
         // Health & Death
         // ────────────────────────────────────────────────────────────────
 
@@ -533,11 +782,33 @@ namespace Simulation.NPC
             }
         }
 
-        private void Die()
+        /// <summary>
+        /// รับดาเมจจากซอมบี้ — กัดทีเดียวตาย + กลายเป็นซอมบี้
+        /// </summary>
+        public void TakeDamage(float amount, bool isZombieBite)
+        {
+            if (_isDead) return;
+
+            if (isZombieBite) _currentHealth = 0;
+            else _currentHealth -= amount;
+
+            if (_currentHealth <= 0) Die(isZombieBite);
+        }
+
+        private void Die(bool turnIntoZombie = false)
         {
             _isDead = true;
+            StopFleeing();
             if (_agent != null) _agent.enabled = false;
             DespawnSoldiers();
+
+            if (turnIntoZombie)
+            {
+                if (MissionManager.Instance != null)
+                {
+                    MissionManager.Instance.SpawnNormalZombie(transform.position);
+                }
+            }
 
             // VFX
             if (_data != null && _data.deathVFX != null)

@@ -74,6 +74,15 @@ namespace Simulation.Camera
 
         private void Start()
         {
+            // จำกัดค่าเริ่มต้นและตั้งค่ากล้องเริ่มต้นให้เหมาะสม
+            float effectiveMinDist = Mathf.Max(10f, minDistance);
+            float effectiveMaxDist = Mathf.Min(60f, maxDistance);
+            initialDistance = Mathf.Clamp(initialDistance, effectiveMinDist, effectiveMaxDist);
+
+            float effectiveMinPitch = Mathf.Max(20f, minPitch);
+            float effectiveMaxPitch = Mathf.Min(80f, maxPitch);
+            pitch = Mathf.Clamp(pitch, effectiveMinPitch, effectiveMaxPitch);
+
             _currentDistance = initialDistance;
             _targetDistance  = initialDistance;
             UpdateCameraPosition();
@@ -118,7 +127,10 @@ namespace Simulation.Camera
             yaw += h * keyboardRotateSpeed * Time.unscaledDeltaTime;
             pitch -= v * keyboardRotateSpeed * Time.unscaledDeltaTime;
 
-            pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
+            // จำกัดการเลื่อนขึ้น-ลงของเมาส์ (การก้ม-เงย) บังคับช่วงปลอดภัย 20 ถึง 80 องศา
+            float effectiveMinPitch = Mathf.Max(20f, minPitch);
+            float effectiveMaxPitch = Mathf.Min(80f, maxPitch);
+            pitch = Mathf.Clamp(pitch, effectiveMinPitch, effectiveMaxPitch);
         }
 
         private void HandleZoom()
@@ -127,7 +139,11 @@ namespace Simulation.Camera
             if (Mathf.Abs(scroll) < 0.001f) return;
 
             _targetDistance -= scroll * zoomSensitivity * _currentDistance * 0.3f;
-            _targetDistance = Mathf.Clamp(_targetDistance, minDistance, maxDistance);
+
+            // จำกัดการ zoom เข้า-ออก (บังคับช่วงปลอดภัย 10 ถึง 60)
+            float effectiveMinDist = Mathf.Max(10f, minDistance);
+            float AssemblyMaxDist = Mathf.Min(60f, maxDistance);
+            _targetDistance = Mathf.Clamp(_targetDistance, effectiveMinDist, AssemblyMaxDist);
         }
 
         private void UpdateCameraPosition()

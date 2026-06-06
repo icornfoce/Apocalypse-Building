@@ -2248,11 +2248,7 @@ namespace Simulation.Building
             float x, z;
             if (placementType == StructureType.Wall || placementType == StructureType.Door)
             {
-                // Wall / Door: snap to grid EDGES (lines between cells)
-                // We snap based on the current rotation (manual via 'R' key)
-                // The wall revolves around the cell center in 4 directions
-                float currentRot = ghostBuilder != null ? ghostBuilder.CurrentRotation : 0f;
-                
+                // Wall / Door: snap to grid EDGES (lines between cells) based on mouse position relative to cell center
                 float offsetX = (gridColumns % 2 != 0) ? gridSize * 0.5f : 0f;
                 float offsetZ = (gridRows % 2 != 0) ? gridSize * 0.5f : 0f;
                 
@@ -2264,39 +2260,51 @@ namespace Simulation.Building
                 float centerX = leftEdge + gridSize * 0.5f;
                 float centerZ = bottomEdge + gridSize * 0.5f;
 
-                // Base position is the cell center
-                float baseStartX = centerX;
-                float baseStartZ = centerZ;
+                float dx = rawX - centerX;
+                float dz = rawZ - centerZ;
 
-                // Offset to the edges based on 4 directions
-                // 0: Left (-X), 90: Top (+Z), 180: Right (+X), 270: Bottom (-Z)
-                float rot = Mathf.Round(currentRot / 90f) * 90f;
-                float modRot = rot % 360f;
-                if (modRot < 0) modRot += 360f;
+                float targetRot = 0f;
 
-                if (Mathf.Abs(modRot - 0f) < 1f || Mathf.Abs(modRot - 360f) < 1f)
+                // Determine closest edge to the mouse cursor inside the cell
+                if (Mathf.Abs(dx) > Mathf.Abs(dz))
                 {
-                    // Left Edge
-                    x = leftEdge; 
-                    z = centerZ;
+                    if (dx < 0f)
+                    {
+                        // Left Edge
+                        x = leftEdge; 
+                        z = centerZ;
+                        targetRot = 0f;
+                    }
+                    else
+                    {
+                        // Right Edge
+                        x = rightEdge;
+                        z = centerZ;
+                        targetRot = 180f;
+                    }
                 }
-                else if (Mathf.Abs(modRot - 90f) < 1f)
+                else
                 {
-                    // Top Edge
-                    x = centerX;
-                    z = topEdge; 
+                    if (dz < 0f)
+                    {
+                        // Bottom Edge
+                        x = centerX;
+                        z = bottomEdge;
+                        targetRot = 270f;
+                    }
+                    else
+                    {
+                        // Top Edge
+                        x = centerX;
+                        z = topEdge; 
+                        targetRot = 90f;
+                    }
                 }
-                else if (Mathf.Abs(modRot - 180f) < 1f)
+
+                // Automatically update the ghost rotation to align with the snapped edge
+                if (ghostBuilder != null && !_isDragging)
                 {
-                    // Right Edge
-                    x = rightEdge;
-                    z = centerZ;
-                }
-                else // 270
-                {
-                    // Bottom Edge
-                    x = centerX;
-                    z = bottomEdge;
+                    ghostBuilder.SetRotation(targetRot);
                 }
 
                 // สำหรับ Door: ให้ลองหา Wall ที่ใกล้ที่สุดเพื่อ Snap เข้าหาโดยตรง (ช่วยให้วางง่ายขึ้น)

@@ -19,6 +19,9 @@ namespace Simulation.Building
         [Tooltip("ความแรงในการดึงโครงสร้างกลับมาแนวตั้งตรง")]
         public float restoringStrength = 15f;
 
+        [Tooltip("แรงดึงลงเพิ่มเติมเพื่อช่วยชดเชยอาการตึกตกช้าเวลาพังหรือเอียง (ยิ่งเยอะยิ่งตกเร็ว)")]
+        public float extraGravityCompensation = 5f;
+
         [Header("Pendulum References (จาก Prefab)")]
         [Tooltip("Transform ของเชือก — Auto-find 'Rope' ถ้าไม่ assign")]
         public Transform ropeTransform;
@@ -42,8 +45,14 @@ namespace Simulation.Building
         private ConfigurableJoint _pendulumJoint;
         private Rigidbody _pendulumRb;
 
-        private Vector3 _originalPendulumLocalPos;
-        private Quaternion _originalPendulumLocalRot;
+        private struct SavedTransform
+        {
+            public Transform transform;
+            public Vector3 localPos;
+            public Quaternion localRot;
+            public Rigidbody rb;
+        }
+        private List<SavedTransform> _savedTransforms = new List<SavedTransform>();
         private bool _hasSavedOriginalTransform = false;
         private bool _wasSimulatingLastFrame = false;
 
@@ -51,6 +60,12 @@ namespace Simulation.Building
         {
             AutoFindReferences();
             SaveOriginalPendulumTransform();
+            
+            // ล็อกตำแหน่งชิ้นส่วนทั้งหมดทันทีที่ถูกสร้างขึ้นมา (กันมันร่วงก่อนเริ่มจำลอง)
+            foreach (var st in _savedTransforms)
+            {
+                if (st.rb != null) st.rb.isKinematic = true;
+            }
         }
 
         private void OnEnable()
@@ -76,19 +91,21 @@ namespace Simulation.Building
 
             if (!isSimulating)
             {
-                if (pendulumTransform != null)
+                if (_hasSavedOriginalTransform)
                 {
-                    var rb = pendulumTransform.GetComponent<Rigidbody>();
-                    if (rb != null)
+                    foreach (var st in _savedTransforms)
                     {
-                        rb.isKinematic = true;
-                        rb.linearVelocity = Vector3.zero;
-                        rb.angularVelocity = Vector3.zero;
-                    }
-                    if (_hasSavedOriginalTransform)
-                    {
-                        pendulumTransform.localPosition = _originalPendulumLocalPos;
-                        pendulumTransform.localRotation = _originalPendulumLocalRot;
+                        if (st.rb != null)
+                        {
+                            st.rb.isKinematic = true;
+                            st.rb.linearVelocity = Vector3.zero;
+                            st.rb.angularVelocity = Vector3.zero;
+                        }
+                        if (st.transform != null)
+                        {
+                            st.transform.localPosition = st.localPos;
+                            st.transform.localRotation = st.localRot;
+                        }
                     }
                 }
             }
@@ -96,10 +113,33 @@ namespace Simulation.Building
 
         private void SaveOriginalPendulumTransform()
         {
-            if (pendulumTransform != null && !_hasSavedOriginalTransform)
+            if (!_hasSavedOriginalTransform)
             {
-                _originalPendulumLocalPos = pendulumTransform.localPosition;
-                _originalPendulumLocalRot = pendulumTransform.localRotation;
+                _savedTransforms.Clear();
+
+                if (ropeTransform != null)
+                {
+                    var rbs = ropeTransform.GetComponentsInChildren<Rigidbody>(true);
+                    foreach (var rb in rbs)
+                    {
+                        if (rb.gameObject == this.gameObject) continue;
+                        _savedTransforms.Add(new SavedTransform { transform = rb.transform, localPos = rb.transform.localPosition, localRot = rb.transform.localRotation, rb = rb });
+                    }
+                }
+
+                if (pendulumTransform != null)
+                {
+                    var rbs = pendulumTransform.GetComponentsInChildren<Rigidbody>(true);
+                    foreach (var rb in rbs)
+                    {
+                        if (rb.gameObject == this.gameObject) continue;
+                        if (!_savedTransforms.Exists(x => x.rb == rb))
+                        {
+                            _savedTransforms.Add(new SavedTransform { transform = rb.transform, localPos = rb.transform.localPosition, localRot = rb.transform.localRotation, rb = rb });
+                        }
+                    }
+                }
+
                 _hasSavedOriginalTransform = true;
             }
         }
@@ -108,28 +148,30 @@ namespace Simulation.Building
         {
             _isInitialized = false;
 
-            if (pendulumTransform != null && _hasSavedOriginalTransform)
+            if (_hasSavedOriginalTransform)
             {
-                // ลบ Joint เก่า
+                // ลบ Joint เก่าเฉพาะที่ถูกสร้างด้วยโค้ดตอน SetupPendulumJoint
                 if (_pendulumJoint != null)
                 {
                     DestroyImmediate(_pendulumJoint);
                     _pendulumJoint = null;
                 }
-                var joints = pendulumTransform.GetComponents<Joint>();
-                foreach (var j in joints) DestroyImmediate(j);
 
-                // รีเซ็ต Rigidbody
-                if (_pendulumRb != null)
+                // รีเซ็ตชิ้นส่วนทั้งหมด (16 joints หรือเท่าที่มี)
+                foreach (var st in _savedTransforms)
                 {
-                    _pendulumRb.linearVelocity = Vector3.zero;
-                    _pendulumRb.angularVelocity = Vector3.zero;
-                    _pendulumRb.isKinematic = true;
+                    if (st.rb != null)
+                    {
+                        st.rb.linearVelocity = Vector3.zero;
+                        st.rb.angularVelocity = Vector3.zero;
+                        st.rb.isKinematic = true;
+                    }
+                    if (st.transform != null)
+                    {
+                        st.transform.localPosition = st.localPos;
+                        st.transform.localRotation = st.localRot;
+                    }
                 }
-
-                // คืนตำแหน่งและการหมุนแบบ Local
-                pendulumTransform.localPosition = _originalPendulumLocalPos;
-                pendulumTransform.localRotation = _originalPendulumLocalRot;
             }
         }
 
@@ -205,6 +247,16 @@ namespace Simulation.Building
             _pendulumRb.isKinematic = false;
             _pendulumRb.interpolation = RigidbodyInterpolation.Interpolate;
 
+            // ปลดล็อก (isKinematic = false) ให้กับชิ้นส่วนเชือกทุกชิ้น (16 joints) ที่ถูกล็อกไว้
+            foreach (var st in _savedTransforms)
+            {
+                if (st.rb != null && st.rb != _pendulumRb)
+                {
+                    st.rb.isKinematic = false;
+                    st.rb.useGravity = true;
+                }
+            }
+
             // สั่งให้ Collider ของลูกตุ้มมองข้ามการชนกับโครงสร้างตึกทั้งหมดในฉาก (ป้องกันการดันกันเองทำให้ตลกลอยตัว/ตกช้า)
             Collider[] pendulumCols = pendulumTransform.GetComponentsInChildren<Collider>();
             StructureUnit[] allStructures = Object.FindObjectsByType<StructureUnit>(FindObjectsSortMode.None);
@@ -224,9 +276,15 @@ namespace Simulation.Building
                 }
             }
 
-            // ลบ Joint เก่าถ้ามี
+            // ลบ Joint เก่าถ้ามี (ลบเฉพาะ Joint บน pendulum ที่อาจตกค้าง แต่ไม่ลบลูกโซ่ของเชือก)
             var oldJoints = pendulumTransform.GetComponents<Joint>();
-            foreach (var j in oldJoints) DestroyImmediate(j);
+            foreach (var j in oldJoints)
+            {
+                // ป้องกันไม่ให้ไปทำลาย Joint ที่เป็นลูกโซ่เชื่อมกันเองใน Prefab
+                // ถ้า Joint ไม่ได้เชื่อมกับตัว TMD หลัก แสดงว่าอาจเป็น Joint ของเชือก ให้ข้ามไป
+                if (j.connectedBody != GetComponent<Rigidbody>()) continue;
+                DestroyImmediate(j);
+            }
 
             // ── สร้าง ConfigurableJoint ──
             _pendulumJoint = pendulumTransform.gameObject.AddComponent<ConfigurableJoint>();
@@ -397,6 +455,16 @@ namespace Simulation.Building
             if (!IsBuildingGrounded())
             {
                 return;
+            }
+
+            // 4. GRAVITY COMPENSATION: เพิ่มแรงดึงลงที่ตัว TMD เพื่อชดเชยอาการตกช้า (ดึงเฉพาะตัว TMD)
+            if (extraGravityCompensation > 0f)
+            {
+                Rigidbody myRb = GetComponent<Rigidbody>();
+                if (myRb != null)
+                {
+                    myRb.AddForce(Vector3.down * extraGravityCompensation, ForceMode.Acceleration);
+                }
             }
 
             for (int i = _connectedRigidbodies.Count - 1; i >= 0; i--)

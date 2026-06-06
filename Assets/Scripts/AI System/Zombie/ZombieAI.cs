@@ -72,6 +72,9 @@ namespace Simulation.Mission
 
         protected virtual void Start()
         {
+            _personAttackTimer = attackInterval;
+            _wallAttackTimer = attackInterval;
+
             // ตั้งค่า Agent
             if (_agent != null)
             {
@@ -96,6 +99,10 @@ namespace Simulation.Mission
         protected virtual void Update()
         {
             if (_isDead) return;
+
+            // Increment attack timers
+            _personAttackTimer += Time.deltaTime;
+            _wallAttackTimer += Time.deltaTime;
 
             // เช็คพื้นรองรับ เพื่อให้ตกลงมาถ้าพื้นพัง
             float rayDist = 0.8f;
@@ -243,7 +250,6 @@ namespace Simulation.Mission
 
         protected virtual void AttackPerson()
         {
-            _personAttackTimer += Time.deltaTime;
             if (_personAttackTimer >= attackInterval)
             {
                 _personAttackTimer = 0f;
@@ -303,7 +309,6 @@ namespace Simulation.Mission
                     lookDir.y = 0;
                     if (lookDir.sqrMagnitude > 0.001f) transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDir), Time.deltaTime * 5f);
 
-                    _wallAttackTimer += Time.deltaTime;
                     if (_wallAttackTimer >= attackInterval)
                     {
                         _wallAttackTimer = 0f;
@@ -345,14 +350,14 @@ namespace Simulation.Mission
             }
             else
             {
-                _wallAttackTimer = 0f;
+                _wallAttackTimer = attackInterval;
             }
         }
 
         protected virtual void ResetWallAttack(bool forceRecalculate)
         {
             _isAttackingWall = false;
-            _wallAttackTimer = 0f;
+            _wallAttackTimer = attackInterval;
             _lastAttackedWall = null;
 
             if (_agent != null && _agent.enabled && _agent.isOnNavMesh)

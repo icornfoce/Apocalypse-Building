@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
 using Simulation.Data;
+using TMPro;
 
 namespace Simulation.NPC
 {
@@ -41,12 +42,12 @@ namespace Simulation.NPC
         [Header("Skill Panel (ตอนจำลอง/คลิก NPC)")]
         [Tooltip("ตัว Panel แสดงสกิลและสถานะ NPC ในช่วงจำลอง")]
         [SerializeField] private GameObject skillPanel;
-        [SerializeField] private Text skillNPCNameText;
-        [SerializeField] private Text skillNPCHealthText;
-        [SerializeField] private Text skillNPCSkillText;
-        [SerializeField] private Text skillNPCStatusText;
+        [SerializeField] private TextMeshProUGUI skillNPCNameText;
+        [SerializeField] private TextMeshProUGUI skillNPCHealthText;
+        [SerializeField] private TextMeshProUGUI skillNPCSkillText;
+        [SerializeField] private TextMeshProUGUI skillNPCStatusText;
         [SerializeField] private Button skillNPCUseButton;
-        [SerializeField] private Image skillNPCHealthBar;
+        [SerializeField] private RawImage skillNPCHealthBar;
 
         // ── Runtime State ──
         private System.Action<NPCSkillData> _onSelected;
@@ -96,7 +97,11 @@ namespace Simulation.NPC
 
                 if (skillNPCHealthBar != null)
                 {
-                    skillNPCHealthBar.fillAmount = _currentNPC.HealthRatio;
+                    // RawImage does not support fillAmount, so we adjust its localScale X axis instead.
+                    Vector3 scale = skillNPCHealthBar.rectTransform.localScale;
+                    scale.x = _currentNPC.HealthRatio;
+                    skillNPCHealthBar.rectTransform.localScale = scale;
+                    
                     skillNPCHealthBar.color = Color.Lerp(Color.red, Color.green, _currentNPC.HealthRatio);
                 }
 
@@ -247,10 +252,18 @@ namespace Simulation.NPC
             {
                 skillNPCUseButton.interactable = !isPassive;
                 
-                var btnTextComp = skillNPCUseButton.GetComponentInChildren<Text>();
+                var btnTextComp = skillNPCUseButton.GetComponentInChildren<TextMeshProUGUI>();
                 if (btnTextComp != null)
                 {
                     btnTextComp.text = isPassive ? "สกิลอัตโนมัติ (Passive)" : "ใช้สกิล";
+                }
+                else
+                {
+                    var legacyText = skillNPCUseButton.GetComponentInChildren<Text>();
+                    if (legacyText != null)
+                    {
+                        legacyText.text = isPassive ? "สกิลอัตโนมัติ (Passive)" : "ใช้สกิล";
+                    }
                 }
 
                 skillNPCUseButton.onClick.RemoveAllListeners();

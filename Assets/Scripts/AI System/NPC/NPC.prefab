@@ -188,7 +188,7 @@ MonoBehaviour:
   countsTowardsPopulation: 1
   detectionRange: 7
   fleeSpeed: 4
-  panicVFXPrefab: {fileID: 5985634496115995773, guid: 463cf9f7af4680240898f6aeba3fe3e6, type: 3}
+  panicVFXPrefab: {fileID: 8414682718330250377, guid: 99ef0255061a84d4bb0ab81428d22d6f, type: 3}
 --- !u!114 &-4939892602739676498
 MonoBehaviour:
   m_ObjectHideFlags: 0

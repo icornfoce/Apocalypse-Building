@@ -392,7 +392,6 @@ namespace Simulation.Character
         {
             _isDead = true;
             if (_agent != null) _agent.enabled = false;
-            if (deathVFX != null) Instantiate(deathVFX, transform.position, Quaternion.identity);
 
             if (turnIntoZombie)
             {
@@ -401,6 +400,15 @@ namespace Simulation.Character
                     Simulation.Mission.MissionManager.Instance.SpawnNormalZombie(transform.position);
                 }
             }
+
+            var npcCtrl = GetComponent<Simulation.NPC.NPCController>();
+            if (npcCtrl != null && !npcCtrl.IsDead)
+            {
+                npcCtrl.TakeDamage(999999f);
+                return;
+            }
+
+            if (deathVFX != null) Instantiate(deathVFX, transform.position, Quaternion.identity);
             Destroy(gameObject);
         }
     }

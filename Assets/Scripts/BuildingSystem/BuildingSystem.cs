@@ -506,17 +506,29 @@ namespace Simulation.Building
             LayerMask combinedMask = groundLayer | structureLayer;
             Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
 
-            // ใช้ SphereCastAll (รัศมีเล็กๆ เพื่อจับขอบ Floor บางได้)
+            // 1. Try precise Raycast first to get clean, pixel-perfect hit points and normals
+            RaycastHit preciseHit;
+            bool hitPrecise = UnityEngine.Physics.Raycast(ray, out preciseHit, 500f, combinedMask, QueryTriggerInteraction.Collide);
+            var occluded = _cameraController != null ? _cameraController.OccludedColliders : null;
+
+            bool preciseHitValidStructure = hitPrecise 
+                && (occluded == null || !occluded.Contains(preciseHit.collider))
+                && preciseHit.collider.GetComponentInParent<StructureUnit>() != null;
+
+            if (preciseHitValidStructure)
+            {
+                _currentHitPos      = preciseHit.point;
+                _currentHitNormal   = SnapToCardinal(preciseHit.normal);
+                _currentHitCollider = preciseHit.collider;
+                _hasValidTarget     = true;
+                return;
+            }
+
+            // 2. Fallback to SphereCast only if precise raycast missed or hit the ground
             float castRadius = gridSize * 0.15f;
             RaycastHit[] hits = UnityEngine.Physics.SphereCastAll(ray, castRadius, 500f, combinedMask, QueryTriggerInteraction.Collide);
             System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
 
-            // อ่านชุด occluded colliders จากกล้อง (ถ้ามี)
-            var occluded = _cameraController != null ? _cameraController.OccludedColliders : null;
-
-            // ── ให้ความสำคัญ Structure มากกว่า Ground ──
-            // ถ้ามีทั้ง Structure hit และ Ground hit → เลือก Structure ก่อน
-            // เพื่อแก้ปัญหา Floor บาง → Ray ทะลุไปชนพื้นดินก่อน
             RaycastHit? bestStructureHit = null;
             RaycastHit? bestGroundHit = null;
 
@@ -535,19 +547,37 @@ namespace Simulation.Building
                     bestGroundHit = hit;
                 }
 
-                // หยุดค้นหาเมื่อเจอทั้งสองแบบแล้ว
                 if (bestStructureHit != null && bestGroundHit != null) break;
             }
 
-            // เลือก Structure hit ก่อน ถ้ามี (แม้จะไกลกว่าพื้นดินนิดหน่อย)
-            RaycastHit? chosen = bestStructureHit ?? bestGroundHit;
+            RaycastHit? chosen = bestStructureHit ?? (hitPrecise ? (RaycastHit?)preciseHit : bestGroundHit);
 
             if (chosen.HasValue)
             {
                 _currentHitPos      = chosen.Value.point;
-                _currentHitNormal   = chosen.Value.normal;
+                _currentHitNormal   = SnapToCardinal(chosen.Value.normal);
                 _currentHitCollider = chosen.Value.collider;
                 _hasValidTarget     = true;
+            }
+        }
+
+        private Vector3 SnapToCardinal(Vector3 normal)
+        {
+            float absX = Mathf.Abs(normal.x);
+            float absY = Mathf.Abs(normal.y);
+            float absZ = Mathf.Abs(normal.z);
+
+            if (absY > absX && absY > absZ)
+            {
+                return new Vector3(0f, Mathf.Sign(normal.y), 0f);
+            }
+            else if (absX > absZ)
+            {
+                return new Vector3(Mathf.Sign(normal.x), 0f, 0f);
+            }
+            else
+            {
+                return new Vector3(0f, 0f, Mathf.Sign(normal.z));
             }
         }
 
@@ -2391,7 +2421,27 @@ namespace Simulation.Building
 
             y += _pivotToBottomOffset;
 
-            return new Vector3(x, y, z);
+            Vector3 resultPos = new Vector3(x, y, z);
+
+            // Stack/push up vertically if this exact cell position is already occupied by the same structure data
+            if (activeData != null && activeData.structureType != StructureType.Gadget)
+            {
+                float yStep = heightStep > 0f ? heightStep : gridSize;
+                int maxIterations = 50; // Safety cap to prevent infinite loop
+                for (int i = 0; i < maxIterations; i++)
+                {
+                    if (IsAlreadyOccupiedBySame(resultPos, ghostBuilder != null ? ghostBuilder.CurrentRotation : 0f, activeData))
+                    {
+                        resultPos.y += yStep;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+            }
+
+            return resultPos;
         }
 
         // ── Snap helpers ──────────────────────────────────────────────
@@ -2876,10 +2926,7 @@ namespace Simulation.Building
 
                 StructureUnit hitUnit = hitCollider.GetComponentInParent<StructureUnit>();
                 if (hitUnit == null || hitUnit.Data == null || hitUnit.Data.structureType != StructureType.Floor) return false;
-
-                // ต้องอยู่บนชั้น 2 ขึ้นไปเท่านั้น
-                int floor = GetFloorFromY(hitUnit.transform.position.y);
-                if (floor < 2) return false;
+                // (เงื่อนไขระดับชั้นที่ 2 ถูกนำออกตามต้องการเพื่อให้สร้างบนชั้นใดก็ได้)
 
                 // ตรวจสอบว่ามีพื้น (Floor) อยู่ตรงด้านบนของตำแหน่งที่จะวางจริงหรือไม่
                 float pivotToTop = GetPivotToTopOffset(data.prefab);

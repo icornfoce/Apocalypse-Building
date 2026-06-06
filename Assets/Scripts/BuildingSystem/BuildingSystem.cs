@@ -506,16 +506,25 @@ namespace Simulation.Building
             LayerMask combinedMask = groundLayer | structureLayer;
             Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
 
+            // คำนวณ Floor Plane สำหรับชั้นปัจจุบัน (เพื่อให้ข้ามการวางของชั้นที่ต่ำกว่า)
+            float currentFloorY = GetFloorY(_currentFloor);
+            Plane floorPlane = new Plane(Vector3.up, new Vector3(0, currentFloorY, 0));
+            float enter;
+            bool hitPlane = floorPlane.Raycast(ray, out enter);
+            Vector3 planeHitPos = hitPlane ? ray.GetPoint(enter) : Vector3.zero;
+
             // 1. Try precise Raycast first to get clean, pixel-perfect hit points and normals
             RaycastHit preciseHit;
             bool hitPrecise = UnityEngine.Physics.Raycast(ray, out preciseHit, 500f, combinedMask, QueryTriggerInteraction.Collide);
             var occluded = _cameraController != null ? _cameraController.OccludedColliders : null;
 
+            bool ignorePreciseHit = hitPrecise && preciseHit.point.y < currentFloorY - 0.1f;
+
             bool preciseHitValidStructure = hitPrecise 
                 && (occluded == null || !occluded.Contains(preciseHit.collider))
                 && preciseHit.collider.GetComponentInParent<StructureUnit>() != null;
 
-            if (preciseHitValidStructure)
+            if (preciseHitValidStructure && !ignorePreciseHit)
             {
                 _currentHitPos      = preciseHit.point;
                 _currentHitNormal   = SnapToCardinal(preciseHit.normal);
@@ -535,6 +544,7 @@ namespace Simulation.Building
             foreach (var hit in hits)
             {
                 if (occluded != null && occluded.Contains(hit.collider)) continue;
+                if (hit.point.y < currentFloorY - 0.1f) continue; // ข้ามการชนกับวัตถุที่อยู่ต่ำกว่าชั้นปัจจุบัน
 
                 bool isStructure = hit.collider.GetComponentInParent<StructureUnit>() != null;
 
@@ -550,13 +560,21 @@ namespace Simulation.Building
                 if (bestStructureHit != null && bestGroundHit != null) break;
             }
 
-            RaycastHit? chosen = bestStructureHit ?? (hitPrecise ? (RaycastHit?)preciseHit : bestGroundHit);
+            RaycastHit? chosen = bestStructureHit ?? ((hitPrecise && !ignorePreciseHit) ? (RaycastHit?)preciseHit : bestGroundHit);
 
             if (chosen.HasValue)
             {
                 _currentHitPos      = chosen.Value.point;
                 _currentHitNormal   = SnapToCardinal(chosen.Value.normal);
                 _currentHitCollider = chosen.Value.collider;
+                _hasValidTarget     = true;
+            }
+            else if (hitPlane)
+            {
+                // Fallback ยิงเข้าหา Plane ของชั้นปัจจุบัน (กรณีคลิกโดนอากาศ หรือของชั้นต่ำกว่า)
+                _currentHitPos      = planeHitPos;
+                _currentHitNormal   = Vector3.up;
+                _currentHitCollider = null;
                 _hasValidTarget     = true;
             }
         }
@@ -1689,6 +1707,9 @@ namespace Simulation.Building
 
         private void AttachJoint(GameObject structureObj, Collider targetCollider)
         {
+            // Sync physics transforms immediately to ensure newly activated objects have valid bounds in world space
+            UnityEngine.Physics.SyncTransforms();
+
             Rigidbody newRb = structureObj.GetComponent<Rigidbody>();
             if (newRb == null) return;
 
@@ -1747,18 +1768,34 @@ namespace Simulation.Building
                 // but we must ignore our own colliders.
                 Vector3 rayStart = structureObj.transform.position - new Vector3(0, pivotToBottom - 0.1f, 0);
 
-                // ใช้ BoxCast แทน Raycast เพื่อเพิ่มพื้นที่ตรวจจับฐานด้านล่าง (สำคัญมากสำหรับพื้นที่อยู่บนขอบกำแพง)
-                Collider myCol = structureObj.GetComponentInChildren<Collider>();
-                Vector3 boxHalfExtents = myCol != null ? myCol.bounds.extents : new Vector3(0.5f, 0.05f, 0.5f);
+                // ใช้ BoxCollider ท้องถิ่น (Local) เพื่อความแน่นอนของขนาดเมื่อเพิ่ง instantiated
+                Vector3 boxHalfExtents = new Vector3(0.5f, 0.05f, 0.5f);
+                BoxCollider myBoxCol = structureObj.GetComponentInChildren<BoxCollider>(true);
+                if (myBoxCol != null)
+                {
+                    boxHalfExtents = Vector3.Scale(myBoxCol.size, myBoxCol.transform.lossyScale) * 0.5f;
+                }
+                else
+                {
+                    Collider myCol = structureObj.GetComponentInChildren<Collider>(true);
+                    if (myCol != null)
+                    {
+                        boxHalfExtents = myCol.bounds.extents;
+                    }
+                }
+
                 boxHalfExtents.y = 0.05f; // ทำให้บางในแนวตั้งเพื่อหาแผ่นรองรับ
                 boxHalfExtents.x = Mathf.Max(0.05f, boxHalfExtents.x - 0.02f); // หดขอบเล็กน้อยมากๆ เท่านั้น เพื่อไม่ให้พลาดเสา/คานที่ขอบ
                 boxHalfExtents.z = Mathf.Max(0.05f, boxHalfExtents.z - 0.02f);
+
+                // หมุนตาม structureObj เพื่อให้ตรงแนวกับวัตถุพอดี (ช่วยให้ตรวจจับถูกต้องทุกองศาการหมุน)
+                Quaternion boxRotation = structureObj.transform.rotation;
 
                 RaycastHit[] hits = UnityEngine.Physics.BoxCastAll(
                     rayStart, 
                     boxHalfExtents, 
                     Vector3.down, 
-                    Quaternion.identity, 
+                    boxRotation, 
                     0.4f, 
                     groundLayer | structureLayer
                 );
@@ -1772,6 +1809,32 @@ namespace Simulation.Building
 
                     actualTarget = hit.collider;
                     break;
+                }
+
+                // Fallback พิเศษสำหรับพื้นดินที่ระดับ Y=0 (ยิง BoxCast ตรวจจับเฉพาะชั้น groundLayer เพื่อความชัวร์)
+                if (actualTarget == null)
+                {
+                    float bottomY = structureObj.transform.position.y - pivotToBottom;
+                    if (bottomY < 0.2f)
+                    {
+                        RaycastHit groundHit;
+                        Vector3 fallbackRayStart = new Vector3(structureObj.transform.position.x, bottomY + 0.2f, structureObj.transform.position.z);
+                        Vector3 fallbackHalfExtents = boxHalfExtents;
+                        fallbackHalfExtents.y = 0.05f;
+                        
+                        if (UnityEngine.Physics.BoxCast(
+                            fallbackRayStart,
+                            fallbackHalfExtents,
+                            Vector3.down,
+                            out groundHit,
+                            boxRotation,
+                            0.5f,
+                            groundLayer
+                        ))
+                        {
+                            actualTarget = groundHit.collider;
+                        }
+                    }
                 }
             }
 
@@ -1828,39 +1891,7 @@ namespace Simulation.Building
             var targetUnit = actualTarget.GetComponentInParent<StructureUnit>();
             if (targetUnit != null)
             {
-                // บล็อกการเชื่อมต่อกำแพงกับพื้นในแนวแกน Z สำหรับการต่อหลัก (AttachJoint)
-                bool isWall = newUnit.Data.structureType == StructureType.Wall;
-                bool isFloor = targetUnit.Data.structureType == StructureType.Floor;
-                bool isOtherWall = targetUnit.Data.structureType == StructureType.Wall;
-                bool isOtherFloor = newUnit.Data.structureType == StructureType.Floor;
-                bool isWallFloorConnection = (isWall && isFloor) || (isOtherWall && isOtherFloor);
-
-                if (isWallFloorConnection)
-                {
-                    float bottomY1 = structureObj.transform.position.y - GetPivotToBottomOffset(newUnit.Data, structureObj);
-                    float bottomY2 = targetUnit.transform.position.y - GetPivotToBottomOffset(targetUnit.Data, targetUnit.gameObject);
-                    bool onSameLevel = Mathf.Abs(bottomY1 - bottomY2) < 1.5f;
-
-                    if (onSameLevel)
-                    {
-                        StructureUnit wallUnit = isWall ? newUnit : targetUnit;
-                        StructureUnit floorUnit = isWall ? targetUnit : newUnit;
-                        Vector3 diff = floorUnit.transform.position - wallUnit.transform.position;
-                        diff.y = 0f;
-                        Vector3 localDiff = wallUnit.transform.InverseTransformDirection(diff);
-
-                        // ห้ามเชื่อมต่อกำแพงกับพื้นในแนวแกน Z
-                        if (Mathf.Abs(localDiff.z) > Mathf.Abs(localDiff.x))
-                        {
-                            actualTarget = null;
-                        }
-                    }
-                }
-
-                if (actualTarget != null)
-                {
-                    targetRb = targetUnit.GetComponent<Rigidbody>();
-                }
+                targetRb = targetUnit.GetComponent<Rigidbody>();
             }
 
             // Fallback to searching up the hierarchy
@@ -1962,42 +1993,120 @@ namespace Simulation.Building
                     }
                 }
 
+                // 3.5 กรองแนวทแยงทางราบออกอย่างเด็ดขาด (ถ้ามีทั้ง X และ Z เบี่ยงเบนเกินระยะครึ่งช่องตารางขึ้นไป)
+                Vector3 centerDiff = unit.transform.position - newUnit.transform.position;
+                if (Mathf.Abs(centerDiff.x) > gridSize * 0.6f && Mathf.Abs(centerDiff.z) > gridSize * 0.6f)
+                {
+                    continue;
+                }
+
                 bool isAdjacent = false;
                 Collider[] otherColliders = unit.GetComponentsInChildren<Collider>();
 
-                // ใช้ Bounds Expansion ในการเช็คว่าของอยู่ติดกันหรือไม่
-                // วิธีนี้รองรับชิ้นส่วนทุกขนาด (ช่วยแก้ปัญหา Connected body ไม่ยอมต่อกับของที่กว้างกว่า 1 ช่อง)
-                foreach (var myCol in myColliders)
+                bool isNewWallLike = newUnit.Data.structureType == StructureType.Wall || newUnit.Data.structureType == StructureType.Door;
+                bool isOtherWallLike = unit.Data.structureType == StructureType.Wall || unit.Data.structureType == StructureType.Door;
+
+                if (isNewWallLike && isOtherWallLike)
                 {
-                    Bounds myB = myCol.bounds;
-                    foreach (var otherCol in otherColliders)
+                    // Strict geometric check for wall-to-wall adjacency to prevent diagonal connections
+                    foreach (var myCol in myColliders)
                     {
-                        Bounds otherB = otherCol.bounds;
-                        
-                        // 1. เช็คเบื้องต้นว่า Bounds แตะกันหรือไม่ (รวมระยะ Expand)
-                        Bounds expanded = myB;
-                        expanded.Expand(0.3f); // เพิ่มระยะเล็กน้อยให้หาเจอเจอง่ายขึ้น
-                        if (!expanded.Intersects(otherB)) continue;
-
-                        // 2. กรอง "แนวทแยง" ออก:
-                        // เพื่อนบ้านที่ติดกันจริงๆ (Face-to-face) ต้องมีแกนที่ "ซ้อนทับ" กันอย่างน้อย 2 แกน
-                        int overlapCount = 0;
-                        float eps = 0.01f; // ลดค่าความคลาดเคลื่อนลงให้รองรับของบางๆ ได้
-                        
-                        Vector3 diff = myB.center - otherB.center;
-                        Vector3 sumSize = (myB.size + otherB.size) * 0.5f;
-
-                        if (Mathf.Abs(diff.x) < sumSize.x - eps) overlapCount++;
-                        if (Mathf.Abs(diff.y) < sumSize.y - eps) overlapCount++;
-                        if (Mathf.Abs(diff.z) < sumSize.z - eps) overlapCount++;
-
-                        if (overlapCount >= 2)
+                        Bounds myB = myCol.bounds;
+                        foreach (var otherCol in otherColliders)
                         {
-                            isAdjacent = true;
-                            break;
+                            Bounds otherB = otherCol.bounds;
+                            
+                            // Check if they are close enough vertically first
+                            if (Mathf.Abs(myB.center.y - otherB.center.y) > (myB.size.y + otherB.size.y) * 0.5f + 0.5f)
+                                continue;
+
+                            bool newHorizontal = Mathf.Abs(newUnit.Rotation % 180f) > 45f;
+                            bool otherHorizontal = Mathf.Abs(unit.Rotation % 180f) > 45f;
+
+                            Vector3 newPos = newUnit.transform.position;
+                            Vector3 otherPos = unit.transform.position;
+
+                            float lenNew = Mathf.Max(myB.size.x, myB.size.z);
+                            float lenOther = Mathf.Max(otherB.size.x, otherB.size.z);
+                            float halfLenNew = lenNew * 0.5f;
+                            float halfLenOther = lenOther * 0.5f;
+
+                            bool wallsShouldConnect = false;
+                            float tol = 0.15f;
+
+                            if (newHorizontal == otherHorizontal)
+                            {
+                                if (newHorizontal)
+                                {
+                                    bool sameZ = Mathf.Abs(newPos.z - otherPos.z) < tol;
+                                    bool adjacentX = Mathf.Abs(newPos.x - otherPos.x) <= (halfLenNew + halfLenOther + tol);
+                                    if (sameZ && adjacentX) wallsShouldConnect = true;
+                                }
+                                else
+                                {
+                                    bool sameX = Mathf.Abs(newPos.x - otherPos.x) < tol;
+                                    bool adjacentZ = Mathf.Abs(newPos.z - otherPos.z) <= (halfLenNew + halfLenOther + tol);
+                                    if (sameX && adjacentZ) wallsShouldConnect = true;
+                                }
+                            }
+                            else
+                            {
+                                Vector3 vertPos = newHorizontal ? otherPos : newPos;
+                                Vector3 horizPos = newHorizontal ? newPos : otherPos;
+                                float halfLenVert = newHorizontal ? halfLenOther : halfLenNew;
+                                float halfLenHoriz = newHorizontal ? halfLenNew : halfLenOther;
+
+                                bool vertCovers = Mathf.Abs(horizPos.z - vertPos.z) <= (halfLenVert + tol);
+                                bool horizCovers = Mathf.Abs(vertPos.x - horizPos.x) <= (halfLenHoriz + tol);
+
+                                if (vertCovers && horizCovers) wallsShouldConnect = true;
+                            }
+
+                            if (wallsShouldConnect)
+                            {
+                                isAdjacent = true;
+                                break;
+                            }
                         }
+                        if (isAdjacent) break;
                     }
-                    if (isAdjacent) break;
+                }
+                else
+                {
+                    // ใช้ Bounds Expansion ในการเช็คว่าของอยู่ติดกันหรือไม่
+                    // วิธีนี้รองรับชิ้นส่วนทุกขนาด (ช่วยแก้ปัญหา Connected body ไม่ยอมต่อกับของที่กว้างกว่า 1 ช่อง)
+                    foreach (var myCol in myColliders)
+                    {
+                        Bounds myB = myCol.bounds;
+                        foreach (var otherCol in otherColliders)
+                        {
+                            Bounds otherB = otherCol.bounds;
+                            
+                            // 1. เช็คเบื้องต้นว่า Bounds แตะกันหรือไม่ (รวมระยะ Expand)
+                            Bounds expanded = myB;
+                            expanded.Expand(0.3f); // เพิ่มระยะเล็กน้อยให้หาเจอเจอง่ายขึ้น
+                            if (!expanded.Intersects(otherB)) continue;
+
+                            // 2. กรอง "แนวทแยง" ออก:
+                            // เพื่อนบ้านที่ติดกันจริงๆ (Face-to-face) ต้องมีแกนที่ "ซ้อนทับ" กันอย่างน้อย 2 แกน
+                            int overlapCount = 0;
+                            float eps = 0.01f; // ลดค่าความคลาดเคลื่อนลงให้รองรับของบางๆ ได้
+                            
+                            Vector3 diff = myB.center - otherB.center;
+                            Vector3 sumSize = (myB.size + otherB.size) * 0.5f;
+
+                            if (Mathf.Abs(diff.x) < sumSize.x - eps) overlapCount++;
+                            if (Mathf.Abs(diff.y) < sumSize.y - eps) overlapCount++;
+                            if (Mathf.Abs(diff.z) < sumSize.z - eps) overlapCount++;
+
+                            if (overlapCount >= 2)
+                            {
+                                isAdjacent = true;
+                                break;
+                            }
+                        }
+                        if (isAdjacent) break;
+                    }
                 }
 
                 if (!isAdjacent) continue;

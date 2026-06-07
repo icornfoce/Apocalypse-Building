@@ -46,6 +46,20 @@ namespace Simulation.Building
         private ConfigurableJoint _pendulumJoint;
         private Rigidbody _pendulumRb;
 
+        // ตัวแปรสำหรับ Backup เชือกและลูกตุ้มเพื่อกู้คืนเมื่อซิมพัง/รีเซ็ต
+        private GameObject _ropeBackup;
+        private GameObject _pendulumBackup;
+        private Transform _ropeOriginalParent;
+        private Vector3 _ropeOriginalLocalPos;
+        private Quaternion _ropeOriginalLocalRot;
+        private Vector3 _ropeOriginalLocalScale;
+        private Transform _pendulumOriginalParent;
+        private Vector3 _pendulumOriginalLocalPos;
+        private Quaternion _pendulumOriginalLocalRot;
+        private Vector3 _pendulumOriginalLocalScale;
+        private string _pendulumOriginalName;
+        private bool _isPendulumChildOfRope;
+
         private struct SavedTransform
         {
             public Transform transform;
@@ -119,38 +133,87 @@ namespace Simulation.Building
         {
             if (!_hasSavedOriginalTransform)
             {
-                _savedTransforms.Clear();
-
+                // 1. บันทึกข้อมูลตำแหน่ง พ่อ และสเกลเริ่มต้น
                 if (ropeTransform != null)
                 {
-                    var rbs = ropeTransform.GetComponentsInChildren<Rigidbody>(true);
-                    foreach (var rb in rbs)
-                    {
-                        if (rb.gameObject == this.gameObject) continue;
-                        
-                        _savedTransforms.Add(new SavedTransform { 
-                            transform = rb.transform, 
-                            localPos = rb.transform.localPosition, 
-                            localRot = rb.transform.localRotation, 
-                            rb = rb
-                        });
-                    }
+                    _ropeOriginalParent = ropeTransform.parent;
+                    _ropeOriginalLocalPos = ropeTransform.localPosition;
+                    _ropeOriginalLocalRot = ropeTransform.localRotation;
+                    _ropeOriginalLocalScale = ropeTransform.localScale;
                 }
 
                 if (pendulumTransform != null)
                 {
-                    var rbs = pendulumTransform.GetComponentsInChildren<Rigidbody>(true);
-                    foreach (var rb in rbs)
-                    {
-                        if (rb.gameObject == this.gameObject) continue;
-                        if (!_savedTransforms.Exists(x => x.rb == rb))
-                        {
-                            _savedTransforms.Add(new SavedTransform { transform = rb.transform, localPos = rb.transform.localPosition, localRot = rb.transform.localRotation, rb = rb });
-                        }
-                    }
+                    _pendulumOriginalParent = pendulumTransform.parent;
+                    _pendulumOriginalLocalPos = pendulumTransform.localPosition;
+                    _pendulumOriginalLocalRot = pendulumTransform.localRotation;
+                    _pendulumOriginalLocalScale = pendulumTransform.localScale;
+                    _pendulumOriginalName = pendulumTransform.name;
                 }
 
+                if (ropeTransform != null && pendulumTransform != null)
+                {
+                    _isPendulumChildOfRope = pendulumTransform.IsChildOf(ropeTransform);
+                }
+
+                // 2. สร้างวัตถุสำรอง (Backup) ไว้ใต้ TMD เพื่อคัดลอกคืนยามเริ่มซิมใหม่
+                if (ropeTransform != null)
+                {
+                    _ropeBackup = Instantiate(ropeTransform.gameObject, this.transform);
+                    _ropeBackup.name = ropeTransform.name + "_Backup";
+                    _ropeBackup.SetActive(false);
+                }
+
+                if (pendulumTransform != null && !_isPendulumChildOfRope)
+                {
+                    _pendulumBackup = Instantiate(pendulumTransform.gameObject, this.transform);
+                    _pendulumBackup.name = pendulumTransform.name + "_Backup";
+                    _pendulumBackup.SetActive(false);
+                }
+
+                // 3. บันทึกรายการ Transforms และ Rigidbody ที่ใช้งานอยู่
+                RebuildSavedTransformsList();
+
                 _hasSavedOriginalTransform = true;
+            }
+        }
+
+        private void RebuildSavedTransformsList()
+        {
+            _savedTransforms.Clear();
+
+            if (ropeTransform != null)
+            {
+                var rbs = ropeTransform.GetComponentsInChildren<Rigidbody>(true);
+                foreach (var rb in rbs)
+                {
+                    if (rb.gameObject == this.gameObject) continue;
+                    
+                    _savedTransforms.Add(new SavedTransform { 
+                        transform = rb.transform, 
+                        localPos = rb.transform.localPosition, 
+                        localRot = rb.transform.localRotation, 
+                        rb = rb
+                    });
+                }
+            }
+
+            if (pendulumTransform != null)
+            {
+                var rbs = pendulumTransform.GetComponentsInChildren<Rigidbody>(true);
+                foreach (var rb in rbs)
+                {
+                    if (rb.gameObject == this.gameObject) continue;
+                    if (!_savedTransforms.Exists(x => x.rb == rb))
+                    {
+                        _savedTransforms.Add(new SavedTransform { 
+                            transform = rb.transform, 
+                            localPos = rb.transform.localPosition, 
+                            localRot = rb.transform.localRotation, 
+                            rb = rb 
+                        });
+                    }
+                }
             }
         }
 
@@ -167,27 +230,75 @@ namespace Simulation.Building
                     _pendulumJoint = null;
                 }
 
-                // รีเซ็ตชิ้นส่วนทั้งหมด (16 joints หรือเท่าที่มี)
+                // 1. ทำลายเชือกและลูกตุ้มตัวปัจจุบันที่อาจพัง/กระจัดกระจายไปแล้ว
+                if (ropeTransform != null)
+                {
+                    ropeTransform.gameObject.name = "Rope_Destroying";
+                    if (Application.isPlaying) Destroy(ropeTransform.gameObject);
+                    else DestroyImmediate(ropeTransform.gameObject);
+                    ropeTransform = null;
+                }
+                if (pendulumTransform != null)
+                {
+                    pendulumTransform.gameObject.name = "Pendulum_Destroying";
+                    if (Application.isPlaying) Destroy(pendulumTransform.gameObject);
+                    else DestroyImmediate(pendulumTransform.gameObject);
+                    pendulumTransform = null;
+                }
+
+                // 2. สร้างใหม่จากตัวสำรอง (Backup) เพื่อให้ได้เชือกที่มี ConfigurableJoint สมบูรณ์เหมือนเดิมร้อยเปอร์เซ็นต์
+                if (_ropeBackup != null)
+                {
+                    GameObject newRope = Instantiate(_ropeBackup, _ropeOriginalParent);
+                    newRope.name = _ropeBackup.name.Replace("_Backup", "");
+                    newRope.transform.localPosition = _ropeOriginalLocalPos;
+                    newRope.transform.localRotation = _ropeOriginalLocalRot;
+                    newRope.transform.localScale = _ropeOriginalLocalScale;
+                    newRope.SetActive(true);
+                    ropeTransform = newRope.transform;
+                }
+
+                if (_pendulumBackup != null)
+                {
+                    GameObject newPendulum = Instantiate(_pendulumBackup, _pendulumOriginalParent);
+                    newPendulum.name = _pendulumBackup.name.Replace("_Backup", "");
+                    newPendulum.transform.localPosition = _pendulumOriginalLocalPos;
+                    newPendulum.transform.localRotation = _pendulumOriginalLocalRot;
+                    newPendulum.transform.localScale = _pendulumOriginalLocalScale;
+                    newPendulum.SetActive(true);
+                    pendulumTransform = newPendulum.transform;
+                }
+                else if (_ropeBackup != null && _isPendulumChildOfRope)
+                {
+                    // หากลูกตุ้มเป็นลูกของเชือก ให้ค้นหาจากเชือกอันใหม่ที่สร้างขึ้นมา
+                    pendulumTransform = FindChildRecursive(ropeTransform, _pendulumOriginalName);
+                }
+
+                // 3. ปรับปรุงรายการ Saved Transforms ให้ชี้ไปยังวัตถุและ Rigidbody ตัวใหม่ที่ถูกโคลน
+                RebuildSavedTransformsList();
+
+                // 4. ล็อกชิ้นส่วนทั้งหมดให้คงที่ (isKinematic = true) ป้องกันมันร่วงก่อนกดเริ่มซิม
                 foreach (var st in _savedTransforms)
                 {
                     if (st.rb != null)
                     {
-                        if (!st.rb.isKinematic)
-                        {
-                            st.rb.linearVelocity = Vector3.zero;
-                            st.rb.angularVelocity = Vector3.zero;
-                            st.rb.isKinematic = true;
-                        }
-
-                        // ไม่ทำการคืนชีพ Joint เนื่องจากไม่ได้บันทึกข้อมูล Joint
-                    }
-                    if (st.transform != null)
-                    {
-                        st.transform.localPosition = st.localPos;
-                        st.transform.localRotation = st.localRot;
+                        st.rb.linearVelocity = Vector3.zero;
+                        st.rb.angularVelocity = Vector3.zero;
+                        st.rb.isKinematic = true;
                     }
                 }
             }
+        }
+
+        private Transform FindChildRecursive(Transform parent, string name)
+        {
+            if (parent.name == name) return parent;
+            foreach (Transform child in parent)
+            {
+                Transform result = FindChildRecursive(child, name);
+                if (result != null) return result;
+            }
+            return null;
         }
 
         /// <summary>

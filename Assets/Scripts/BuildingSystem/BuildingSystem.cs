@@ -1682,6 +1682,20 @@ namespace Simulation.Building
             }
         }
 
+        /// <summary>
+        /// พยายามผูก Joint ใหม่ให้ชิ้นที่ "เสียตัวค้ำ" ระหว่างจำลอง (เช่น พื้น/ตัวค้ำพัง)
+        /// คืน true ถ้าหาจุดยึดใหม่ได้ (พื้น/ground/เพื่อนบ้านที่ยังเหลือ), false ถ้าไม่มีที่ยึดเหลือจริงๆ
+        /// ใช้ preserveGroundAnchor:false เพื่อไม่ให้สร้าง "สมอยึดพื้นปลอม" — ต้องเจอ support จริงเท่านั้น
+        /// </summary>
+        public bool TryReattachJoint(GameObject obj)
+        {
+            if (obj == null) return false;
+            UnityEngine.Physics.SyncTransforms();
+            AttachJoint(obj, null, false);
+            AttachSideJoints(obj);
+            return obj.GetComponent<Joint>() != null;
+        }
+
         private void ConfirmMove(Vector3 position, float rotation, Collider targetCollider = null)
         {
             Vector3 oldPos = _moveOriginalPos;
@@ -1725,7 +1739,7 @@ namespace Simulation.Building
             RecalculateMaxFloor();
         }
 
-        private void AttachJoint(GameObject structureObj, Collider targetCollider)
+        private void AttachJoint(GameObject structureObj, Collider targetCollider, bool preserveGroundAnchor = true)
         {
             // Sync physics transforms immediately to ensure newly activated objects have valid bounds in world space
             UnityEngine.Physics.SyncTransforms();
@@ -1913,7 +1927,7 @@ namespace Simulation.Building
             if (actualTarget == null)
             {
                 // หาจุดยึดใหม่ไม่เจอ แต่เดิมเคยยึดพื้นไว้ → คงสมอยึดพื้น (ground anchor) ไว้ ไม่ตัดทิ้ง
-                if (hadGroundAnchor)
+                if (hadGroundAnchor && preserveGroundAnchor)
                 {
                     FixedJoint keepGround = structureObj.AddComponent<FixedJoint>();
                     keepGround.connectedBody = null; // null = ยึดกับโลก (พื้น)
@@ -1946,6 +1960,13 @@ namespace Simulation.Building
                 isGround = true;
             }
 
+            // ไม่ให้โครงสร้างอื่นมายึดกับ Gadget (Gadget เป็นจุดยึดให้ใครไม่ได้ — มีได้แค่ Joint หลักของตัวเอง)
+            if (targetUnit != null && targetUnit.Data != null && targetUnit.Data.isGadget)
+            {
+                targetRb = null;
+                if (!isGround) actualTarget = null;
+            }
+
             // 4. Safety Check: Cannot connect to itself
             if (targetRb == newRb)
             {
@@ -1958,7 +1979,7 @@ namespace Simulation.Building
             if (actualTarget == null)
             {
                 // หาจุดยึดใหม่ไม่เจอ แต่เดิมเคยยึดพื้นไว้ → คงสมอยึดพื้น (ground anchor) ไว้ ไม่ตัดทิ้ง
-                if (hadGroundAnchor)
+                if (hadGroundAnchor && preserveGroundAnchor)
                 {
                     FixedJoint keepGround = structureObj.AddComponent<FixedJoint>();
                     keepGround.connectedBody = null; // null = ยึดกับโลก (พื้น)
@@ -2039,6 +2060,9 @@ namespace Simulation.Building
             foreach (var unit in neighbors)
             {
                 if (unit == null || unit.Data == null) continue;
+
+                // ไม่ต่อ Joint กับ Gadget (Gadget มี Joint หลักตัวเดียว ไม่ให้ใครมาเกาะ)
+                if (unit.Data.isGadget) continue;
 
                 Rigidbody otherRb = unit.GetComponent<Rigidbody>();
                 if (otherRb == null || otherRb == mainConnected) continue;

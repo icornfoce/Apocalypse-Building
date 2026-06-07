@@ -228,40 +228,49 @@ namespace Simulation.Physics
             // จับครั้งเดียวหลัง settle (ก่อนมีอะไรถูกทำลาย): ชิ้นนี้เป็น ground anchor หรือไม่
             if (!_anchorChecked) CaptureAnchorState();
 
-            if (_joint == null)
+            // ── ตรวจ "การสูญเสียตัวค้ำ" แล้วลองหาที่ยึดใหม่ก่อนปล่อยร่วง ──
+            // (เช่น พื้น/ตัวค้ำถูกทำลาย → joint หายไป หรือ connectedBody กลายเป็น null)
+            if (!_isDetached && SimulationManager.Instance != null && SimulationManager.Instance.IsSimulating)
             {
-                _joint = GetComponent<Joint>();
+                if (_joint == null) _joint = GetComponent<Joint>();
+
+                bool lostSupport;
                 if (_joint == null)
                 {
-                    // Joint was destroyed externally (support failed)
-                    // If simulating, make it fall but keep it "alive" (non-zero HP) so it can bounce
-                    if (SimulationManager.Instance != null && SimulationManager.Instance.IsSimulating)
+                    lostSupport = true; // joint ถูกทำลายไปเลย
+                }
+                else if (!_hadGroundAnchor)
+                {
+                    // ไม่ใช่ ground anchor: ถ้าทุก joint ไม่เหลือ connectedBody ที่ยังมีชีวิต = ตัวค้ำถูกทำลาย
+                    bool hasLiveSupport = false;
+                    foreach (var sj in GetComponents<Joint>())
+                        if (sj != null && sj.connectedBody != null) { hasLiveSupport = true; break; }
+                    lostSupport = !hasLiveSupport;
+                }
+                else
+                {
+                    lostSupport = false; // เป็น ground anchor ของแท้ → ไม่ต้องร่วง
+                }
+
+                if (lostSupport)
+                {
+                    // ลองหาจุดยึดใหม่จาก "พื้น/ground/เพื่อนบ้านที่ยังเหลือ" ก่อนจะปล่อยร่วง
+                    bool reattached = Simulation.Building.BuildingSystem.Instance != null
+                                      && Simulation.Building.BuildingSystem.Instance.TryReattachJoint(gameObject);
+                    if (reattached)
                     {
-                        Detach();
+                        _joint = GetComponent<Joint>();
+                        CaptureAnchorState(); // อัปเดตสถานะ anchor ใหม่ (อาจกลายเป็น ground anchor)
                     }
-                    return;
+                    else
+                    {
+                        Detach(); // ไม่มีที่ยึดเหลือจริงๆ → ปล่อยร่วงตามฟิสิกส์
+                        return;
+                    }
                 }
             }
 
-            // ── กันอาการ "ลอย" เมื่อตัวค้ำถูกทำลาย ──
-            // ถ้าไม่ได้วางบนพื้นจริง และทุก Joint ไม่เหลือ connectedBody ที่ยังมีชีวิต
-            // (connectedBody กลายเป็น null เพราะตัวที่ยึดถูกทำลาย → FixedJoint จะยึดกับโลกทำให้ลอยค้าง)
-            // → ปล่อยให้ร่วงตามฟิสิกส์
-            if (!_hadGroundAnchor)
-            {
-                bool hasLiveSupport = false;
-                Joint[] supportJoints = GetComponents<Joint>();
-                foreach (var sj in supportJoints)
-                {
-                    if (sj != null && sj.connectedBody != null) { hasLiveSupport = true; break; }
-                }
-                if (!hasLiveSupport
-                    && SimulationManager.Instance != null && SimulationManager.Instance.IsSimulating)
-                {
-                    Detach();
-                    return;
-                }
-            }
+            if (_joint == null) return; // ไม่ได้ simulate และไม่มี joint → ข้าม
 
             // ── 1. Read forces from the joint ─────────────────────────
             float forceMag = 0f;

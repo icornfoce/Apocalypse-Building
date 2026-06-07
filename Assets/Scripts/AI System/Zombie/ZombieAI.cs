@@ -21,6 +21,8 @@ namespace Simulation.Mission
         public float attackInterval = 1.5f;
         public float attackRange = 1.5f;
         public float maxHealth = 50f;
+        [Tooltip("ระยะตรวจกำแพงที่ขวาง 'เส้นตรง' ไปหาเป้าหมาย (เกินระยะนี้ค่อยปล่อยให้ NavMesh หาทาง)")]
+        public float wallScanRange = 30f;
 
         [Header("Crush Damage")]
         [Tooltip("ความแรงจากการชนขั้นต่ำที่จะทำให้ลดเลือด")]
@@ -168,35 +170,42 @@ namespace Simulation.Mission
                     if (_agent.enabled && _agent.isOnNavMesh) _agent.isStopped = true;
                     AttackPerson();
                 }
-                else
+                else if (_agent.enabled && _agent.isOnNavMesh)
                 {
-                    // เช็คว่าเห็นเป้าหมายหรือไม่ — ถ้าเห็น ให้เลิกสนใจกำแพงและวิ่งไปหาทันที
-                    bool canSee = false;
-                    if (_targetPerson != null) canSee = CanSeePerson(_targetPerson);
-                    else if (_targetNPCController != null) canSee = CanSeeNPC(_targetNPCController);
+                    // ── ไล่ล่าแบบ "ลุยตรง" เข้าหาเป้าหมาย ──
+                    // ทิศตรงไปหาเป้าหมาย (ระนาบ XZ)
+                    Vector3 toTarget = targetTransform.position - transform.position;
+                    toTarget.y = 0f;
+                    Vector3 dirToTarget = toTarget.sqrMagnitude > 0.0001f ? toTarget.normalized : transform.forward;
 
-                    if (canSee)
-                    {
-                        if (_isAttackingWall) ResetWallAttack(true);
-                    }
-                    else
-                    {
-                        // ถ้าไม่เห็นเป้าหมาย ค่อยเช็คกำแพงขวางทาง
-                        CheckForWalls();
-                    }
+                    // ตรวจว่ามีกำแพงขวาง "เส้นตรง" ไปหาเป้าหมายหรือไม่ (เช็คตามทิศเป้าหมาย ไม่ใช่ทิศที่ NavMesh พาไป)
+                    float scanDist = Mathf.Min(toTarget.magnitude, wallScanRange);
+                    StructureUnit blockingWall = GetBlockingWall(dirToTarget, scanDist, out RaycastHit wallHit);
 
-                    // เดินไปหา ถ้าไม่ได้ติดกำแพง
-                    if (_agent.enabled && _agent.isOnNavMesh)
+                    if (blockingWall != null)
                     {
-                        if (!_isAttackingWall)
+                        // มีกำแพงขวางทางตรง → ลุยเข้าหากำแพงตรงๆ แล้วทุบจนพัง (ไม่อ้อมไปทางประตู)
+                        if (wallHit.distance <= attackRange)
                         {
-                            _agent.isStopped = false;
-                            _agent.SetDestination(targetTransform.position);
+                            // ใกล้พอแล้ว — หยุดแล้วทุบ
+                            _agent.isStopped = true;
+                            AttackWall(blockingWall, wallHit, dirToTarget);
                         }
                         else
                         {
-                            _agent.isStopped = true;
+                            // ยังไม่ถึงกำแพง — เดินตรงเข้าหา (ตั้งจุดหมายบนเส้นตรง เพื่อไม่ให้ NavMesh อ้อม)
+                            if (_isAttackingWall) ResetWallAttack(false);
+                            _agent.isStopped = false;
+                            Vector3 straightPoint = transform.position + dirToTarget * Mathf.Min(scanDist, 4f);
+                            _agent.SetDestination(straightPoint);
                         }
+                    }
+                    else
+                    {
+                        // ทางตรงโล่งแล้ว → กลับไปเดินหาเป้าหมายตามปกติ (NavMesh หาทาง)
+                        if (_isAttackingWall) ResetWallAttack(false);
+                        _agent.isStopped = false;
+                        _agent.SetDestination(targetTransform.position);
                     }
                 }
             }
@@ -314,6 +323,75 @@ namespace Simulation.Mission
 
                     Debug.Log($"<color=red>[Zombie]</color> Attacking: {targetName}");
                 }
+            }
+        }
+
+        /// <summary>
+        /// ตรวจหากำแพงที่ขวาง "เส้นตรง" ไปตามทิศ dir ภายในระยะ maxDist
+        /// คืนค่า StructureUnit ของกำแพงที่ต้องทุบ (ข้ามพื้น/บันได/กับดักหนาม) ถ้าไม่มีคืน null
+        /// </summary>
+        protected StructureUnit GetBlockingWall(Vector3 dir, float maxDist, out RaycastHit hit)
+        {
+            hit = default;
+            if (maxDist <= 0.01f || dir.sqrMagnitude < 0.0001f) return null;
+
+            Ray ray = new Ray(transform.position + Vector3.up * 0.5f, dir);
+            if (UnityEngine.Physics.SphereCast(ray, 0.4f, out hit, maxDist, LayerMask.GetMask("Structure")))
+            {
+                StructureUnit unit = hit.collider.GetComponentInParent<StructureUnit>();
+                if (unit == null || unit.Data == null) return null;
+
+                // ข้ามสิ่งที่เดิน/ผ่านได้ (พื้น, บันได, กับดักหนาม)
+                bool isStair = unit.Data.structureName.ToLower().Contains("stair")
+                               || (unit.Data.prefab != null && unit.Data.prefab.name.ToLower().Contains("stair"));
+                bool isFloor = unit.Data.structureType == Simulation.Data.StructureType.Floor;
+                bool isSpikeTrap = unit.GetComponentInChildren<SpikeTrap>() != null;
+                if (isStair || isFloor || isSpikeTrap) return null;
+
+                return unit;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// ทุบกำแพง 1 ครั้งตามจังหวะ attackInterval (หันหน้าเข้าหากำแพง + ดาเมจ + VFX/SFX + Architect reflect)
+        /// </summary>
+        protected void AttackWall(StructureUnit unit, RaycastHit hit, Vector3 faceDir)
+        {
+            if (unit == null) return;
+
+            _isAttackingWall = true;
+            _lastAttackedWall = unit;
+
+            // หันหน้าเข้าหากำแพง
+            Vector3 lookDir = hit.point - transform.position;
+            lookDir.y = 0f;
+            if (lookDir.sqrMagnitude < 0.001f) { lookDir = faceDir; lookDir.y = 0f; }
+            if (lookDir.sqrMagnitude > 0.001f)
+                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDir), Time.deltaTime * 5f);
+
+            if (_wallAttackTimer >= attackInterval)
+            {
+                _wallAttackTimer = 0f;
+
+                var stress = unit.GetComponent<Simulation.Physics.StructuralStress>();
+                if (stress != null) stress.ApplyMaxHPDamage(attackDamage);
+                else unit.TakeMaxHPDamage(attackDamage);
+
+                // ── Architect Buff: สะท้อนดาเมจกลับไปยังซอมบี้ ──
+                var aura = unit.GetComponent<Simulation.NPC.ArchitectAura>();
+                if (aura != null && aura.IsActive)
+                {
+                    float reflectedDamage = attackDamage * aura.reflectPercent;
+                    TakeDamage(reflectedDamage);
+                    Debug.Log($"<color=magenta>[Architect]</color> Reflected {reflectedDamage:F1} damage to {name}!");
+                }
+
+                if (animator != null) animator.SetTrigger("Bite");
+                if (audioSource != null && biteWallSFX != null) audioSource.PlayOneShot(biteWallSFX);
+                if (biteWallVFX != null) Instantiate(biteWallVFX, hit.point, Quaternion.LookRotation(hit.normal));
+
+                Debug.Log($"<color=red>[Zombie]</color> Biting wall: {unit.name}");
             }
         }
 

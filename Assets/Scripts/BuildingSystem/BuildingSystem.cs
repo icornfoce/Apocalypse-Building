@@ -34,6 +34,10 @@ namespace Simulation.Building
         [SerializeField] private LayerMask groundLayer;
         [SerializeField] private LayerMask structureLayer;
 
+        [Header("Joint Settings")]
+        [Tooltip("ระยะขยาย Hitbox เล็กน้อยตอนหา Joint เพื่อนบ้าน (ยิ่งมากยิ่งจับชิ้นข้างเคียงง่ายขึ้น)")]
+        [SerializeField] private float jointHitboxExpand = 0.15f;
+
         [Header("Height Settings")]
         [Tooltip("Vertical distance between floors. If pillarReference is assigned, this will be auto-set in Start.")]
         [SerializeField] private float heightStep = 3.0f;
@@ -1944,18 +1948,25 @@ namespace Simulation.Building
             Rigidbody newRb = structureObj.GetComponent<Rigidbody>();
             if (newUnit == null || newRb == null) return;
 
-            if (newUnit.Data != null && newUnit.Data.isGadget) return; // Gadget ทั้งหมดเชื่อมต่อเฉพาะ Joint หลักเท่านั้น (TMD เกาะด้านบน, ตัวอื่นเกาะด้านล่าง)
-
-            // หา connected body ของ main joint เพื่อไม่สร้างซ้ำ
-            Joint mainJoint = structureObj.GetComponent<Joint>();
-            Rigidbody mainConnected = mainJoint != null ? mainJoint.connectedBody : null;
+            // Gadget เชื่อมเฉพาะ Joint หลัก (TMD เกาะบน, ตัวอื่นเกาะล่าง)
+            if (newUnit.Data != null && newUnit.Data.isGadget) return;
 
             Collider[] myColliders = structureObj.GetComponentsInChildren<Collider>();
             if (myColliders.Length == 0) return;
 
-            // บังคับให้อัปเดต Bounds ของ Collider ทันทีหลังจาก SetActive(true)
-            // ป้องกันปัญหา Bounds เป็น (0,0,0) ในเฟรมแรกที่ถูกสร้าง ทำให้หาชิ้นส่วนรอบๆ ไม่เจอ
+            // อัปเดต transform ก่อนคำนวณ bounds (กัน bounds เป็น 0 ในเฟรมแรกหลัง SetActive)
             UnityEngine.Physics.SyncTransforms();
+
+            // Joint หลักต่อกับอะไรไว้แล้ว — ไม่ต้องต่อซ้ำ
+            Joint mainJoint = structureObj.GetComponent<Joint>();
+            Rigidbody mainConnected = mainJoint != null ? mainJoint.connectedBody : null;
+
+            // รวม Hitbox ของชิ้นนี้ (world AABB) แล้วขยายนิดนึง
+            Bounds myBounds = GetWorldBounds(myColliders);
+            Bounds myExpanded = myBounds;
+            myExpanded.Expand(jointHitboxExpand);
+
+            bool newIsFloor = newUnit.Data != null && newUnit.Data.structureType == StructureType.Floor;
 
             foreach (var unit in _placedStructures)
             {
@@ -1963,158 +1974,74 @@ namespace Simulation.Building
 
                 Rigidbody otherRb = unit.GetComponent<Rigidbody>();
                 if (otherRb == null || otherRb == mainConnected) continue;
+                if (HasJointTo(structureObj, otherRb)) continue; // กันต่อซ้ำ
 
-                // 3. กรองประเภทโครงสร้าง: กำแพงกับพื้น (และพื้นกับกำแพง) ในระดับ Unit
-                bool isWall = newUnit.Data.structureType == StructureType.Wall;
-                bool isFloor = unit.Data.structureType == StructureType.Floor;
-                bool isOtherWall = unit.Data.structureType == StructureType.Wall;
-                bool isOtherFloor = newUnit.Data.structureType == StructureType.Floor;
-                bool isWallFloorConnection = (isWall && isFloor) || (isOtherWall && isOtherFloor);
-
-                if (isWallFloorConnection)
-                {
-                    float bottomY1 = newUnit.transform.position.y - GetPivotToBottomOffset(newUnit.Data, newUnit.gameObject);
-                    float bottomY2 = unit.transform.position.y - GetPivotToBottomOffset(unit.Data, unit.gameObject);
-                    bool onSameLevel = Mathf.Abs(bottomY1 - bottomY2) < 1.5f;
-
-                    if (onSameLevel)
-                    {
-                        StructureUnit wallUnit = isWall ? newUnit : unit;
-                        StructureUnit floorUnit = isWall ? unit : newUnit;
-                        Vector3 diff = floorUnit.transform.position - wallUnit.transform.position;
-                        diff.y = 0f;
-                        Vector3 localDiff = wallUnit.transform.InverseTransformDirection(diff);
-
-                        // ห้ามเชื่อมต่อกำแพงกับพื้นในแนวแกน Z (บล็อกการต่อข้าม Unit ทั้งหมด)
-                        if (Mathf.Abs(localDiff.z) > Mathf.Abs(localDiff.x))
-                        {
-                            continue;
-                        }
-                    }
-                }
-
-                // 3.5 กรองแนวทแยงทางราบออกอย่างเด็ดขาด (ถ้ามีทั้ง X และ Z เบี่ยงเบนเกินระยะครึ่งช่องตารางขึ้นไป)
-                Vector3 centerDiff = unit.transform.position - newUnit.transform.position;
-                if (Mathf.Abs(centerDiff.x) > gridSize * 0.6f && Mathf.Abs(centerDiff.z) > gridSize * 0.6f)
-                {
-                    continue;
-                }
-
-                bool isAdjacent = false;
                 Collider[] otherColliders = unit.GetComponentsInChildren<Collider>();
+                if (otherColliders.Length == 0) continue;
+                Bounds otherBounds = GetWorldBounds(otherColliders);
 
-                bool isNewWallLike = newUnit.Data.structureType == StructureType.Wall || newUnit.Data.structureType == StructureType.Door;
-                bool isOtherWallLike = unit.Data.structureType == StructureType.Wall || unit.Data.structureType == StructureType.Door;
+                // Joint ทุกอย่างที่ Hitbox (ขยายแล้ว) ไปโดน
+                if (!myExpanded.Intersects(otherBounds)) continue;
 
-                if (isNewWallLike && isOtherWallLike)
-                {
-                    // Strict geometric check for wall-to-wall adjacency to prevent diagonal connections
-                    foreach (var myCol in myColliders)
-                    {
-                        Bounds myB = myCol.bounds;
-                        foreach (var otherCol in otherColliders)
-                        {
-                            Bounds otherB = otherCol.bounds;
-                            
-                            // Check if they are close enough vertically first
-                            if (Mathf.Abs(myB.center.y - otherB.center.y) > (myB.size.y + otherB.size.y) * 0.5f + 0.5f)
-                                continue;
+                // หาทิศสัมผัสแบบแกนตรง: 0=X(ซ้าย/ขวา), 1=Y(บน/ล่าง), 2=Z(หน้า/หลัง)
+                // คืน -1 = สัมผัสแบบขอบ/มุม (แนวทแยง) → ข้าม (Joint ได้แค่ 6 ด้านตรงๆ)
+                int contactAxis = GetFaceContactAxis(myBounds, otherBounds);
+                if (contactAxis < 0) continue;
 
-                            bool newHorizontal = Mathf.Abs(newUnit.Rotation % 180f) > 45f;
-                            bool otherHorizontal = Mathf.Abs(unit.Rotation % 180f) > 45f;
+                // กฎพิเศษของพื้น: ถ้ามีฝ่ายใดเป็น Floor → ต่อได้แค่แนวตั้ง (บน/ล่าง = แกน Y)
+                bool involvesFloor = newIsFloor || (unit.Data != null && unit.Data.structureType == StructureType.Floor);
+                if (involvesFloor && contactAxis != 1) continue;
 
-                            Vector3 newPos = newUnit.transform.position;
-                            Vector3 otherPos = unit.transform.position;
-
-                            float lenNew = Mathf.Max(myB.size.x, myB.size.z);
-                            float lenOther = Mathf.Max(otherB.size.x, otherB.size.z);
-                            float halfLenNew = lenNew * 0.5f;
-                            float halfLenOther = lenOther * 0.5f;
-
-                            bool wallsShouldConnect = false;
-                            float tol = 0.15f;
-
-                            if (newHorizontal == otherHorizontal)
-                            {
-                                if (newHorizontal)
-                                {
-                                    bool sameZ = Mathf.Abs(newPos.z - otherPos.z) < tol;
-                                    bool adjacentX = Mathf.Abs(newPos.x - otherPos.x) <= (halfLenNew + halfLenOther + tol);
-                                    if (sameZ && adjacentX) wallsShouldConnect = true;
-                                }
-                                else
-                                {
-                                    bool sameX = Mathf.Abs(newPos.x - otherPos.x) < tol;
-                                    bool adjacentZ = Mathf.Abs(newPos.z - otherPos.z) <= (halfLenNew + halfLenOther + tol);
-                                    if (sameX && adjacentZ) wallsShouldConnect = true;
-                                }
-                            }
-                            else
-                            {
-                                Vector3 vertPos = newHorizontal ? otherPos : newPos;
-                                Vector3 horizPos = newHorizontal ? newPos : otherPos;
-                                float halfLenVert = newHorizontal ? halfLenOther : halfLenNew;
-                                float halfLenHoriz = newHorizontal ? halfLenNew : halfLenOther;
-
-                                bool vertCovers = Mathf.Abs(horizPos.z - vertPos.z) <= (halfLenVert + tol);
-                                bool horizCovers = Mathf.Abs(vertPos.x - horizPos.x) <= (halfLenHoriz + tol);
-
-                                if (vertCovers && horizCovers) wallsShouldConnect = true;
-                            }
-
-                            if (wallsShouldConnect)
-                            {
-                                isAdjacent = true;
-                                break;
-                            }
-                        }
-                        if (isAdjacent) break;
-                    }
-                }
-                else
-                {
-                    // ใช้ Bounds Expansion ในการเช็คว่าของอยู่ติดกันหรือไม่
-                    // วิธีนี้รองรับชิ้นส่วนทุกขนาด (ช่วยแก้ปัญหา Connected body ไม่ยอมต่อกับของที่กว้างกว่า 1 ช่อง)
-                    foreach (var myCol in myColliders)
-                    {
-                        Bounds myB = myCol.bounds;
-                        foreach (var otherCol in otherColliders)
-                        {
-                            Bounds otherB = otherCol.bounds;
-                            
-                            // 1. เช็คเบื้องต้นว่า Bounds แตะกันหรือไม่ (รวมระยะ Expand)
-                            Bounds expanded = myB;
-                            expanded.Expand(0.3f); // เพิ่มระยะเล็กน้อยให้หาเจอเจอง่ายขึ้น
-                            if (!expanded.Intersects(otherB)) continue;
-
-                            // 2. กรอง "แนวทแยง" ออก:
-                            // เพื่อนบ้านที่ติดกันจริงๆ (Face-to-face) ต้องมีแกนที่ "ซ้อนทับ" กันอย่างน้อย 2 แกน
-                            int overlapCount = 0;
-                            float eps = 0.01f; // ลดค่าความคลาดเคลื่อนลงให้รองรับของบางๆ ได้
-                            
-                            Vector3 diff = myB.center - otherB.center;
-                            Vector3 sumSize = (myB.size + otherB.size) * 0.5f;
-
-                            if (Mathf.Abs(diff.x) < sumSize.x - eps) overlapCount++;
-                            if (Mathf.Abs(diff.y) < sumSize.y - eps) overlapCount++;
-                            if (Mathf.Abs(diff.z) < sumSize.z - eps) overlapCount++;
-
-                            if (overlapCount >= 2)
-                            {
-                                isAdjacent = true;
-                                break;
-                            }
-                        }
-                        if (isAdjacent) break;
-                    }
-                }
-
-                if (!isAdjacent) continue;
-
-                // สร้าง FixedJoint เชื่อมกับเพื่อนบ้าน
                 FixedJoint sideJoint = structureObj.AddComponent<FixedJoint>();
                 sideJoint.connectedBody = otherRb;
             }
+        }
+
+        /// <summary>
+        /// รวม world AABB ของ Collider หลายตัวให้เป็นกล่องเดียว
+        /// </summary>
+        private Bounds GetWorldBounds(Collider[] cols)
+        {
+            Bounds b = cols[0].bounds;
+            for (int i = 1; i < cols.Length; i++) b.Encapsulate(cols[i].bounds);
+            return b;
+        }
+
+        /// <summary>
+        /// หาแกนที่สองกล่องสัมผัสกันแบบ "หน้าต่อหน้า" (axis-aligned)
+        /// คืน 0=X, 1=Y, 2=Z ; คืน -1 ถ้าสัมผัสแบบขอบ/มุม (แนวทแยง) ซึ่งต้องข้าม
+        /// </summary>
+        private int GetFaceContactAxis(Bounds a, Bounds b)
+        {
+            Vector3 diff = b.center - a.center;
+            Vector3 sumHalf = (a.size + b.size) * 0.5f;
+            float eps = 0.05f;
+
+            // นับแกนที่ "ซ้อนทับ" กัน — หน้าต่อหน้าต้องซ้อนทับอย่างน้อย 2 แกน
+            int overlapCount = 0;
+            if (Mathf.Abs(diff.x) < sumHalf.x - eps) overlapCount++;
+            if (Mathf.Abs(diff.y) < sumHalf.y - eps) overlapCount++;
+            if (Mathf.Abs(diff.z) < sumHalf.z - eps) overlapCount++;
+            if (overlapCount < 2) return -1; // ขอบ/มุม → แนวทแยง
+
+            // ทิศสัมผัส = แกนที่อัตราส่วน (ระยะห่าง / ครึ่งผลรวมขนาด) มากสุด
+            float rx = sumHalf.x > 0.0001f ? Mathf.Abs(diff.x) / sumHalf.x : 0f;
+            float ry = sumHalf.y > 0.0001f ? Mathf.Abs(diff.y) / sumHalf.y : 0f;
+            float rz = sumHalf.z > 0.0001f ? Mathf.Abs(diff.z) / sumHalf.z : 0f;
+
+            if (ry >= rx && ry >= rz) return 1;
+            if (rx >= ry && rx >= rz) return 0;
+            return 2;
+        }
+
+        /// <summary>
+        /// มี Joint ต่อกับ Rigidbody เป้าหมายอยู่แล้วหรือยัง (กันสร้าง Joint ซ้ำ)
+        /// </summary>
+        private bool HasJointTo(GameObject obj, Rigidbody target)
+        {
+            foreach (var j in obj.GetComponents<Joint>())
+                if (j != null && j.connectedBody == target) return true;
+            return false;
         }
 
         /// <summary>

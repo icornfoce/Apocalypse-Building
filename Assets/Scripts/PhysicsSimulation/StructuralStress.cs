@@ -182,7 +182,10 @@ namespace Simulation.Physics
         {
             if (_joint == null) _joint = GetComponent<Joint>();
             
-            if (_joint == null)
+            // หมายเหตุ: ตอนเพิ่งวาง ชิ้นอาจ "ยังไม่มี Joint" ได้ตามปกติ (ยังไม่ผูก/ไม่มีตัวค้ำใต้พอดี)
+            // และ Joint จะถูกสร้างใหม่ทั้งหมดตอนเริ่มจำลอง (RefreshAllJoints) อยู่แล้ว
+            // จึงเตือนเฉพาะตอนเปิด debug เพื่อไม่ให้ Console รก
+            if (_joint == null && showDebugLogs)
             {
                 Debug.LogWarning($"[StructuralStress] No Joint found on '{name}'. " +
                                  "Attach a FixedJoint or ConfigurableJoint for stress simulation.", this);

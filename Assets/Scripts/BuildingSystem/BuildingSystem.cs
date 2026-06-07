@@ -816,6 +816,9 @@ namespace Simulation.Building
                     _isDragging = false;
                     if (allValid && _dragPositions.Count > 0)
                     {
+                        // จำชิ้นที่มีอยู่ "ก่อน" วาง เพื่อจะหา "ชิ้นที่เพิ่งวาง" ทีหลัง
+                        var beforePlace = new HashSet<StructureUnit>(_placedStructures);
+
                         foreach (var pos in _dragPositions)
                         {
                             // Only place if there isn't already the exact same structure there
@@ -823,6 +826,19 @@ namespace Simulation.Building
                             {
                                 PlaceStructure(pos, ghostBuilder.CurrentRotation, _currentHitCollider);
                             }
+                        }
+
+                        // ── Joint 2nd pass (กัน Joint bug ตอนลากวาง) ──
+                        // เวลาวางทีละชิ้น ชิ้นที่วางก่อน "ยังไม่เห็น" ชิ้นที่วางทีหลัง → ผูก Joint กันไม่ครบ
+                        // วางครบแล้วจึงผูก Joint ใหม่ให้ชิ้นที่เพิ่งวางทั้งหมด (เหมือน 2-pass ใน ConfirmGroupMove)
+                        UnityEngine.Physics.SyncTransforms();
+                        foreach (var u in _placedStructures)
+                        {
+                            if (u == null || !u.gameObject.activeInHierarchy) continue;
+                            if (beforePlace.Contains(u)) continue; // เฉพาะชิ้นที่เพิ่งวางรอบนี้
+                            AttachJoint(u.gameObject, null);
+                            AttachSideJoints(u.gameObject);
+                            IgnoreOverlappingCollisions(u);
                         }
                     }
                     _dragPositions.Clear();
@@ -1820,13 +1836,18 @@ namespace Simulation.Building
                 // ระยะสั้นๆ เพื่อให้เฉพาะของที่ "วางอยู่บน" พื้นจริงๆ ถึงจะยึด (กันของลอยยึดมั่ว)
                 if (actualTarget == null)
                 {
-                    float bottomY = structureObj.transform.position.y - pivotToBottom;
-                    Vector3 groundRayStart = new Vector3(structureObj.transform.position.x, bottomY + 0.25f, structureObj.transform.position.z);
+                    // ใช้ "ขอบล่างจริง" ของ Collider (ไม่พึ่ง pivot math ที่อาจคลาดเคลื่อน → ยิงผิดที่)
+                    Collider baseCol = structureObj.GetComponentInChildren<Collider>();
+                    Vector3 cc = baseCol != null ? baseCol.bounds.center : structureObj.transform.position;
+                    float realBottom = baseCol != null ? baseCol.bounds.min.y : (structureObj.transform.position.y - pivotToBottom);
+
+                    Vector3 groundRayStart = new Vector3(cc.x, realBottom + 0.3f, cc.z);
                     Vector3 groundHalfExtents = boxHalfExtents;
                     groundHalfExtents.y = 0.05f;
 
+                    // ยิงทุก Layer ระยะกว้างขึ้น (0.8) เพื่อหา "พื้น/สภาพแวดล้อม" ใต้ฐานให้ชัวร์
                     RaycastHit[] groundHits = UnityEngine.Physics.BoxCastAll(
-                        groundRayStart, groundHalfExtents, Vector3.down, boxRotation, 0.6f, ~0, QueryTriggerInteraction.Ignore);
+                        groundRayStart, groundHalfExtents, Vector3.down, boxRotation, 0.8f, ~0, QueryTriggerInteraction.Ignore);
                     System.Array.Sort(groundHits, (a, b) => a.distance.CompareTo(b.distance));
 
                     foreach (var gh in groundHits)
@@ -1966,16 +1987,33 @@ namespace Simulation.Building
             Joint mainJoint = structureObj.GetComponent<Joint>();
             Rigidbody mainConnected = mainJoint != null ? mainJoint.connectedBody : null;
 
-            // รวม Hitbox ของชิ้นนี้ (world AABB) แล้วขยายนิดนึง
+            // AABB รวม (ใช้คำนวณแกนสัมผัส + กฎพื้น เท่านั้น)
             Bounds myBounds = GetWorldBounds(myColliders);
-            Bounds myExpanded = myBounds;
-            myExpanded.Expand(jointHitboxExpand);
 
             bool newIsFloor = newUnit.Data != null && newUnit.Data.structureType == StructureType.Floor;
 
-            foreach (var unit in _placedStructures)
+            // ── หาเพื่อนบ้าน "ด้วย Collider จริง" ──
+            // ยิง OverlapBox ตามรูปทรง/การหมุนของแต่ละ Collider (ขยายเล็กน้อย) เพื่อจับชิ้นที่ "สัมผัสจริง"
+            // แม่นกว่าการใช้ AABB ที่พองเกินจริงเมื่อชิ้นถูกหมุน
+            HashSet<StructureUnit> neighbors = new HashSet<StructureUnit>();
+            foreach (var myCol in myColliders)
             {
-                if (unit == null || unit == newUnit) continue;
+                if (myCol == null) continue;
+                GetColliderOrientedBox(myCol, out Vector3 oc, out Vector3 ohe, out Quaternion orot);
+                ohe += Vector3.one * jointHitboxExpand;
+
+                Collider[] overlaps = UnityEngine.Physics.OverlapBox(oc, ohe, orot, structureLayer, QueryTriggerInteraction.Ignore);
+                foreach (var hitCol in overlaps)
+                {
+                    if (hitCol == null) continue;
+                    var ou = hitCol.GetComponentInParent<StructureUnit>();
+                    if (ou != null && ou != newUnit) neighbors.Add(ou);
+                }
+            }
+
+            foreach (var unit in neighbors)
+            {
+                if (unit == null || unit.Data == null) continue;
 
                 Rigidbody otherRb = unit.GetComponent<Rigidbody>();
                 if (otherRb == null || otherRb == mainConnected) continue;
@@ -1985,24 +2023,43 @@ namespace Simulation.Building
                 if (otherColliders.Length == 0) continue;
                 Bounds otherBounds = GetWorldBounds(otherColliders);
 
-                // Joint ทุกอย่างที่ Hitbox (ขยายแล้ว) ไปโดน
-                if (!myExpanded.Intersects(otherBounds)) continue;
-
                 // หาทิศสัมผัสแบบแกนตรง: 0=X(ซ้าย/ขวา), 1=Y(บน/ล่าง), 2=Z(หน้า/หลัง)
                 // คืน -1 = สัมผัสแบบขอบ/มุม (แนวทแยง) → ข้าม (Joint ได้แค่ 6 ด้านตรงๆ)
                 int contactAxis = GetFaceContactAxis(myBounds, otherBounds);
                 if (contactAxis < 0) continue;
 
-                // กฎพิเศษของพื้น: ถ้ามีฝ่ายใดเป็น Floor → ต่อได้แค่แนวตั้ง (บน/ล่าง = แกน Y)
                 // กฎพื้น:
                 //  - floor ↔ โครงสร้างอื่น (ไม่ใช่ floor): ต่อได้แค่ บน/ล่าง (แกน Y)
                 //  - floor ↔ floor: ต่อได้ทุกด้าน (วางพื้นต่อกันเป็นแพลตฟอร์มได้)
-                bool otherIsFloor = unit.Data != null && unit.Data.structureType == StructureType.Floor;
-                bool oneIsFloor = newIsFloor ^ otherIsFloor; // เป็น floor ฝ่ายเดียว
+                bool otherIsFloor = unit.Data.structureType == StructureType.Floor;
+                bool oneIsFloor = newIsFloor ^ otherIsFloor;
                 if (oneIsFloor && contactAxis != 1) continue;
 
                 FixedJoint sideJoint = structureObj.AddComponent<FixedJoint>();
                 sideJoint.connectedBody = otherRb;
+            }
+        }
+
+        /// <summary>
+        /// คืนกล่อง (oriented) ของ Collider สำหรับใช้กับ Physics.OverlapBox
+        /// BoxCollider → ใช้ขนาด/การหมุนจริง ; ชนิดอื่น → ใช้ AABB (rotation = identity)
+        /// </summary>
+        private void GetColliderOrientedBox(Collider col, out Vector3 center, out Vector3 halfExtents, out Quaternion rotation)
+        {
+            if (col is BoxCollider box)
+            {
+                Transform t = box.transform;
+                center = t.TransformPoint(box.center);
+                Vector3 s = Vector3.Scale(box.size, t.lossyScale);
+                halfExtents = new Vector3(Mathf.Abs(s.x), Mathf.Abs(s.y), Mathf.Abs(s.z)) * 0.5f;
+                rotation = t.rotation;
+            }
+            else
+            {
+                Bounds b = col.bounds;
+                center = b.center;
+                halfExtents = b.extents;
+                rotation = Quaternion.identity;
             }
         }
 

@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using Simulation.Physics;
+using Simulation.Data;
 
 namespace Simulation.Building
 {
@@ -553,7 +554,18 @@ namespace Simulation.Building
                     {
                         // สัดส่วนแรงตามมุมตก (ยิ่งเอียงยิ่งดึงลงมากสุดที่ 100%) เพื่อความสมูท
                         float fallMultiplier = Mathf.Clamp01(Mathf.Abs(angle) / 10f);
-                        myRb.AddForce(Vector3.down * (extraGravityCompensation * fallMultiplier), ForceMode.Acceleration);
+
+                        // ลดแรงดึงพิเศษนี้ลงเมื่อตัว TMD กำลังร่วงหล่นในแนวแกน Y เพื่อให้ฟิสิกส์การตกตามธรรมชาติทำงาน (ไม่ไปหน่วงหรือเร่ง Y-fall ผิดปกติ)
+                        float yFallFactor = 1f;
+                        if (myRb.linearVelocity.y < -0.1f)
+                        {
+                            yFallFactor = Mathf.Clamp01(1f - (Mathf.Abs(myRb.linearVelocity.y) / 1.0f));
+                        }
+
+                        if (yFallFactor > 0f)
+                        {
+                            myRb.AddForce(Vector3.down * (extraGravityCompensation * fallMultiplier * yFallFactor), ForceMode.Acceleration);
+                        }
                     }
                 }
             }
@@ -587,7 +599,25 @@ namespace Simulation.Building
                 rb.AddTorque(-rb.angularVelocity * dampingCoefficient, ForceMode.Acceleration);
 
                 // 3. RESTORING TORQUE: พยายามพยุงให้อาคารกลับมามีมุมเดิมก่อนเริ่มจำลอง (ป้องกันการเอนล้ม)
-                if (_originalRotations.TryGetValue(rb, out Quaternion origRot))
+                // จะทำงานเฉพาะกับเสาและกำแพงแนวตั้ง (Pillar, Column, Wall) เพื่อรักษาความทรงตัวของอาคารหลัก
+                // และไม่ทำงานกับคานแนวนอน (Beam, Plank, Floor, Roof) เพื่อปล่อยให้มันแอ่นหรือทรุดตัวตามน้ำหนักของลูกตุ้มจริงๆ
+                bool isVerticalSupport = false;
+                StructureUnit unit = rb.GetComponent<StructureUnit>();
+                if (unit != null && unit.Data != null)
+                {
+                    string nameLower = unit.Data.structureName.ToLower();
+                    bool isHorizontal = nameLower.Contains("beam") || nameLower.Contains("plank") || 
+                                        nameLower.Contains("floor") || nameLower.Contains("roof") || 
+                                        nameLower.Contains("ceiling") || nameLower.Contains("platform");
+                                        
+                    if (!isHorizontal && (unit.Data.structureType == StructureType.Wall || unit.Data.requiresSupport || 
+                        nameLower.Contains("pillar") || nameLower.Contains("column") || nameLower.Contains("wall")))
+                    {
+                        isVerticalSupport = true;
+                    }
+                }
+
+                if (isVerticalSupport && _originalRotations.TryGetValue(rb, out Quaternion origRot))
                 {
                     // คำนวณหาความแตกต่างในการหมุน
                     Quaternion deltaRot = origRot * Quaternion.Inverse(rb.transform.rotation);
@@ -598,10 +628,17 @@ namespace Simulation.Building
                     // ป้องกันความผิดพลาดของแกนที่อาจเกิดค่า NaN หรือเวกเตอร์ศูนย์ซึ่งจะส่งผลให้ฟิสิกส์ระเบิด/พังหมด
                     if (Mathf.Abs(angle) > 0.1f && axis.sqrMagnitude > 0.001f)
                     {
-                        Vector3 restoringTorque = axis.normalized * (angle * restoringStrength * Mathf.Deg2Rad);
+                        // ลดแรงพยุงกลับ (Restoring Torque) เมื่อบล็อกกำลังร่วงหล่นในแนวแกน Y ป้องกันตึกเอียงแล้วลอยตัว/ตกช้าลงขณะพังทลาย
+                        float yFallFactor = 1f;
+                        if (rb.linearVelocity.y < -0.1f)
+                        {
+                            yFallFactor = Mathf.Clamp01(1f - (Mathf.Abs(rb.linearVelocity.y) / 1.0f));
+                        }
+
+                        Vector3 restoringTorque = axis.normalized * (angle * restoringStrength * yFallFactor * Mathf.Deg2Rad);
                         restoringTorque.y = 0f; // เอาแรงพยุงในแกน Y ออก (ไม่พยุง/บิดคืนในแกนดิ่ง)
 
-                        if (!float.IsNaN(restoringTorque.x) && !float.IsNaN(restoringTorque.y) && !float.IsNaN(restoringTorque.z))
+                        if (yFallFactor > 0f && !float.IsNaN(restoringTorque.x) && !float.IsNaN(restoringTorque.y) && !float.IsNaN(restoringTorque.z))
                         {
                             rb.AddTorque(restoringTorque, ForceMode.Acceleration);
                         }

@@ -28,13 +28,23 @@ namespace Simulation.Building
         [Tooltip("ความเร็วลูกธนู (m/s)")]
         public float arrowSpeed = 30f;
 
+        [Header("Aim & Shoot Timing")]
+        [Tooltip("ระยะเวลาที่ต้องเล็งค้างที่เป้าหมายก่อนยิง (วินาที)")]
+        public float aimHoldDuration = 0.5f;
+
+        [Header("Visual Arrow Settings")]
+        [Tooltip("วัตถุลูกธนูจำลองที่เป็นของตกแต่งบนคันธนู (จะถูกซ่อนหลังยิง และกลับมาเมื่อพร้อมยิง/เล็ง)")]
+        public GameObject decorativeArrow;
+
         [Header("Visuals & Audio")]
         [Tooltip("จุดที่ลูกธนูออก (ถ้าไม่มีจะกะจากตำแหน่งกลางบน)")]
         public Transform muzzlePoint;
         public GameObject muzzleFlashPrefab;
         public AudioClip shootSound;
 
-        private float _shootTimer;
+        private float _cooldownTimer;
+        private float _aimTimer;
+        private BalloonZombieAI _currentTarget;
 
         private void Start()
         {
@@ -61,6 +71,15 @@ namespace Simulation.Building
                 muzzlePoint = transform.Find("Muzzle");
                 if (muzzlePoint == null && verticalPivot != null) muzzlePoint = verticalPivot.Find("Muzzle");
             }
+
+            // Auto-find DecorativeArrow
+            if (decorativeArrow == null)
+            {
+                decorativeArrow = FindChildRecursive(transform, "Arrow");
+                if (decorativeArrow == null) decorativeArrow = FindChildRecursive(transform, "DecorativeArrow");
+                if (decorativeArrow == null) decorativeArrow = FindChildRecursive(transform, "VisualArrow");
+                if (decorativeArrow == null) decorativeArrow = FindChildRecursive(transform, "arrow");
+            }
         }
 
         private void Update()
@@ -71,22 +90,77 @@ namespace Simulation.Building
                 return;
             }
 
-            _shootTimer -= Time.deltaTime;
+            // ลดคูลดาวน์ลงเรื่อยๆ
+            if (_cooldownTimer > 0f)
+            {
+                _cooldownTimer -= Time.deltaTime;
+                // ในระหว่างคูลดาวน์ จะต้องซ่อนลูกธนูตกแต่ง
+                if (decorativeArrow != null && decorativeArrow.activeSelf)
+                {
+                    decorativeArrow.SetActive(false);
+                }
+            }
+            else
+            {
+                // คูลดาวน์เสร็จแล้ว / พร้อมยิง -> ให้ลูกธนูกลับมาแสดงตัวพร้อมยิง
+                if (decorativeArrow != null && !decorativeArrow.activeSelf)
+                {
+                    decorativeArrow.SetActive(true);
+                }
+            }
 
             // ค้นหา Balloon Zombie ที่ยังไม่ร่วงและยังไม่ตาย
             BalloonZombieAI target = FindClosestTarget();
 
             if (target != null)
             {
-                // หันส่วนยิงไปหาเป้าหมาย (แยก 2 แกน)
-                AimAt(target.transform.position);
+                Vector3 targetPos = GetTargetPosition(target);
 
-                // ถ้าระยะเวลา Cooldown หมดแล้ว ให้ยิง!
-                if (_shootTimer <= 0f)
+                // หันส่วนยิงไปหาเป้าหมาย (แยก 2 แกน)
+                AimAt(targetPos);
+
+                // ทำการเล็งและยิงเฉพาะเมื่อคูลดาวน์เสร็จแล้ว
+                if (_cooldownTimer <= 0f)
                 {
-                    Shoot(target);
-                    _shootTimer = shootCooldown;
+                    // หากเป้าหมายเปลี่ยนไป หรือเริ่มจับเป้าหมายใหม่ ให้เริ่มนับเวลาเล็งใหม่
+                    if (target != _currentTarget)
+                    {
+                        _currentTarget = target;
+                        _aimTimer = 0f;
+                    }
+
+                    // สะสมเวลาในการเล็งค้าง
+                    _aimTimer += Time.deltaTime;
+
+                    // เมื่อเล็งค้างจนครบเวลา (aimHoldDuration) ค่อยยิงจริง
+                    if (_aimTimer >= aimHoldDuration)
+                    {
+                        Shoot(target);
+
+                        // ซ่อนลูกธนูตกแต่งทันทีหลังจากยิงออกไป
+                        if (decorativeArrow != null)
+                        {
+                            decorativeArrow.SetActive(false);
+                        }
+
+                        // เริ่มต้นคูลดาวน์ใหม่ และรีเซ็ตเวลาการเล็ง
+                        _cooldownTimer = shootCooldown;
+                        _aimTimer = 0f;
+                        _currentTarget = null;
+                    }
                 }
+                else
+                {
+                    // ถ้ายังคูลดาวน์อยู่ ให้รีเซ็ตเวลาเล็งและเป้าหมายชั่วคราว
+                    _aimTimer = 0f;
+                    _currentTarget = null;
+                }
+            }
+            else
+            {
+                // ไม่มีเป้าหมาย -> รีเซ็ตเวลาเล็งและเป้าหมาย
+                _aimTimer = 0f;
+                _currentTarget = null;
             }
         }
 
@@ -114,9 +188,25 @@ namespace Simulation.Building
         }
 
         /// <summary>
+        /// คืนค่าตำแหน่งของเป้าหมายจริง (เน้นลูกโป่งก่อน ถ้าไม่มีใช้ตัวซอมบี้)
+        /// </summary>
+        private Vector3 GetTargetPosition(BalloonZombieAI target)
+        {
+            if (target == null) return Vector3.zero;
+            
+            if (target.balloonObject != null)
+            {
+                return target.balloonObject.transform.position;
+            }
+            
+            // กรณีไม่มีลูกโป่ง ให้เล็งที่ส่วนบนของตัวซอมบี้
+            return target.transform.position + Vector3.up * 2f;
+        }
+
+        /// <summary>
         /// หันไปหาเป้าหมายด้วย Dual Pivot:
         /// 1. HorizontalPivot หมุนแกน Y (Yaw ซ้ายขวา)
-        /// 2. VerticalPivot หมุนแกน X (Pitch ก้มเงย)
+        /// 2. VerticalPivot หมุนแกน Z (Pitch ก้มเงย)
         /// </summary>
         private void AimAt(Vector3 targetPosition)
         {
@@ -155,8 +245,11 @@ namespace Simulation.Building
 
         private void Shoot(BalloonZombieAI target)
         {
+            Vector3 targetPos = GetTargetPosition(target);
             Vector3 startPos = muzzlePoint != null ? muzzlePoint.position : transform.position + Vector3.up * 1.2f;
-            Vector3 direction = (target.transform.position - startPos).normalized;
+            
+            // ทิศทางยิงเริ่มต้นจะหันตาม muzzlePoint เสมอ แต่ถ้าไม่มีให้เล็งหาเป้าตรงๆ
+            Vector3 direction = muzzlePoint != null ? muzzlePoint.forward : (targetPos - startPos).normalized;
 
             // 1. Muzzle flash
             if (muzzleFlashPrefab != null)
@@ -190,29 +283,36 @@ namespace Simulation.Building
         private void SpawnArrow(Vector3 startPos, Vector3 direction, BalloonZombieAI target)
         {
             GameObject arrowObj;
+            Quaternion spawnRotation = muzzlePoint != null ? muzzlePoint.rotation : Quaternion.LookRotation(direction);
+
             if (arrowPrefab != null)
             {
-                arrowObj = Instantiate(arrowPrefab, startPos, Quaternion.LookRotation(direction));
+                arrowObj = Instantiate(arrowPrefab, startPos, spawnRotation);
             }
             else
             {
                 // สร้างลูกธนูแบบ Procedural
-                arrowObj = CreateProceduralArrow(startPos, direction);
+                arrowObj = CreateProceduralArrow(startPos, spawnRotation);
             }
 
-            // ติด ArrowProjectile script เพื่อควบคุมการบิน
-            ArrowProjectile projectile = arrowObj.AddComponent<ArrowProjectile>();
+            // ตรวจสอบว่ามี ArrowProjectile อยู่แล้วหรือไม่ (กรณีติดที่ Prefab ใน Inspector)
+            ArrowProjectile projectile = arrowObj.GetComponent<ArrowProjectile>();
+            if (projectile == null)
+            {
+                projectile = arrowObj.AddComponent<ArrowProjectile>();
+            }
+            
             projectile.Initialize(target, arrowSpeed);
         }
 
         /// <summary>
         /// สร้างลูกธนูจำลองจาก Primitive (Cylinder ลำตัว + ปลายแหลม)
         /// </summary>
-        private GameObject CreateProceduralArrow(Vector3 position, Vector3 direction)
+        private GameObject CreateProceduralArrow(Vector3 position, Quaternion rotation)
         {
             GameObject arrow = new GameObject("Arrow");
             arrow.transform.position = position;
-            arrow.transform.rotation = Quaternion.LookRotation(direction);
+            arrow.transform.rotation = rotation;
 
             // ลำตัวธนู (Cylinder ยาวผอม)
             GameObject shaft = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
@@ -260,6 +360,17 @@ namespace Simulation.Building
             return arrow;
         }
 
+        private GameObject FindChildRecursive(Transform parent, string name)
+        {
+            if (parent.name == name) return parent.gameObject;
+            foreach (Transform child in parent)
+            {
+                GameObject result = FindChildRecursive(child, name);
+                if (result != null) return result;
+            }
+            return null;
+        }
+
         private AudioClip CreateDefaultShootClip()
         {
             // สร้างเสียงป๊อปสังเคราะห์สั้นๆ (Beep sound) เพื่อให้ใช้งานได้เลยแบบไม่ต้องมีไฟล์เสียง
@@ -277,60 +388,4 @@ namespace Simulation.Building
         }
     }
 
-    /// <summary>
-    /// ลูกธนูที่บินไปหาเป้าหมาย (BalloonZombieAI)
-    /// เมื่อถึงหรือเป้าตาย → Pop Balloon + ทำลายตัวเอง
-    /// </summary>
-    public class ArrowProjectile : MonoBehaviour
-    {
-        private BalloonZombieAI _target;
-        private float _speed;
-        private float _lifetime;
-        private const float MAX_LIFETIME = 5f;
-        private const float HIT_DISTANCE = 1.0f;
-
-        public void Initialize(BalloonZombieAI target, float speed)
-        {
-            _target = target;
-            _speed = speed;
-            _lifetime = 0f;
-        }
-
-        private void Update()
-        {
-            _lifetime += Time.deltaTime;
-
-            // ถ้าเป้าตายหรือหายไป หรือเกินเวลา → ทำลาย
-            if (_target == null || _lifetime > MAX_LIFETIME)
-            {
-                Destroy(gameObject);
-                return;
-            }
-
-            // บินตรงไปหาเป้าหมาย
-            Vector3 targetPos = _target.transform.position;
-            Vector3 direction = (targetPos - transform.position).normalized;
-
-            // หมุนหน้าไปทิศที่บิน
-            if (direction.sqrMagnitude > 0.001f)
-            {
-                transform.rotation = Quaternion.LookRotation(direction);
-            }
-
-            // เคลื่อนที่
-            transform.position += direction * _speed * Time.deltaTime;
-
-            // เช็คว่าถึงเป้าหมายหรือยัง
-            float dist = Vector3.Distance(transform.position, targetPos);
-            if (dist <= HIT_DISTANCE)
-            {
-                // โดนแล้ว!
-                if (_target != null && !_target.IsDead && !_target.HasLanded)
-                {
-                    _target.PopBalloon();
-                }
-                Destroy(gameObject);
-            }
-        }
-    }
 }

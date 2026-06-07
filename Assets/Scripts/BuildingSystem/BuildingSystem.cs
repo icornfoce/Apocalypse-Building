@@ -710,7 +710,7 @@ namespace Simulation.Building
                 bool allValid = true;
                 float totalCost = 0f;
                 // Gadget ใช้ Material เริ่มต้นเท่านั้น (เปลี่ยนไม่ได้)
-                MaterialData mat = (_selectedData.structureType == StructureType.Gadget)
+                MaterialData mat = (_selectedData.isGadget)
                     ? _selectedData.defaultMaterial
                     : (_selectedMaterial != null ? _selectedMaterial : _selectedData.defaultMaterial);
                 float materialPrice = mat != null ? mat.priceModifier : 0f;
@@ -1285,7 +1285,7 @@ namespace Simulation.Building
             if (Input.GetMouseButton(0) && _hoveredUnit != null && _selectedMaterial != null)
             {
                 // Gadget เปลี่ยน Material ไม่ได้
-                if (_hoveredUnit.Data == null || _hoveredUnit.Data.structureType != StructureType.Gadget)
+                if (_hoveredUnit.Data == null || !_hoveredUnit.Data.isGadget)
                 {
                     ApplyMaterialToStructure(_hoveredUnit, _selectedMaterial);
                 }
@@ -1351,7 +1351,7 @@ namespace Simulation.Building
             proxy.prefab = data.prefab;
             proxy.defaultMaterial = null;
             proxy.allowOverlap = data.allowOverlap;
-            proxy.structureType = StructureType.Gadget;
+            proxy.isGadget = true;
             proxy.placeOnStructureOnly = false;  // Gadget วางบน ground และ floor ได้
             proxy.breakVFX = data.breakVFX;
             proxy.breakSFX = data.breakSound;
@@ -1477,7 +1477,7 @@ namespace Simulation.Building
         private void PlaceStructure(Vector3 position, float rotation, Collider targetCollider = null)
         {
             // Gadget ใช้ Material เริ่มต้นเท่านั้น (เปลี่ยนไม่ได้)
-            MaterialData mat = (_selectedData.structureType == StructureType.Gadget)
+            MaterialData mat = (_selectedData.isGadget)
                 ? _selectedData.defaultMaterial
                 : (_selectedMaterial != null ? _selectedMaterial : _selectedData.defaultMaterial);
             float materialPrice = mat != null ? mat.priceModifier : 0f;
@@ -1944,7 +1944,7 @@ namespace Simulation.Building
             Rigidbody newRb = structureObj.GetComponent<Rigidbody>();
             if (newUnit == null || newRb == null) return;
 
-            if (newUnit.Data != null && newUnit.Data.structureType == StructureType.Gadget) return; // Gadget ทั้งหมดเชื่อมต่อเฉพาะ Joint หลักเท่านั้น (TMD เกาะด้านบน, ตัวอื่นเกาะด้านล่าง)
+            if (newUnit.Data != null && newUnit.Data.isGadget) return; // Gadget ทั้งหมดเชื่อมต่อเฉพาะ Joint หลักเท่านั้น (TMD เกาะด้านบน, ตัวอื่นเกาะด้านล่าง)
 
             // หา connected body ของ main joint เพื่อไม่สร้างซ้ำ
             Joint mainJoint = structureObj.GetComponent<Joint>();
@@ -2547,7 +2547,7 @@ namespace Simulation.Building
             }
 
             // Gadget: ใช้ Y จาก Surface จริง (ไม่ snap ตาม grid) เพื่อให้วางบนโครงสร้างได้พอดี
-            bool isGadget = activeData != null && activeData.structureType == StructureType.Gadget;
+            bool isGadget = activeData != null && activeData.isGadget;
 
             if (snapYToGrid && !isGadget)
             {
@@ -2570,7 +2570,7 @@ namespace Simulation.Building
             Vector3 resultPos = new Vector3(x, y, z);
 
             // Stack/push up vertically if this exact cell position is already occupied by the same structure data
-            if (activeData != null && activeData.structureType != StructureType.Gadget)
+            if (activeData != null && !activeData.isGadget)
             {
                 float yStep = heightStep > 0f ? heightStep : gridSize;
                 int maxIterations = 50; // Safety cap to prevent infinite loop
@@ -3042,7 +3042,7 @@ namespace Simulation.Building
         {
             if (data == null) return false;
             if (data.prefab != null && data.prefab.GetComponentInChildren<TunedMassDamper>() != null) return true;
-            if (data.structureType != StructureType.Gadget) return false;
+            if (!data.isGadget) return false;
             string lowerName = !string.IsNullOrEmpty(data.structureName) ? data.structureName.ToLower() : "";
             return lowerName.Contains("damper") || lowerName.Contains("tuned") || lowerName.Contains("tmd");
         }
@@ -3055,7 +3055,7 @@ namespace Simulation.Building
         /// </summary>
         private bool IsValidGadgetPlacement(Vector3 position, float rotation, StructureData data, Collider hitCollider, Vector3 hitNormal)
         {
-            if (data == null || data.structureType != StructureType.Gadget) return true;
+            if (data == null || !data.isGadget) return true;
 
             // 1. ตรวจสอบว่าเมาส์ชี้ไปที่พื้นผิวที่อนุญาตหรือไม่ (Ground, Floor, Pillar เท่านั้น สำหรับ gadget ทั่วไป)
             if (hitCollider == null) return false;
@@ -3113,7 +3113,7 @@ namespace Simulation.Building
                     if (hitUnit == null || hitUnit.Data == null) return false;
                     
                     // ห้ามวางบน Gadget ตัวอื่น
-                    if (hitUnit.Data.structureType == StructureType.Gadget) return false;
+                    if (hitUnit.Data.isGadget) return false;
                     
                     // อนุญาตเฉพาะ Floor หรือ Pillar
                     bool isFloor = hitUnit.Data.structureType == StructureType.Floor;
@@ -3132,7 +3132,7 @@ namespace Simulation.Building
             foreach (var unit in _placedStructures)
             {
                 if (unit == null || unit == _movingUnit || _movingGroup.Contains(unit)) continue;
-                if (unit.Data == null || unit.Data.structureType != StructureType.Gadget) continue;
+                if (unit.Data == null || !unit.Data.isGadget) continue;
 
                 Bounds boundsB = GetGridBounds(unit.transform.position, unit.Rotation, unit.Data);
                 

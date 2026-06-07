@@ -34,7 +34,7 @@ namespace Simulation.Building
         {
             data = structureData;
             
-            bool isGadget = data != null && data.structureType == StructureType.Gadget;
+            bool isGadget = data != null && data.isGadget;
             currentMaterial = isGadget ? null : materialData;
 
             // HP = Base * Multiplier
@@ -82,7 +82,7 @@ namespace Simulation.Building
             }
 
             // Auto-inject Gadget behaviors if this unit is a Gadget
-            if (data != null && data.structureType == StructureType.Gadget)
+            if (data != null && data.isGadget)
             {
                 string lowerName = data.structureName.ToLower();
                 if (lowerName.Contains("balloon") || lowerName.Contains("launcher") || lowerName.Contains("shooter"))
@@ -138,7 +138,7 @@ namespace Simulation.Building
 
         public void ChangeMaterial(MaterialData newMaterial)
         {
-            if (data != null && data.structureType == StructureType.Gadget) return;
+            if (data != null && data.isGadget) return;
             currentMaterial = newMaterial;
             ApplyMaterial();
 

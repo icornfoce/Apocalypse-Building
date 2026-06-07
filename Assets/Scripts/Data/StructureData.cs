@@ -13,8 +13,7 @@ namespace Simulation.Data
         Normal,
         Wall,
         Door,
-        Floor,
-        Gadget
+        Floor
     }
 
     [CreateAssetMenu(fileName = "New Structure Data", menuName = "Simulation/Structure Data")]
@@ -24,6 +23,8 @@ namespace Simulation.Data
         public string structureName;
         [Tooltip("Normal = snaps to cell center, Wall = snaps to grid edges, Door = places on walls only")]
         public StructureType structureType = StructureType.Normal;
+        [Tooltip("True เฉพาะ Gadget (ตั้งโดย proxy จาก GadgetData) — ใช้แทน StructureType.Gadget เดิม")]
+        public bool isGadget = false;
         public float basePrice;
         public float baseMass;
         public float baseHP;

@@ -35,7 +35,7 @@ namespace Simulation.Mission
 
                     // Gadget (เช่น TMD, BalloonLauncher) ไม่ถูกสั่นจากแผ่นดินไหว
                     // เพื่อให้ลูกตุ้มของ TMD ไม่โดนแรง Impulse จากแผ่นดินไหว
-                    bool isGadget = unit.Data != null && unit.Data.structureType == Simulation.Data.StructureType.Gadget;
+                    bool isGadget = unit.Data != null && unit.Data.isGadget;
 
                     if (!isGadget)
                     {

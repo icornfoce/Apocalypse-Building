@@ -329,7 +329,7 @@ namespace Simulation.Physics
             float impact = collision.impulse.magnitude;
 
             var unit = GetComponent<Building.StructureUnit>();
-            bool isGadget = unit != null && unit.Data != null && unit.Data.structureType == Simulation.Data.StructureType.Gadget;
+            bool isGadget = unit != null && unit.Data != null && unit.Data.isGadget;
 
             // ── 0. ชิ้นส่วนที่หลุดออก (Detached) หรือ Gadget: กระแทกอะไรก็ตามนิดเดียว → พังทันที ไม่เด้ง ──
             if ((_isDetached || isGadget) && !_isBroken && impact > 0.5f)

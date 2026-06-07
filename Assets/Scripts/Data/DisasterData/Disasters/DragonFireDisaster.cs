@@ -1,5 +1,6 @@
 using UnityEngine;
 using Simulation.Building;
+using System.Collections.Generic; // Added for fire list
 
 namespace Simulation.Mission
 {
@@ -13,6 +14,8 @@ namespace Simulation.Mission
         private GameObject _dragon;
         private float _fireTimer;
         private float _flyT; // 0-1 progress ของการบินผ่าน
+        private List<GameObject> _activeFires = new List<GameObject>(); // เก็บไฟที่กำลังลุกอยู่
+        private float _fireDuration = 5f; // เวลาไฟอยู่ก่อนดับ
 
         public DragonFireDisaster(DisasterData data, MonoBehaviour runner) : base(data, runner) { }
 
@@ -53,57 +56,91 @@ namespace Simulation.Mission
                 }
             }
 
-            // ยิงลูกไฟ
+            // สร้างไฟรอบมังกรเป็นช่วงเวลา
             _fireTimer += dt;
-            float fireInterval = 1.5f; // ยิงทุก 1.5 วินาที
+            float fireInterval = 2f; // สร้างไฟทุก 2 วินาที
             if (_fireTimer >= fireInterval)
             {
                 _fireTimer -= fireInterval;
-                ShootFireball();
+                EmitFire();
             }
 
-            // ดาเมจต่อเนื่องทั้ง field
+            // ดาเมจต่อเนื่องจากการบินของมังกร (field damage)
             if (data.damagePerSecond > 0f)
             {
                 var structures = GetStructuresInRadius(data.centerOffset, data.radius);
                 foreach (var unit in structures)
                 {
-                    // ดาเมจเฉพาะตรงที่ลูกไฟลง (ลดลง 1/3 สำหรับ field damage)
+                    // ดาเมจทั่วไปจากความรุนแรงของมังกร
                     DamageStructure(unit, data.damagePerSecond * dt * 0.3f);
                 }
             }
+
+            // ดาเมจจากไฟที่กำลังลุกอยู่
+            ApplyActiveFireDamage(dt);
         }
 
-        private void ShootFireball()
+        // สร้างไฟพื้นฐาน (ไม่มีลูกไฟ) ที่ตำแหน่งมังกร
+        private void EmitFire()
         {
             if (_dragon == null) return;
 
-            // สร้างลูกไฟ
             Vector3 firePos = _dragon.transform.position + Vector3.down * 2f;
 
+            // ใช้ fireballPrefab เป็นตัวแทนของ fire area ถ้าหากไม่มี fireAreaPrefab
+            GameObject fireObj = null;
             if (data.fireballPrefab != null)
             {
-                GameObject fireball = Object.Instantiate(data.fireballPrefab, firePos, Quaternion.identity);
-                Rigidbody rb = fireball.GetComponent<Rigidbody>();
-                if (rb == null) rb = fireball.AddComponent<Rigidbody>();
-                rb.useGravity = true;
-
-                // ใส่แรงลงและไปข้างหน้าเล็กน้อย
-                rb.AddForce(Vector3.down * 5f + _dragon.transform.forward * 3f, ForceMode.Impulse);
-
-                // ทำลายลูกไฟหลัง 5 วินาที
-                Object.Destroy(fireball, 5f);
+                fireObj = Object.Instantiate(data.fireballPrefab, firePos, Quaternion.identity);
+                // ปิดการเคลื่อนที่: ไม่ใส่แรง, ปิด gravity
+                Rigidbody rb = fireObj.GetComponent<Rigidbody>();
+                if (rb == null) rb = fireObj.AddComponent<Rigidbody>();
+                rb.useGravity = false;
+                rb.isKinematic = true;
             }
-
-            // ใส่ดาเมจรัศมีรอบจุดที่มังกรอยู่
-            var structures = GetStructuresInRadius(firePos, data.radius > 0f ? data.radius : 5f);
-            foreach (var unit in structures)
+            else
             {
-                DamageStructure(unit, data.intensity);
+                // สร้าง placeholder ว่างเปล่า
+                fireObj = new GameObject("DragonFireArea");
+                fireObj.transform.position = firePos;
             }
 
-            // Camera shake
-            BuildingSystem.Instance?.TriggerCameraShake(data.intensity * 0.1f);
+            // ทำลายหลังจากช่วงเวลากำหนด
+            Object.Destroy(fireObj, _fireDuration);
+            _activeFires.Add(fireObj);
+        }
+
+        // ดาเมจต่อเนื่องจากไฟที่กำลังลุกอยู่
+        private void ApplyActiveFireDamage(float dt)
+        {
+            foreach (var fire in _activeFires)
+            {
+                if (fire == null) continue;
+                var structures = GetStructuresInRadius(fire.transform.position, data.radius > 0f ? data.radius : 5f);
+                foreach (var unit in structures)
+                {
+                    // เพิ่มดาเมจต่อเนื่องแบบไฟ; ถ้าเป็นไม้เพิ่ม multiplier
+                    float dmgMultiplier = 0.5f;
+                    if (unit != null && unit.CompareTag("Wood"))
+                    {
+                        dmgMultiplier *= 2f; // ไม้ลามต่อเนื่องเป็นสองเท่า
+                    }
+                    DamageStructure(unit, data.intensity * dt * dmgMultiplier);
+                    // TODO: หาก unit มี tag หรือ type "Wood" ให้เพิ่มโอกาสการลามต่อเนื่อง
+                }
+                // ดาเมจต่อคน (เช่น zombie bite)
+                var people = GetAllPeople();
+                foreach (var person in people)
+                {
+                    if (person == null) continue;
+                    // เช็คระยะจาก fire
+                    if (Vector3.Distance(person.transform.position, fire.transform.position) <= (data.radius > 0f ? data.radius : 5f))
+                    {
+                        // ใช้ intensity เป็นดาเมจต่อคน
+                        DamagePerson(person, data.intensity * dt);
+                    }
+                }
+            }
         }
     }
 }

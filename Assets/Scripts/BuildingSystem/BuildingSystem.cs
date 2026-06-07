@@ -2327,6 +2327,22 @@ namespace Simulation.Building
             StructureData activeData = GetActiveStructureData();
             StructureType placementType = (activeData != null && !forceNormalType) ? activeData.structureType : StructureType.Normal;
 
+            // ── Door: ถ้าเล็งโดน "กำแพง" โดยตรง ให้ดูดเข้าทับกำแพงนั้นและหันตามทันที ──
+            // (ต้องทำก่อน logic isSideHit ที่ปกติจะดันตำแหน่งออกไปช่องถัดไป ซึ่งทำให้ประตูเด้งหนีกำแพง)
+            if (placementType == StructureType.Door && hitCollider != null)
+            {
+                StructureUnit hitWall = hitCollider.GetComponentInParent<StructureUnit>();
+                if (hitWall != null && hitWall.Data != null && hitWall.Data.structureType == StructureType.Wall)
+                {
+                    if (ghostBuilder != null && !_isDragging)
+                    {
+                        float wr = Mathf.Round(hitWall.Rotation / 90f) * 90f;
+                        ghostBuilder.SetRotation(((wr % 360f) + 360f) % 360f);
+                    }
+                    return hitWall.transform.position;
+                }
+            }
+
             float rawX = hitPoint.x;
             float rawZ = hitPoint.z;
 
@@ -2416,31 +2432,44 @@ namespace Simulation.Building
                     ghostBuilder.SetRotation(targetRot);
                 }
 
-                // สำหรับ Door: ให้ลองหา Wall ที่ใกล้ที่สุดเพื่อ Snap เข้าหาโดยตรง (ช่วยให้วางง่ายขึ้น)
+                // ── Door: ดูดเข้าหา Wall ที่ใกล้ที่สุด แล้ว "หัน" ให้ตรงด้านกับกำแพง ──
+                // เลือก Wall โดยวัดระยะแนวราบ (XZ) เป็นหลัก และจำกัดความต่างของระดับ (Y)
+                // เพื่อไม่ให้ประตูดูดข้ามชั้น จากนั้นบังคับ rotation ของประตูให้เท่ากับกำแพง
+                // (สำคัญ: FindWallAtPosition ใช้ rotation ในการจับคู่ ถ้าไม่ตรงจะวางไม่ได้/หันผิดด้าน)
                 if (placementType == StructureType.Door)
                 {
                     StructureUnit nearbyWall = null;
-                    float minWallDist = 1.0f; // ระยะดึงดูดเข้าหา Wall
-                    
+                    float minWallDist = gridSize * 0.6f;  // ระยะดึงดูด สัมพันธ์กับขนาด grid
+                    float maxYDiff    = gridSize * 0.5f;  // กันไม่ให้ดูดข้ามชั้น
+
+                    Vector2 probeXZ = new Vector2(x, z);
                     foreach (var unit in _placedStructures)
                     {
                         if (unit == null || unit.Data == null || unit.Data.structureType != StructureType.Wall) continue;
-                        float d = Vector3.Distance(new Vector3(x, hitPoint.y, z), unit.transform.position);
-                        if (d < minWallDist)
+
+                        Vector3 wp = unit.transform.position;
+                        if (Mathf.Abs(wp.y - hitPoint.y) > maxYDiff) continue; // คนละชั้น ข้ามไป
+
+                        float dHoriz = Vector2.Distance(probeXZ, new Vector2(wp.x, wp.z));
+                        if (dHoriz < minWallDist)
                         {
-                            minWallDist = d;
+                            minWallDist = dHoriz;
                             nearbyWall = unit;
                         }
                     }
 
                     if (nearbyWall != null)
                     {
-                        x = nearbyWall.transform.position.x;
-                        z = nearbyWall.transform.position.z;
-                        float snappedY = nearbyWall.transform.position.y; // Lock แกน Y ตาม Wall
+                        // 1) หันประตูให้ตรงด้านเดียวกับกำแพง (snap เป็นช่วง 90°)
+                        //    ทำให้บานประตูหันถูกด้าน และ FindWallAtPosition จับคู่กำแพงได้ (tolerance 10°/180°)
+                        if (ghostBuilder != null && !_isDragging)
+                        {
+                            float wallRot = Mathf.Round(nearbyWall.Rotation / 90f) * 90f;
+                            ghostBuilder.SetRotation(((wallRot % 360f) + 360f) % 360f);
+                        }
 
-                        // Manual rotation only
-                        return new Vector3(x, snappedY, z); // Snap จบตรงนี้เลย (ใช้ Y ของ Wall โดยตรง)
+                        // 2) ดูดตำแหน่งให้ทับกำแพงพอดี (รวมแกน Y ตามกำแพง)
+                        return nearbyWall.transform.position;
                     }
                 }
             }

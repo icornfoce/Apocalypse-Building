@@ -1503,15 +1503,15 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: d2082982161506045ac7aed691b72956, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -3.7344165
+      value: 1.6337669
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: d2082982161506045ac7aed691b72956, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.00000015211921
+      value: 0.000000091726776
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: d2082982161506045ac7aed691b72956, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 1.1457607
+      value: 0.7855278
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: d2082982161506045ac7aed691b72956, type: 3}
       propertyPath: m_LocalRotation.w
@@ -1650,6 +1650,7 @@ MonoBehaviour:
   attackInterval: 1.5
   attackRange: 1.5
   maxHealth: 15
+  wallScanRange: 30
   damageImpactThreshold: 3
   deathVFX: {fileID: 5985634496115995773, guid: 463cf9f7af4680240898f6aeba3fe3e6, type: 3}
   animator: {fileID: 8206076509353567659}
@@ -1750,7 +1751,7 @@ AudioSource:
     m_Curve:
     - serializedVersion: 3
       time: 0
-      value: 0
+      value: 1
       inSlope: 0
       outSlope: 0
       tangentMode: 0

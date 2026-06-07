@@ -27,9 +27,8 @@ MonoBehaviour:
   shootSound: {fileID: 0}
   isTunedMassDamper: 1
   dampingCoefficient: 0.5
-  restoringStrength: 10
-  prefab: {fileID: 143080543725399282, guid: 848909a93fd634d46bf96fa73fa4b5ba, type: 3}
-  defaultMaterial: {fileID: 0}
+  restoringStrength: 100
+  prefab: {fileID: 4913208699876575875, guid: baf8a0cac4123c04e9b2b237a2a4391e, type: 3}
   placeSound: {fileID: 0}
   breakSound: {fileID: 0}
   placeVFX: {fileID: 0}

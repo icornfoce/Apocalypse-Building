@@ -1815,29 +1815,26 @@ namespace Simulation.Building
                     break;
                 }
 
-                // Fallback พิเศษสำหรับพื้นดินที่ระดับ Y=0 (ยิง BoxCast ตรวจจับเฉพาะชั้น groundLayer เพื่อความชัวร์)
+                // Fallback: ตรวจ "พื้น/สภาพแวดล้อม" ที่อยู่ใต้ฐานโดยตรง
+                // ไม่ผูกกับ Y=0 (รองรับพื้นที่อยู่ระดับใดก็ได้) และไม่ผูก Layer (ยิงทุกชั้น)
+                // ระยะสั้นๆ เพื่อให้เฉพาะของที่ "วางอยู่บน" พื้นจริงๆ ถึงจะยึด (กันของลอยยึดมั่ว)
                 if (actualTarget == null)
                 {
                     float bottomY = structureObj.transform.position.y - pivotToBottom;
-                    if (bottomY < 0.2f)
+                    Vector3 groundRayStart = new Vector3(structureObj.transform.position.x, bottomY + 0.25f, structureObj.transform.position.z);
+                    Vector3 groundHalfExtents = boxHalfExtents;
+                    groundHalfExtents.y = 0.05f;
+
+                    RaycastHit[] groundHits = UnityEngine.Physics.BoxCastAll(
+                        groundRayStart, groundHalfExtents, Vector3.down, boxRotation, 0.6f, ~0, QueryTriggerInteraction.Ignore);
+                    System.Array.Sort(groundHits, (a, b) => a.distance.CompareTo(b.distance));
+
+                    foreach (var gh in groundHits)
                     {
-                        RaycastHit groundHit;
-                        Vector3 fallbackRayStart = new Vector3(structureObj.transform.position.x, bottomY + 0.2f, structureObj.transform.position.z);
-                        Vector3 fallbackHalfExtents = boxHalfExtents;
-                        fallbackHalfExtents.y = 0.05f;
-                        
-                        if (UnityEngine.Physics.BoxCast(
-                            fallbackRayStart,
-                            fallbackHalfExtents,
-                            Vector3.down,
-                            out groundHit,
-                            boxRotation,
-                            0.5f,
-                            groundLayer
-                        ))
-                        {
-                            actualTarget = groundHit.collider;
-                        }
+                        if (gh.collider == null) continue;
+                        if (gh.collider.gameObject == structureObj || gh.collider.transform.IsChildOf(structureObj.transform)) continue;
+                        actualTarget = gh.collider;
+                        break;
                     }
                 }
             }
@@ -1902,6 +1899,14 @@ namespace Simulation.Building
             if (actualTarget != null && targetRb == null)
             {
                 targetRb = actualTarget.GetComponentInParent<Rigidbody>();
+            }
+
+            // ถ้าสิ่งที่อยู่ข้างล่างไม่ใช่โครงสร้าง (ไม่มี StructureUnit) และไม่มี Rigidbody
+            // = พื้น/สภาพแวดล้อมที่อยู่กับที่ → ถือเป็น "ground" แล้วยึดกับโลก
+            // (กันเคส: พื้นไม่ได้อยู่ใน groundLayer ที่ตั้งไว้ ทำให้ wall บนพื้นไม่ยอม Joint)
+            if (!isGround && targetUnit == null && targetRb == null)
+            {
+                isGround = true;
             }
 
             // 4. Safety Check: Cannot connect to itself

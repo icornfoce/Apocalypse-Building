@@ -25,5 +25,11 @@ namespace Simulation.Data
         public float compressionMultiplier = 1f;
         [Tooltip("Tension capacity multiplier applied to the structure's base maxTension.")]
         public float tensionMultiplier = 1f;
+
+        [Header("Fire")]
+        [Tooltip("วัสดุติดไฟและลามไฟได้ (เช่น ไม้)")]
+        public bool flammable = false;
+        [Tooltip("ตัวคูณดาเมจตอนกำลังไหม้ (ไม้ควร > 1 เพื่อให้ไหม้เร็ว)")]
+        public float burnDamageMultiplier = 1f;
     }
 }

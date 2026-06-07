@@ -23,3 +23,5 @@ MonoBehaviour:
   breakVFX: {fileID: 5880797563127281583, guid: 265d3a5ba69981a4698ceabcedf368b0, type: 3}
   compressionMultiplier: 1
   tensionMultiplier: 1
+  flammable: 1
+  burnDamageMultiplier: 2

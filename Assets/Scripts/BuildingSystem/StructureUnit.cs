@@ -60,6 +60,10 @@ namespace Simulation.Building
                 rb.useGravity = true;
                 rb.mass = (data.baseMass * (currentMaterial != null ? currentMaterial.massMultiplier : 1f)) / 100f;
 
+                // เพิ่มรอบการแก้สมการฟิสิกส์ ให้ Joint แข็ง/นิ่งขึ้น (กันคานเอียง/สั่นจากภาระหนักเยื้องศูนย์)
+                rb.solverIterations = 24;
+                rb.solverVelocityIterations = 12;
+
                 // Concave Mesh Colliders are not supported with dynamic Rigidbodies.
                 // We must ensure all MeshColliders are convex if we intend to simulate physics.
                 foreach (var meshCol in GetComponentsInChildren<MeshCollider>())

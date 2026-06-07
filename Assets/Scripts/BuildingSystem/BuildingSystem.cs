@@ -1994,8 +1994,12 @@ namespace Simulation.Building
                 if (contactAxis < 0) continue;
 
                 // กฎพิเศษของพื้น: ถ้ามีฝ่ายใดเป็น Floor → ต่อได้แค่แนวตั้ง (บน/ล่าง = แกน Y)
-                bool involvesFloor = newIsFloor || (unit.Data != null && unit.Data.structureType == StructureType.Floor);
-                if (involvesFloor && contactAxis != 1) continue;
+                // กฎพื้น:
+                //  - floor ↔ โครงสร้างอื่น (ไม่ใช่ floor): ต่อได้แค่ บน/ล่าง (แกน Y)
+                //  - floor ↔ floor: ต่อได้ทุกด้าน (วางพื้นต่อกันเป็นแพลตฟอร์มได้)
+                bool otherIsFloor = unit.Data != null && unit.Data.structureType == StructureType.Floor;
+                bool oneIsFloor = newIsFloor ^ otherIsFloor; // เป็น floor ฝ่ายเดียว
+                if (oneIsFloor && contactAxis != 1) continue;
 
                 FixedJoint sideJoint = structureObj.AddComponent<FixedJoint>();
                 sideJoint.connectedBody = otherRb;

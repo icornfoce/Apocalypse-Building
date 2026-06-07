@@ -54,6 +54,11 @@ namespace Simulation.Physics
         [SerializeField] private float impactDamageThreshold = 50f;
         [SerializeField] private float impactDamageMultiplier = 0.05f;
 
+        [Tooltip("Impulse จากการชนที่จะทำให้ข้อต่อ 'หลุด' (Detach) ทันที — ยิ่งสูงข้อต่อยิ่งแข็ง ไม่หลุดจากการชนเบาๆ")]
+        [SerializeField] private float collisionDetachImpulse = 30f;
+        [Tooltip("Impulse จากการชนที่จะทำให้ 'พัง' (Break) ทันที")]
+        [SerializeField] private float collisionBreakImpulse = 80f;
+
         [Header("Physical Limits")]
         [SerializeField] private float maxCompression = 1000f;
         [SerializeField] private float maxTension = 1000f;
@@ -84,6 +89,11 @@ namespace Simulation.Physics
         private bool _isBroken;
         private bool _isDetached;
         private int _originalLayer;
+
+        // กันอาการ "ลอย": จับครั้งเดียวตอนเริ่มจำลองว่าชิ้นนี้เป็น "ตัวยึดกับพื้น/โลก" จริงไหม
+        // ground anchor = มี Joint ที่ connectedBody เป็น null ตั้งแต่เริ่ม (ก่อนมีอะไรถูกทำลาย)
+        private bool _hadGroundAnchor;
+        private bool _anchorChecked;
 
         // Recovery cooldown timer — counts how long stress has been below thresholds
         private float _lowStressTimer;
@@ -212,6 +222,9 @@ namespace Simulation.Physics
                 return;
             }
 
+            // จับครั้งเดียวหลัง settle (ก่อนมีอะไรถูกทำลาย): ชิ้นนี้เป็น ground anchor หรือไม่
+            if (!_anchorChecked) CaptureAnchorState();
+
             if (_joint == null)
             {
                 _joint = GetComponent<Joint>();
@@ -223,6 +236,26 @@ namespace Simulation.Physics
                     {
                         Detach();
                     }
+                    return;
+                }
+            }
+
+            // ── กันอาการ "ลอย" เมื่อตัวค้ำถูกทำลาย ──
+            // ถ้าไม่ได้วางบนพื้นจริง และทุก Joint ไม่เหลือ connectedBody ที่ยังมีชีวิต
+            // (connectedBody กลายเป็น null เพราะตัวที่ยึดถูกทำลาย → FixedJoint จะยึดกับโลกทำให้ลอยค้าง)
+            // → ปล่อยให้ร่วงตามฟิสิกส์
+            if (!_hadGroundAnchor)
+            {
+                bool hasLiveSupport = false;
+                Joint[] supportJoints = GetComponents<Joint>();
+                foreach (var sj in supportJoints)
+                {
+                    if (sj != null && sj.connectedBody != null) { hasLiveSupport = true; break; }
+                }
+                if (!hasLiveSupport
+                    && SimulationManager.Instance != null && SimulationManager.Instance.IsSimulating)
+                {
+                    Detach();
                     return;
                 }
             }
@@ -340,7 +373,7 @@ namespace Simulation.Physics
             }
 
             // ── 0.5 โครงสร้างที่ยังเกาะอยู่: ถ้าชน/กระแทกแค่นิดเดียว (impact > 2f) ให้ Joint หลุด (Detach) ทันที ──
-            if (!_isDetached && !_isBroken && impact > 2f)
+            if (!_isDetached && !_isBroken && impact > collisionDetachImpulse)
             {
                 if (showDebugLogs)
                     Debug.Log($"[Stress] {name} joint snapped (detached) due to collision impact: {impact:F1}");
@@ -348,7 +381,7 @@ namespace Simulation.Physics
                 Detach();
 
                 // ถ้าชนแรงขึ้นมาหน่อย (impact > 10f) ให้พัง (Break) ไปเลย
-                if (impact > 10f)
+                if (impact > collisionBreakImpulse)
                 {
                     _currentHP = 0f;
                     Break();
@@ -477,7 +510,7 @@ namespace Simulation.Physics
                 _rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
                 _rb.WakeUp();
 
-                _rb.AddTorque(Random.insideUnitSphere * 0.5f, ForceMode.Impulse);
+                // (เอา random torque ออก เพื่อไม่ให้ชิ้นส่วนกระเด็นหมุนตอนหลุด — ปล่อยให้ตกตามฟิสิกส์)
             }
         }
 
@@ -758,6 +791,7 @@ namespace Simulation.Physics
             _originalMaxTension = maxTension;
 
             _settlementTimer = SETTLEMENT_DURATION;
+            _anchorChecked = false;
 
             // บันทึกสีดั้งเดิมใหม่ทุกครั้งที่มีการ Initialize (เพื่อให้ครอบคลุมชิ้นส่วนที่เพิ่มทีหลังอย่าง DoorFrame)
             stressRenderers = GetComponentsInChildren<Renderer>();
@@ -807,6 +841,7 @@ namespace Simulation.Physics
 
             _lowStressTimer = 0f;
             _settlementTimer = SETTLEMENT_DURATION;
+            _anchorChecked = false;
             LastForceMagnitude = 0f;
             LastTorqueMagnitude = 0f;
 
@@ -827,6 +862,25 @@ namespace Simulation.Physics
             _joint = GetComponent<Joint>();
 
             UpdateVisualStress();
+        }
+
+        /// <summary>
+        /// ตรวจว่าชิ้นนี้วางอยู่บน "พื้น/สภาพแวดล้อม" (ไม่ใช่โครงสร้างอื่น) โดยตรงหรือไม่
+        /// ใช้ตัดสินว่าเมื่อ Joint หลุดหมดแล้วควรปล่อยร่วง (ไม่ใช่พื้น) หรือยืนนิ่ง (เป็นพื้น)
+        /// </summary>
+        private void CaptureAnchorState()
+        {
+            _anchorChecked = true;
+            _hadGroundAnchor = false;
+
+            // ground anchor = มี Joint ที่ connectedBody เป็น null อยู่แล้วตั้งแต่เริ่มจำลอง
+            // (สร้างโดย AttachJoint ตอนวางบนพื้น/ground) — ชิ้นพวกนี้ยึดกับโลกโดยตั้งใจ ไม่ต้องสั่งร่วง
+            // ส่วนชิ้นที่ยึดกับโครงสร้างอื่น ถ้าตัวค้ำถูกทำลาย connectedBody จะกลายเป็น null ทีหลัง → จึงสั่งร่วงได้
+            Joint[] joints = GetComponents<Joint>();
+            foreach (var j in joints)
+            {
+                if (j != null && j.connectedBody == null) { _hadGroundAnchor = true; return; }
+            }
         }
 
         private void SetLayerRecursive(GameObject obj, int layer)

@@ -1738,6 +1738,13 @@ namespace Simulation.Building
 
             // 1. Remove existing joints immediately to avoid stale components in the same frame
             Joint[] existingJoints = structureObj.GetComponents<Joint>();
+            // จำไว้ก่อนลบ: เดิมชิ้นนี้ "ยึดกับพื้น/โลก" อยู่ไหม (ground anchor = connectedBody == null)
+            // กันเคส recheck/refresh หาจุดยึดใหม่ไม่เจอ แล้วเผลอตัด Joint พื้นทิ้ง
+            bool hadGroundAnchor = false;
+            foreach (var j in existingJoints)
+            {
+                if (j != null && j.connectedBody == null) { hadGroundAnchor = true; break; }
+            }
             foreach (var j in existingJoints) DestroyImmediate(j);
 
             // 2. Find the actual collider directly beneath this specific structure (or above if TMD).
@@ -1903,7 +1910,16 @@ namespace Simulation.Building
                 }
             }
 
-            if (actualTarget == null) return;
+            if (actualTarget == null)
+            {
+                // หาจุดยึดใหม่ไม่เจอ แต่เดิมเคยยึดพื้นไว้ → คงสมอยึดพื้น (ground anchor) ไว้ ไม่ตัดทิ้ง
+                if (hadGroundAnchor)
+                {
+                    FixedJoint keepGround = structureObj.AddComponent<FixedJoint>();
+                    keepGround.connectedBody = null; // null = ยึดกับโลก (พื้น)
+                }
+                return;
+            }
 
             // 3. Identify the target Rigidbody
             bool isGround = ((1 << actualTarget.gameObject.layer) & groundLayer) != 0;
@@ -1939,7 +1955,16 @@ namespace Simulation.Building
                 if (!isGround) actualTarget = null; 
             }
 
-            if (actualTarget == null) return;
+            if (actualTarget == null)
+            {
+                // หาจุดยึดใหม่ไม่เจอ แต่เดิมเคยยึดพื้นไว้ → คงสมอยึดพื้น (ground anchor) ไว้ ไม่ตัดทิ้ง
+                if (hadGroundAnchor)
+                {
+                    FixedJoint keepGround = structureObj.AddComponent<FixedJoint>();
+                    keepGround.connectedBody = null; // null = ยึดกับโลก (พื้น)
+                }
+                return;
+            }
 
             // 5. Only create a joint if it's ground or another structure with a Rigidbody.
             if (isGround || targetRb != null)

@@ -49,7 +49,9 @@ namespace Simulation.Mission
                     }
 
                     // ใส่ดาเมจ (Gadget ยังโดนดาเมจได้ปกติ)
-                    DamageStructure(unit, data.damagePerSecond * interval);
+                    // TMD ที่ทำงานอยู่จะช่วยลดดาเมจแผ่นดินไหวให้โครงสร้างที่มันเชื่อมต่ออยู่ (ตาม earthquakeDamageReduction)
+                    float tmdMult = Simulation.Building.TunedMassDamper.GetEarthquakeDamageMultiplier(unit);
+                    DamageStructure(unit, data.damagePerSecond * interval * tmdMult);
                 }
 
                 // Camera shake ต่อเนื่อง

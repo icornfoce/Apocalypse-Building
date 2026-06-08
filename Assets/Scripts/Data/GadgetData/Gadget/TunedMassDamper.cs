@@ -23,6 +23,12 @@ namespace Simulation.Building
         [Tooltip("แรงดึงลงเพิ่มเติมเพื่อช่วยชดเชยอาการตึกตกช้าเวลาพังหรือเอียง (ยิ่งเยอะยิ่งตกเร็ว)")]
         public float extraGravityCompensation = 5f;
 
+        [Header("TMD Earthquake Protection (Setting แยกต่างหาก)")]
+        [Tooltip("สัดส่วนการลดดาเมจแผ่นดินไหวให้โครงสร้างที่ TMD เชื่อมต่ออยู่ (ชุดเดียวกับที่ Damping/Restoring ทำงาน). " +
+                 "0 = ไม่ลด, 1 = กันดาเมจแผ่นดินไหว 100%. คิดเป็นตัวคูณ damage *= (1 - ค่านี้)")]
+        [Range(0f, 1f)]
+        public float earthquakeDamageReduction = 0.5f;
+
         [Header("Pendulum References (จาก Prefab)")]
         [Tooltip("Transform ของเชือก — Auto-find 'Rope' ถ้าไม่ assign")]
         public Transform ropeTransform;
@@ -72,8 +78,18 @@ namespace Simulation.Building
         private bool _hasSavedOriginalTransform = false;
         private bool _wasSimulatingLastFrame = false;
 
+        // Registry ของ TMD ที่ active อยู่ — ใช้ให้ภัยพิบัติ (แผ่นดินไหว) query หาตัวลดดาเมจได้
+        private static readonly List<TunedMassDamper> _activeDampers = new List<TunedMassDamper>();
+
+        // สีดั้งเดิมของ Renderer แต่ละตัว (จับครั้งเดียวตอน Start ก่อนโดนดาเมจ)
+        // ใช้รีคืนตอนจบ sim กัน mat ค้างสีแดงจากระบบ Stress
+        private readonly Dictionary<Renderer, Color> _originalRendererColors = new Dictionary<Renderer, Color>();
+
         private void Start()
         {
+            // จับสีดั้งเดิมของทุก Renderer ก่อนเริ่มจำลอง (ตอนนี้สียังเป็นสีปกติ ยังไม่โดน Stress ทาแดง)
+            CaptureOriginalRendererColors();
+
             AutoFindReferences();
             SaveOriginalPendulumTransform();
             
@@ -89,11 +105,14 @@ namespace Simulation.Building
             // ลงทะเบียนอีเวนต์ หรือเตรียมตัวเมื่อเริ่มจำลอง
             _isInitialized = false;
             _wasSimulatingLastFrame = SimulationManager.Instance != null && SimulationManager.Instance.IsSimulating;
+
+            if (!_activeDampers.Contains(this)) _activeDampers.Add(this);
         }
 
         private void OnDisable()
         {
             ResetPendulum();
+            _activeDampers.Remove(this);
         }
 
         private void Update()
@@ -102,6 +121,8 @@ namespace Simulation.Building
             if (_wasSimulatingLastFrame && !isSimulating)
             {
                 ResetPendulum();
+                // รี mat ของ TMD ให้กลับเป็นสีเดิมเมื่อจบ sim (กันสีแดงจาก Stress ค้างหลังกลับหน้าเตรียมตัว)
+                RestoreOriginalRendererColors();
             }
             _wasSimulatingLastFrame = isSimulating;
 
@@ -128,6 +149,69 @@ namespace Simulation.Building
                     }
                 }
             }
+        }
+
+        // ── Material color reset (กัน mat ค้างสีแดงหลังจบ sim) ──────────
+
+        private void CaptureOriginalRendererColors()
+        {
+            _originalRendererColors.Clear();
+            foreach (var rend in GetComponentsInChildren<Renderer>(true))
+            {
+                if (rend == null) continue;
+                Material src = rend.sharedMaterial != null ? rend.sharedMaterial : rend.material;
+                if (src != null) _originalRendererColors[rend] = src.color;
+            }
+        }
+
+        private void RestoreOriginalRendererColors()
+        {
+            foreach (var kvp in _originalRendererColors)
+            {
+                // ข้าม Renderer ที่ถูกทำลายไปแล้ว (เช่น เชือก/ลูกตุ้มที่ ResetPendulum สร้างใหม่จาก backup สีเดิมอยู่แล้ว)
+                if (kvp.Key != null) kvp.Key.material.color = kvp.Value;
+            }
+        }
+
+        // ── Earthquake damage reduction (ให้ภัยพิบัติเรียกใช้) ──────────
+
+        /// <summary>
+        /// ตัวคูณดาเมจแผ่นดินไหวสำหรับโครงสร้าง 1 ชิ้น โดยดูจาก TMD ทุกตัวที่กำลังทำงานอยู่
+        /// คืน 1 ถ้าไม่มี TMD ป้องกัน, น้อยกว่า 1 ถ้ามี (เลือกค่าต่ำสุด = ป้องกันดีสุด)
+        /// </summary>
+        public static float GetEarthquakeDamageMultiplier(StructureUnit unit)
+        {
+            if (unit == null) return 1f;
+            Rigidbody unitRb = unit.GetComponent<Rigidbody>();
+
+            float mult = 1f;
+            for (int i = 0; i < _activeDampers.Count; i++)
+            {
+                var tmd = _activeDampers[i];
+                if (tmd == null || tmd.earthquakeDamageReduction <= 0f) continue;
+                if (!tmd.IsCurrentlyStabilizing()) continue;          // เงื่อนไขเดียวกับ Damping/Restoring
+                if (!tmd.ProtectsUnit(unit, unitRb)) continue;
+
+                float m = Mathf.Clamp01(1f - tmd.earthquakeDamageReduction);
+                if (m < mult) mult = m;
+            }
+            return mult;
+        }
+
+        /// <summary>TMD นี้กำลังทำงานพยุงอยู่หรือไม่ (ไม่พัง/ไม่หลุด และยังยึดติดพื้น) — กติกาเดียวกับ ApplyStabilizationForces</summary>
+        public bool IsCurrentlyStabilizing()
+        {
+            var myStress = GetComponent<StructuralStress>();
+            if (myStress != null && (myStress.IsBroken || myStress.IsDetached)) return false;
+            return IsBuildingGrounded();
+        }
+
+        /// <summary>โครงสร้างนี้อยู่ในชุดที่ TMD ช่วยพยุง (รวมตัว TMD เอง) หรือไม่</summary>
+        private bool ProtectsUnit(StructureUnit unit, Rigidbody unitRb)
+        {
+            if (unit == GetComponent<StructureUnit>()) return true;   // ป้องกันตัวเอง
+            if (unitRb == null) return false;
+            return _connectedRigidbodies.Contains(unitRb);
         }
 
         private void SaveOriginalPendulumTransform()

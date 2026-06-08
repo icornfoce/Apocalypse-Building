@@ -13,27 +13,40 @@ namespace Simulation.Mission
 
         protected override void OnUpdate(float dt)
         {
+            // ทิศลม (normalized) — กันกรณี windDirection เป็นศูนย์ (หาร normalize ไม่ได้)
+            Vector3 windDir = data.windDirection.sqrMagnitude > 1e-6f
+                ? data.windDirection.normalized
+                : Vector3.zero;
+
             // แรงลม = ทิศทาง * ความรุนแรง * ตัวคูณแรงลม (เพื่อให้ปรับแรงผลักได้กว้างขึ้น)
-            Vector3 force = data.windDirection.normalized * (data.intensity * data.windForceMultiplier);
+            Vector3 force = windDir * (data.intensity * data.windForceMultiplier);
 
             var structures = GetStructuresInRadius(data.centerOffset, data.radius);
             foreach (var unit in structures)
             {
                 if (unit == null) continue;
+
+                // ── ระบบ aerodynamic ปลอมของบันได ──
+                // บันไดที่หันแกน Z ตรงกับลมจะ "ลดดาเมจ" ให้ตัวเอง และสร้าง "เงาลม"
+                // ที่ลดดาเมจ/แรงให้โครงสร้างที่อยู่ปลายลม (ดู WindDeflector.cs)
+                Vector3 pos = unit.transform.position;
+                float dmgMult   = Simulation.Physics.WindDeflector.GetWindDamageMultiplier(unit, pos, windDir);
+                float forceMult = Simulation.Physics.WindDeflector.GetWindForceMultiplier(unit, pos, windDir);
+
                 Rigidbody rb = unit.GetComponent<Rigidbody>();
                 if (rb != null && !rb.isKinematic)
                 {
-                    rb.AddForce(force, ForceMode.Force);
+                    rb.AddForce(force * forceMult, ForceMode.Force);
 
                     // ลมกระแทกแรงเป็นช่วง (gust)
                     if (Random.value < 0.05f)
                     {
-                        rb.AddForce(force * 3f, ForceMode.Impulse);
+                        rb.AddForce(force * 3f * forceMult, ForceMode.Impulse);
                     }
                 }
 
-                // ดาเมจต่อเนื่อง
-                DamageStructure(unit, data.damagePerSecond * dt);
+                // ดาเมจต่อเนื่อง (ลดตามการป้องกันของบันได)
+                DamageStructure(unit, data.damagePerSecond * dt * dmgMult);
             }
 
             // คนก็โดนลมพัด

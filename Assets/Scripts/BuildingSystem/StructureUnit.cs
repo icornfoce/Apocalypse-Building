@@ -108,6 +108,20 @@ namespace Simulation.Building
                     }
                 }
             }
+
+            // Auto-attach ระบบ aerodynamic ปลอม (WindDeflector) ให้บันได/ทางลาด
+            // บันไดที่หันแกน Z ตรงกับลมจะลดดาเมจลม + บังของที่อยู่ปลายลม (ดู WindDeflector.cs)
+            if (data != null && !data.isGadget)
+            {
+                string rawName = data.structureName ?? "";
+                string lowerStair = rawName.ToLower();
+                bool isStair = lowerStair.Contains("stair") || lowerStair.Contains("ramp")
+                               || lowerStair.Contains("ladder") || rawName.Contains("บันได");
+                if (isStair && GetComponent<Simulation.Physics.WindDeflector>() == null)
+                {
+                    gameObject.AddComponent<Simulation.Physics.WindDeflector>();
+                }
+            }
         }
 
         private void CacheRenderers()

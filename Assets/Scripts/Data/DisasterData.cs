@@ -70,6 +70,21 @@ namespace Simulation.Mission
         [Tooltip("StrongWind: ตัวคูณแรงลม (นำไปคูณกับ intensity เพื่อให้ผลักของหนักๆ ได้)")]
         public float windForceMultiplier = 50f;
 
+        [Header("StrongWind — Aerodynamic ปลอม")]
+        [Tooltip("(req2) เปิดให้โครงสร้างที่อยู่ 'ด้านหน้า' (เหนือลม) บังลมให้ของด้านหลัง")]
+        public bool windEnableShielding = true;
+
+        [Tooltip("(req2) ระยะที่ของด้านหน้ายังบังลมให้ของด้านหลังได้ (เมตร)")]
+        public float windOcclusionDistance = 4f;
+
+        [Tooltip("(req2) ลดแรงลม/ดาเมจสูงสุดเมื่อถูกบังเต็มที่ (0..1 เช่น 0.85 = เหลือแรงราว 15%)")]
+        [Range(0f, 1f)]
+        public float windMaxOcclusion = 0.85f;
+
+        [Tooltip("(req1) สัดส่วนแรงลมที่กระจายไปยังข้อต่อ/ตัวค้ำด้านหลังก่อนชิ้นจะหลุด (0 = ไม่กระจาย)")]
+        [Range(0f, 1f)]
+        public float windLoadSpread = 0.35f;
+
         [Tooltip("UFO: จำนวนของที่จะดูดสูงสุด")]
         public int ufoMaxTargets = 3;
 

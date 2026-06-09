@@ -58,6 +58,14 @@ namespace Simulation.Physics
         [Tooltip("ตัวคูณแรงผลักเมื่อป้องกันเต็มที่ (0 = ไม่โดนผลัก, 1 = โดนเต็ม)")]
         [Range(0f, 1f)] [SerializeField] private float minForceMultiplier = 0.25f;
 
+        [Header("ส่งแรงรับลมลงโครงสร้าง (req3: บันไดช่วยรับ/ส่งแรง)")]
+        [Tooltip("สัดส่วนแรงลมที่บันได 'ส่งต่อ' ลงตัวค้ำ/โครงสร้างด้านหลัง " +
+                 "(0 = รับไว้เองหมด, 1 = ส่งลงโครงสร้างเกือบหมด) — ช่วยให้บันไดไม่หลุดง่ายและช่วยค้ำโครงสร้าง")]
+        [Range(0f, 1f)] [SerializeField] private float windForceTransmission = 0.6f;
+
+        /// <summary>สัดส่วนแรงลมที่บันไดส่งต่อลงโครงสร้าง (ใช้โดย WindResponse.ApplyWindForceDistributed)</summary>
+        public float WindForceTransmission => windForceTransmission;
+
         // ── cache ──
         private Transform _t;
         private StructureUnit _unit;

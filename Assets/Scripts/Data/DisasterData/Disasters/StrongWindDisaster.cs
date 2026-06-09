@@ -26,27 +26,36 @@ namespace Simulation.Mission
             {
                 if (unit == null) continue;
 
-                // ── ระบบ aerodynamic ปลอมของบันได ──
-                // บันไดที่หันแกน Z ตรงกับลมจะ "ลดดาเมจ" ให้ตัวเอง และสร้าง "เงาลม"
-                // ที่ลดดาเมจ/แรงให้โครงสร้างที่อยู่ปลายลม (ดู WindDeflector.cs)
+                // ── ระบบ aerodynamic ปลอม ──
                 Vector3 pos = unit.transform.position;
+
+                // (บันได) ลดดาเมจ/แรงให้ตัวบันไดเอง และของที่อยู่ในเงาลมของบันได
                 float dmgMult   = Simulation.Physics.WindDeflector.GetWindDamageMultiplier(unit, pos, windDir);
                 float forceMult = Simulation.Physics.WindDeflector.GetWindForceMultiplier(unit, pos, windDir);
 
-                Rigidbody rb = unit.GetComponent<Rigidbody>();
-                if (rb != null && !rb.isKinematic)
-                {
-                    rb.AddForce(force * forceMult, ForceMode.Force);
+                // (req2) ถ้ามีโครงสร้างบังลมอยู่ "ด้านหน้า" → ของด้านหลังโดนแรง/ดาเมจน้อยลง
+                float occ = data.windEnableShielding
+                    ? Simulation.Physics.WindResponse.GetOcclusionMultiplier(
+                          unit, windDir, data.windOcclusionDistance, data.windMaxOcclusion)
+                    : 1f;
 
-                    // ลมกระแทกแรงเป็นช่วง (gust)
-                    if (Random.value < 0.05f)
-                    {
-                        rb.AddForce(force * 3f * forceMult, ForceMode.Impulse);
-                    }
+                float fMult = forceMult * occ;
+                float dMult = dmgMult * occ;
+
+                // (req1/req3) กระจายแรงลมไปยังข้อต่อ/ตัวค้ำด้านหลังก่อนชิ้นจะหลุด (บันไดส่งแรงได้มากกว่า)
+                Vector3 windForce = force * fMult;
+                Simulation.Physics.WindResponse.ApplyWindForceDistributed(
+                    unit, windForce, data.windLoadSpread, ForceMode.Force);
+
+                // ลมกระแทกแรงเป็นช่วง (gust) — กระจายแรงเช่นกัน
+                if (Random.value < 0.05f)
+                {
+                    Simulation.Physics.WindResponse.ApplyWindForceDistributed(
+                        unit, windForce * 3f, data.windLoadSpread, ForceMode.Impulse);
                 }
 
-                // ดาเมจต่อเนื่อง (ลดตามการป้องกันของบันได)
-                DamageStructure(unit, data.damagePerSecond * dt * dmgMult);
+                // ดาเมจต่อเนื่อง (ลดตามการป้องกันของบันได + การบังลม)
+                DamageStructure(unit, data.damagePerSecond * dt * dMult);
             }
 
             // คนก็โดนลมพัด

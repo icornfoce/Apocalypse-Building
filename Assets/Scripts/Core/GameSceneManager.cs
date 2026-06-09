@@ -14,7 +14,7 @@ namespace Simulation.Core
     /// • มี validation + error log ที่ชัดเจน (กันพลาดเรื่องลืมใส่ซีนใน Build Settings ซึ่งพบบ่อยสุด)
     ///
     /// ใช้จากโค้ด:   GameSceneManager.Instance.LoadScene("Lv.1");
-    /// ใช้จากปุ่ม UI: ใส่คอมโพเนนต์ SceneButton บนปุ่ม แล้วระบุชื่อซีน (ดู SceneButton.cs)
+    /// ใช้จากปุ่ม UI: ใส่คอมโพเนนต์ SceneButton บนปุ่ม แล้วระบุชื่อซีน (คลาส SceneButton อยู่ใน LevelNode.cs)
     /// </summary>
     [DisallowMultipleComponent]
     public class GameSceneManager : MonoBehaviour

@@ -96,9 +96,9 @@ namespace Simulation.Mission
 
             if (_player != null) { pos = _player.position; return true; }
 
-            if (useCameraIfNoPlayer && Camera.main != null)
+            if (useCameraIfNoPlayer && UnityEngine.Camera.main != null)
             {
-                pos = Camera.main.transform.position;
+                pos = UnityEngine.Camera.main.transform.position;
                 return true;
             }
 
@@ -177,7 +177,7 @@ namespace Simulation.UI
     public class BillboardToCamera : MonoBehaviour
     {
         [Tooltip("กล้องเป้าหมาย (ว่าง = ใช้ Camera.main)")]
-        [SerializeField] private Camera targetCamera;
+        [SerializeField] private UnityEngine.Camera targetCamera;
 
         [Tooltip("หันเฉพาะแกน Y (ตั้งตรง ไม่ก้ม/เงย) — เหมาะกับป้าย UI")]
         [SerializeField] private bool yAxisOnly = true;
@@ -194,7 +194,7 @@ namespace Simulation.UI
         private void CacheCamera()
         {
             if (targetCamera != null) { _cam = targetCamera.transform; return; }
-            var main = Camera.main;
+            var main = UnityEngine.Camera.main;
             _cam = main != null ? main.transform : null;
         }
 

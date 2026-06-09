@@ -15,7 +15,7 @@ MonoBehaviour:
   disasterName: Earthquake
   disasterType: 0
   duration: 10
-  intensity: 5
+  intensity: 3
   radius: 0
   centerOffset: {x: 0, y: 0, z: 0}
   damagePerSecond: 5

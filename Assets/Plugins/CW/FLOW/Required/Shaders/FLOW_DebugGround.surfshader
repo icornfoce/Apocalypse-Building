@@ -1,0 +1,30 @@
+﻿BEGIN_SUBSHADERS
+	"FLOW_Shared.surfshader"
+END_SUBSHADERS
+
+BEGIN_PROPERTIES
+	_Tiling ("Tiling", Float) = 1.0
+END_PROPERTIES
+
+BEGIN_CBUFFER
+	float _Tiling;
+END_CBUFFER
+
+BEGIN_CODE
+	void ModifyVertex(inout VertexData v, inout ExtraV2F e)
+	{
+		v.vertex.y = e.blackboard.groundHeight;
+		v.normal = float3(0.0f, 1.0f, 0.0f);
+	}
+
+	void SurfaceFunction(inout Surface o, ShaderData d)
+	{
+		o.Albedo = float3(1.0f, 0.0f, 0.0f);
+
+		float interval = (d.worldSpacePosition.x + d.worldSpacePosition.z) * _Tiling;
+
+		interval -= floor(interval);
+
+		clip(interval - 0.5f);
+	}
+END_CODE

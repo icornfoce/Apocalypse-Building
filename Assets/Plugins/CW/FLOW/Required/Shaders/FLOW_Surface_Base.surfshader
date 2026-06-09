@@ -1,0 +1,175 @@
+﻿BEGIN_SUBSHADERS
+	"FLOW_Shared.surfshader"
+END_SUBSHADERS
+
+BEGIN_PROPERTIES
+	_Sink("Sink", Float) = 1
+	_Emission("Emission", Float) = 1
+
+	[Header(WAVE)]
+	[NoScaleOffset]_NormalFoamMap("	Normal (RGB) Foam (A)", 2D) = "bump" {}
+	_WaveStrengthMin("	Strength Min", Range(0,2)) = 0.0
+	_WaveStrengthMax("	Strength Max", Range(0,2)) = 0.5
+	_WaveStrengthScale("	Strength Scale", Float) = 1
+
+	_Tiling ("	Tiling", Float) = 1
+	_AnimationSpeed ("	Animation Speed", Float) = 1
+
+	[Header(STOCHASTIC)]
+	[Toggle(_STOCHASTIC_ON)] _HasStochastic ("	Enabled", Float) = 0
+	[NoScaleOffset]_NoiseMap("	Noise (A)", 2D) = "black" {}
+
+	[Header(FOAM)]
+	[KeywordEnum(Off, Alpha, Cutout)] _Foam ("	Mode", Float) = 0
+	_FoamBrightness("	Brightness", Range(0,2)) = 1
+END_PROPERTIES
+
+BEGIN_DEFINES
+	#pragma shader_feature_local _ _STOCHASTIC_ON
+	#pragma shader_feature_local _FOAM_OFF _FOAM_ALPHA _FOAM_CUTOUT
+END_DEFINES
+
+BEGIN_CBUFFER
+	float _Emission;
+	
+	float _WaveStrengthMin;
+	float _WaveStrengthMax;
+	float _WaveStrengthScale;
+
+	float _Tiling;
+	float _AnimationSpeed;
+	float _FoamBrightness;
+END_CBUFFER
+
+BEGIN_BLACKBOARD
+	float foam;
+END_BLACKBOARD
+
+BEGIN_CODE
+	TEXTURE2D(_NoiseMap);
+	SAMPLER(sampler_NoiseMap);
+
+	TEXTURE2D(_NormalFoamMap);
+	SAMPLER(sampler_NormalFoamMap);
+
+	void ModifyVertex(inout VertexData v, inout ExtraV2F e)
+	{
+		v.vertex.y = lerp(e.blackboard.groundHeight, e.blackboard.surfaceHeight, v.texcoord0.w) - _FlowSimulationHeight;
+
+		v.normal = lerp(e.blackboard.surfaceNormal, v.normal, v.texcoord0.z);
+
+		v.vertexColor = e.blackboard.fluid.RGBA;
+
+		e.extraV2F0.xyz = SGT_O2V(v.vertex).xyz;
+		e.extraV2F0.w   = e.blackboard.fluid.Depth;
+
+		e.extraV2F1.xyz = e.blackboard.fluid.ESMV.xyz;
+		e.extraV2F1.w = e.blackboard.fluid.F123.x;
+	}
+
+	float3 FlowUVW(float2 uv, float2 flowVector, float2 jump, float tiling, float time, float phaseOffset)
+	{
+		float progress = frac(time + phaseOffset);
+		float3 uvw;
+		uvw.xy = uv - flowVector * (progress - 0.5f);
+		uvw.xy *= tiling;
+		uvw.xy += phaseOffset;
+		uvw.xy += (time - progress) * jump;
+		uvw.z = 1 - abs(1 - 2 * progress);
+		return uvw;
+	}
+
+	float3 CombineNormals(float3 n1, float3 n2)
+	{
+		return normalize(half3(n1.xy + n2.xy, n1.z*n2.z));
+	}
+
+	float3 UnpackNormalAndScale(float2 xy, float scale)
+	{
+		xy = xy * 2.0f - 1.0f; xy *= scale; return float3(xy, sqrt(1.0 - saturate(dot(xy, xy))));
+	}
+
+	float4 SampleStochastic(float2 uv, float noise)
+	{
+		float cur_height = uv.y + noise;
+		float this_index = floor(cur_height);
+		float next_index = this_index + 1.0f;
+
+		float2 uvA     = uv + sin(float2(1.0f, 2.0f) * this_index);
+		float2 uvB     = uv + sin(float2(1.0f, 2.0f) * next_index);
+		float2 gradX   = ddx(uv);
+		float2 gradY   = ddy(uv);
+
+		float4 sampleA = SAMPLE_TEXTURE2D_GRAD(_NormalFoamMap, sampler_NormalFoamMap, uvA, gradX, gradY);
+		float4 sampleB = SAMPLE_TEXTURE2D_GRAD(_NormalFoamMap, sampler_NormalFoamMap, uvB, gradX, gradY);
+
+		return lerp(sampleA, sampleB, cur_height - this_index);
+	}
+
+	void SurfaceFunction(inout Surface o, inout ShaderData d)
+	{
+		d.blackboard.fluid.RGBA     = d.vertexColor;
+		d.blackboard.fluid.Depth    = d.extraV2F0.w;
+		d.blackboard.fluid.ESMV.xyz = d.extraV2F1.xyz;
+		d.blackboard.fluid.F123.x   = d.extraV2F1.w;
+
+		if (d.blackboard.fluid.Depth < 0.01f)
+		{
+			discard;
+		}
+
+		float2 uv          = d.worldSpacePosition.xz;
+		float2 columnPixel = mul(_FlowMatrix, float4(d.worldSpacePosition, 1.0f)).xy;
+		float2 columnCoord = CoordFromPixel(columnPixel, _FlowCountXZ);
+		Column column      = GetColumn(columnCoord);
+
+		float  time = _Time.y * _AnimationSpeed;
+		float2 jump = float2(0.13f, 0.17f);
+		float2 fvec = (column.Outflow.yw - column.Outflow.xz) * _FlowSeparationXZ * _FlowSpeed;
+		float  fmag = log10(1.0f + length(fvec)) * 0.1f;
+
+		float3 flowA = FlowUVW(uv, fvec / _AnimationSpeed, jump, _Tiling, time, 0.0f);
+		float3 flowB = FlowUVW(uv, fvec / _AnimationSpeed, jump, _Tiling, time, 0.5f);
+
+		#if _STOCHASTIC_ON
+			float  noise = SAMPLE_TEXTURE2D(_NoiseMap, sampler_NoiseMap, uv * 0.0025f).a * 4.0f;
+			float4 nfmA  = SampleStochastic(flowA, noise);
+			float4 nfmB  = SampleStochastic(flowB, noise);
+		#else
+			float4 nfmA = SAMPLE_TEXTURE2D(_NormalFoamMap, sampler_NormalFoamMap, flowA.xy);
+			float4 nfmB = SAMPLE_TEXTURE2D(_NormalFoamMap, sampler_NormalFoamMap, flowB.xy);
+		#endif
+
+		// Water normals
+		float  normalStr    = lerp(_WaveStrengthMin, _WaveStrengthMax, saturate(_WaveStrengthScale * fmag));
+		float3 waterNormalA = UnpackNormalAndScale(nfmA.xy, flowA.z * normalStr);
+		float3 waterNormalB = UnpackNormalAndScale(nfmB.xy, flowB.z * normalStr);
+		float3 waterNormals = CombineNormals(waterNormalA, waterNormalB);
+
+		o.Normal   = lerp(waterNormals, o.Normal, d.texcoord0.z);
+		o.Albedo   = d.blackboard.fluid.RGBA.xyz;
+		o.Emission = d.blackboard.fluid.ESMV.x * _Emission * o.Albedo;
+
+		#if _FOAM_OFF
+			d.blackboard.foam = 0.0f;
+		#else
+			d.blackboard.foam = d.blackboard.fluid.F123.x * (1.0f - d.texcoord0.z);
+
+			#if _FOAM_ALPHA
+				float3 foamAlbedo = (nfmA.w * flowA.z + nfmB.w * flowB.z) * _FoamBrightness;
+			#elif _FOAM_CUTOUT
+				float3 foamAlbedo = _FoamBrightness;
+				float  foamRamp   = nfmA.w * flowA.z + nfmB.w * flowB.z;
+				d.blackboard.foam = saturate((d.blackboard.foam - foamRamp) * 10.0f);
+			#endif
+
+			float3 foamNormal = float3(0.0f, 0.0f, 1.0f);
+
+			o.Albedo = lerp(o.Albedo, foamAlbedo, d.blackboard.foam);
+			o.Normal = lerp(o.Normal, foamNormal, d.blackboard.foam);
+		#endif
+
+		o.Smoothness = d.blackboard.fluid.ESMV.y;
+		o.Metallic   = d.blackboard.fluid.ESMV.z;
+	}
+END_CODE

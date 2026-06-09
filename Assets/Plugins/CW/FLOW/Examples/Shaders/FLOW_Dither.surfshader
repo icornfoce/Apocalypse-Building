@@ -1,0 +1,32 @@
+﻿BEGIN_OPTIONS
+	Tags { "Queue"="AlphaTest" }
+	Workflow "Unlit"
+END_OPTIONS
+
+BEGIN_SUBSHADERS
+	"FLOW_Solid.surfshader"
+END_SUBSHADERS
+
+BEGIN_DEFINES
+	#define _SKIP_ALPHA_CLIP 1
+END_DEFINES
+
+BEGIN_CODE
+	void SurfaceFunction(inout Surface o, ShaderData d)
+	{
+		float DITHER_THRESHOLDS[16] =
+		{
+			1.0 / 17.0,  9.0 / 17.0,  3.0 / 17.0, 11.0 / 17.0,
+			13.0 / 17.0,  5.0 / 17.0, 15.0 / 17.0,  7.0 / 17.0,
+			4.0 / 17.0, 12.0 / 17.0,  2.0 / 17.0, 10.0 / 17.0,
+			16.0 / 17.0,  8.0 / 17.0, 14.0 / 17.0,  6.0 / 17.0
+		};
+
+		float2 uv    = d.screenUV.xy * _ScreenParams.xy;
+		uint   index = (uint(uv.x) % uint(4)) * uint(4) + uint(uv.y) % uint(4);
+
+		o.Alpha -= DITHER_THRESHOLDS[index];
+
+		clip(o.Alpha);
+	}
+END_CODE

@@ -167,9 +167,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.Mission.LevelNode
   missionData: {fileID: 11400000, guid: f7cdc62c00e1e56448dfe574eebb7b2e, type: 2}
-  missionScreenName: Lv.2
+  missionScreenName: Lv.5
   lockedPrefab: {fileID: 0}
-  uiParent: {fileID: 0}
+  uiParent: {fileID: 4748174}
   playerTag: Player
   useTrigger: 1
 --- !u!65 &4748176
@@ -630,7 +630,7 @@ MonoBehaviour:
   missionData: {fileID: 11400000, guid: b448cb0cca156f8439051fcf16be27c0, type: 2}
   missionScreenName: Lv.1
   lockedPrefab: {fileID: 0}
-  uiParent: {fileID: 0}
+  uiParent: {fileID: 515164495}
   playerTag: Player
   useTrigger: 1
 --- !u!65 &515164497
@@ -915,9 +915,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.Mission.LevelNode
   missionData: {fileID: 11400000, guid: b0009db9c23bc8242bbc141d6481806f, type: 2}
-  missionScreenName: Lv.2
+  missionScreenName: Lv.3
   lockedPrefab: {fileID: 0}
-  uiParent: {fileID: 0}
+  uiParent: {fileID: 980004657}
   playerTag: Player
   useTrigger: 1
 --- !u!65 &980004659
@@ -1183,9 +1183,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.Mission.LevelNode
   missionData: {fileID: 11400000, guid: 205e1a48e10e9ce4da4ff44a76cdad70, type: 2}
-  missionScreenName: Lv.2
+  missionScreenName: Lv.4
   lockedPrefab: {fileID: 0}
-  uiParent: {fileID: 0}
+  uiParent: {fileID: 1582928817}
   playerTag: Player
   useTrigger: 1
 --- !u!65 &1582928819
@@ -1316,7 +1316,7 @@ MonoBehaviour:
   missionData: {fileID: 11400000, guid: 15ae0dbb79e09994782450e9cabdadd5, type: 2}
   missionScreenName: Lv.2
   lockedPrefab: {fileID: 0}
-  uiParent: {fileID: 0}
+  uiParent: {fileID: 2118008854}
   playerTag: Player
   useTrigger: 1
 --- !u!65 &2118008856

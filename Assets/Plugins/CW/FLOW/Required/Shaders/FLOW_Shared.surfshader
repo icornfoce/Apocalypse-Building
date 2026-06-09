@@ -1,0 +1,217 @@
+﻿BEGIN_OPTIONS
+	Stackable "False"
+END_OPTIONS
+
+BEGIN_CBUFFER
+	float    _FlowDensity;
+	float2   _FlowSeparationXZ;
+	float    _FlowSimulationHeight;
+	float    _FlowCameraHeight;
+	float2   _FlowCountXZ;
+	float4   _FlowCoordU000;
+	float4   _FlowCoord0V00;
+	float    _FlowSpeed;
+	float4x4 _FlowMatrix;
+
+	float _Sink;
+END_CBUFFER
+
+BEGIN_DEFINES
+	#include "Flow.cginc"
+END_DEFINES
+
+BEGIN_BLACKBOARD
+	float  groundHeight;
+	float  surfaceHeight;
+	float3 surfaceNormal;
+
+	Fluid fluid;
+END_BLACKBOARD
+
+BEGIN_CODE
+	TEXTURE2D(_FlowDataA);
+	SAMPLER(sampler_FlowDataA);
+	TEXTURE2D(_FlowDataB);
+	SAMPLER(sampler_FlowDataB);
+	TEXTURE2D(_FlowDataC);
+	SAMPLER(sampler_FlowDataC);
+	TEXTURE2D(_FlowDataD);
+	SAMPLER(sampler_FlowDataD);
+	TEXTURE2D(_FlowDataE);
+	SAMPLER(sampler_FlowDataE);
+	TEXTURE2D(_FlowDataF);
+	SAMPLER(sampler_FlowDataF);
+
+	float4 SGT_O2W(float4 v)
+	{
+		v = mul(UNITY_MATRIX_M, v);
+		#if _HDRP
+			v.xyz = GetAbsolutePositionWS(v.xyz);
+		#endif
+		return v;
+	}
+
+	float4 SGT_W2O(float4 v)
+	{
+		#if _HDRP
+			v.xyz = GetCameraRelativePositionWS(v.xyz);
+		#endif
+		return mul(UNITY_MATRIX_I_M, v);
+	}
+
+	float4 SGT_O2V(float4 v)
+	{
+		#if _STANDARD
+			return float4(UnityObjectToViewPos(v.xyz), 1.0f);
+		#else
+			return float4(TransformWorldToView(TransformObjectToWorld(v.xyz)), 1.0f);
+		#endif
+	}
+
+	float GetFluidHeight(float2 uv)
+	{
+		float groundHeight = SAMPLE_TEXTURE2D_LOD(_FlowDataA, sampler_FlowDataA, uv, 0).r;
+		float fluidDepth   = SAMPLE_TEXTURE2D_LOD(_FlowDataC, sampler_FlowDataC, uv, 0).r;
+
+		return groundHeight + fluidDepth;
+	}
+
+	float2 GetHeightAndDepth(float2 uv)
+	{
+		float groundHeight = SAMPLE_TEXTURE2D_LOD(_FlowDataA, sampler_FlowDataA, uv, 0).r;
+		float fluidDepth   = SAMPLE_TEXTURE2D_LOD(_FlowDataC, sampler_FlowDataC, uv, 0).r;
+
+		return float2(groundHeight, fluidDepth);
+	}
+
+	Column GetColumn(float2 uv)
+	{
+		return DecodeColumn(SAMPLE_TEXTURE2D_LOD(_FlowDataA, sampler_FlowDataA, uv, 0), SAMPLE_TEXTURE2D_LOD(_FlowDataB, sampler_FlowDataB, uv, 0));
+	}
+
+	Fluid GetColumnFluid(float2 uv)
+	{
+		float4 c = SAMPLE_TEXTURE2D_LOD(_FlowDataC, sampler_FlowDataC, uv, 0);
+		float4 d = SAMPLE_TEXTURE2D_LOD(_FlowDataD, sampler_FlowDataD, uv, 0);
+		float4 e = SAMPLE_TEXTURE2D_LOD(_FlowDataE, sampler_FlowDataE, uv, 0);
+		float4 f = SAMPLE_TEXTURE2D_LOD(_FlowDataF, sampler_FlowDataF, uv, 0);
+		return DecodeFluid(c, d, e, f);
+	}
+
+	bool InsideFluid(float3 wpos)
+	{
+		float2 columnPixel = mul(_FlowMatrix, float4(wpos, 1.0f)).xy;
+		float2 columnCoord = CoordFromPixel(columnPixel, _FlowCountXZ);
+		float2 columnHAD   = GetHeightAndDepth(columnCoord);
+
+		return min(columnCoord.x, columnCoord.y) >= 0.0 && max(columnCoord.x, columnCoord.y) <= 1.0f && wpos.y > columnHAD.x && wpos.y < (columnHAD.x + columnHAD.y);
+	}
+
+	bool UnderFluid(float3 wpos)
+	{
+		float2 columnPixel = mul(_FlowMatrix, float4(wpos, 1.0f)).xy;
+		float2 columnCoord = CoordFromPixel(columnPixel, _FlowCountXZ);
+		float2 columnHAD   = GetHeightAndDepth(columnCoord);
+
+		return min(columnCoord.x, columnCoord.y) >= 0.0 && max(columnCoord.x, columnCoord.y) <= 1.0f && wpos.y < (columnHAD.x + columnHAD.y);
+	}
+
+	float RayMarchInside(float3 wpos, float3 wdir, float step, int maxs, float maxd)
+	{
+		float epsi = step * 0.01f;
+		float dist = 0.0f;
+
+		for (int i = 0; i < maxs && step > epsi; i++)
+		{
+			dist += step;
+
+			float3 pos = wpos + wdir * dist;
+
+			if (InsideFluid(pos) == false)
+			{
+				dist -= step;
+				step *= 0.5f;
+			}
+
+			if (dist > maxd)
+			{
+				return maxd;
+			}
+		}
+
+		return dist;
+	}
+
+	float RayMarchUnder(float3 wpos, float3 wdir, float step, int maxs, float maxd)
+	{
+		float epsi = step * 0.01f;
+		float dist = 0.0f;
+
+		for (int i = 0; i < maxs && step > epsi; i++)
+		{
+			dist += step;
+
+			float3 pos = wpos + wdir * dist;
+
+			if (UnderFluid(pos) == false)
+			{
+				dist -= step;
+				step *= 0.5f;
+			}
+
+			if (dist > maxd)
+			{
+				return maxd;
+			}
+		}
+
+		return dist;
+	}
+
+	void ModifyVertex(inout VertexData v, inout ExtraV2F e)
+	{
+		float4 wpos        = SGT_O2W(v.vertex);
+		float2 columnPixel = mul(_FlowMatrix, float4(wpos.xyz, 1.0f)).xy;
+		float2 columnCoord = SnapCoordFromPixel(round(columnPixel), _FlowCountXZ);
+
+		Column column0 = GetColumn(columnCoord);
+		Column columnL = GetColumn(columnCoord - _FlowCoordU000.xy);
+		Column columnR = GetColumn(columnCoord + _FlowCoordU000.xy);
+		Column columnB = GetColumn(columnCoord - _FlowCoord0V00.xy);
+		Column columnT = GetColumn(columnCoord + _FlowCoord0V00.xy);
+
+		Fluid fluid0 = GetColumnFluid(columnCoord);
+		Fluid fluidL = GetColumnFluid(columnCoord - _FlowCoordU000.xy);
+		Fluid fluidR = GetColumnFluid(columnCoord + _FlowCoordU000.xy);
+		Fluid fluidB = GetColumnFluid(columnCoord - _FlowCoord0V00.xy);
+		Fluid fluidT = GetColumnFluid(columnCoord + _FlowCoord0V00.xy);
+
+		float ww = fluidL.Depth + fluidR.Depth + fluidB.Depth + fluidT.Depth + 0.001f;
+		float wL = fluidL.Depth / ww;
+		float wR = fluidR.Depth / ww;
+		float wB = fluidB.Depth / ww;
+		float wT = fluidT.Depth / ww;
+		float w0 = saturate(fluid0.Depth * 10);
+
+		float hL = columnL.GroundHeight + fluidL.Depth;
+		float hR = columnR.GroundHeight + fluidR.Depth;
+		float hB = columnB.GroundHeight + fluidB.Depth;
+		float hT = columnT.GroundHeight + fluidT.Depth;
+		float hh = hL * wL + hR * wR + hB * wB + hT * wT;
+		float h0 = column0.GroundHeight + fluid0.Depth;
+
+		hh = lerp(hh, h0 - _Sink, saturate(0.01f / ww)); // Prevent skirts going down too far
+
+		Fluid fluid = fluid0;
+
+		fluid.Depth = lerp(fluidL.Depth * wL + fluidR.Depth * wR + fluidB.Depth * wB + fluidT.Depth * wT, fluid.Depth, w0);
+		fluid.RGBA  = lerp(fluidL.RGBA  * wL + fluidR.RGBA  * wR + fluidB.RGBA  * wB + fluidT.RGBA  * wT, fluid.RGBA , w0);
+		fluid.ESMV  = lerp(fluidL.ESMV  * wL + fluidR.ESMV  * wR + fluidB.ESMV  * wB + fluidT.ESMV  * wT, fluid.ESMV , w0);
+		fluid.F123  = lerp(fluidL.F123  * wL + fluidR.F123  * wR + fluidB.F123  * wB + fluidT.F123  * wT, fluid.F123 , w0);
+
+		e.blackboard.groundHeight  = column0.GroundHeight;
+		e.blackboard.surfaceHeight = lerp(hh, h0, w0);
+		e.blackboard.surfaceNormal = normalize(float3((hL - hR) / _FlowSeparationXZ.x, 2.0f, (hB - hT) / _FlowSeparationXZ.y));
+		e.blackboard.fluid         = fluid;
+	}
+END_CODE

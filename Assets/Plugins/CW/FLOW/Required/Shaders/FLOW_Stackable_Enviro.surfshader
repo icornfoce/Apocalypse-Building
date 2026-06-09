@@ -1,0 +1,25 @@
+﻿BEGIN_PROPERTIES
+	[Header(ENVIRO)]
+	[Toggle(_ENVIRO_ON)] _HasEnviro ("	Enabled", Float) = 0
+END_PROPERTIES
+
+BEGIN_DEFINES
+	#pragma shader_feature_local _ _ENVIRO_ON
+END_DEFINES
+
+BEGIN_CODE
+	#if _ENVIRO_ON
+		#if _STANDARD
+			#include "Assets/Enviro - Sky and Weather/Core/Resources/Shaders/Core/EnviroFogCore.cginc"
+		#else
+			#include "Assets/Enviro - Sky and Weather/Core/Resources/Shaders/Core/EnviroFogCore.hlsl"
+		#endif
+	#endif
+
+	void SurfaceFunction(inout Surface o, ShaderData d)
+	{
+		#if _ENVIRO_ON
+			o.Albedo = TransparentFog(float4(o.Albedo, 0), d.worldSpacePosition, d.screenUV, GetLinear01Depth(d.screenUV)).rgb;
+		#endif
+	}
+END_CODE

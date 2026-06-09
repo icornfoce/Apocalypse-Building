@@ -1,0 +1,65 @@
+﻿BEGIN_PROPERTIES
+	[Header(WETNESS)]
+	[Toggle(_WETNESS_ON)] _HasWetness ("	Enabled", Float) = 0
+	_WetThickness ("	Thickness", Float) = 1.0
+	_WetTint ("	Tint", Float) = -0.1
+	_WetSmoothness ("	Smoothness", Float) = 0.3
+	_WetOffset ("	Offset", Float) = -0.5
+	
+	[HideInInspector] _FlowCountXZ ("", Vector) = (0,0,0,0)
+END_PROPERTIES
+
+BEGIN_DEFINES
+	#pragma shader_feature_local _ _WETNESS_ON
+END_DEFINES
+
+BEGIN_CBUFFER
+	float    _WetThickness;
+	float    _WetOffset;
+	float    _WetTint;
+	float    _WetSmoothness;
+	
+	float2   _FlowCountXZ;
+	float4x4 _FlowMatrix;
+END_CBUFFER
+
+BEGIN_CODE
+	TEXTURE2D(_FlowDataA);
+	SAMPLER(sampler_FlowDataA);
+
+	float2 CoordFromPixel(float2 pixel, float2 size)
+	{
+	#ifndef UNITY_HALF_TEXEL_OFFSET
+		pixel += 0.5f;
+	#endif
+		return pixel / size;
+	}
+
+	float GetWetHeight(float3 wpos)
+	{
+		float2 columnPixel = mul(_FlowMatrix, float4(wpos, 1.0f)).xy;
+		float2 columnCoord = CoordFromPixel(columnPixel, _FlowCountXZ);
+		float4 columnA     = SAMPLE_TEXTURE2D_LOD(_FlowDataA, sampler_FlowDataA, columnCoord, 0);
+
+		return columnA.x + columnA.y;
+	}
+
+	void ModifyVertex(inout VertexData v, inout ExtraV2F e)
+	{
+		e.extraV2F0.xyz = mul(UNITY_MATRIX_M, v.vertex).xyz;
+		#if _HDRP
+			e.extraV2F0.xyz = GetAbsolutePositionWS(e.extraV2F0.xyz);
+		#endif
+	}
+
+	void SurfaceFunction(inout Surface o, ShaderData d)
+	{
+	#if _WETNESS_ON
+		float wetHeight = GetWetHeight(d.extraV2F0.xyz);
+		float wetness   = saturate((wetHeight - d.extraV2F0.y + _WetOffset) / _WetThickness);
+
+		o.Albedo     = (o.Albedo     + _WetTint       * wetness);
+		o.Smoothness = (o.Smoothness + _WetSmoothness * wetness);
+	#endif
+	}
+END_CODE

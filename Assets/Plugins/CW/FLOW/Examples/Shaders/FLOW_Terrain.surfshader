@@ -1,0 +1,142 @@
+﻿BEGIN_OPTIONS
+END_OPTIONS
+
+BEGIN_SUBSHADERS
+END_SUBSHADERS
+
+BEGIN_PROPERTIES
+	_BaseColor ("Base Color", Color) = (0, 0, 0, 0)
+	_PeakColor ("Peak Color", Color) = (1, 1, 1, 1)
+	_SlopeTint ("Slope Tint", Color) = (1, 1, 1, 1)
+
+	_BaseHeight("Base Height", Float) = 0
+	_PeakHeight("Peak Height", Float) = 10
+	_SlopeStrength("Slope Strength", Float) = 1
+
+	_Smoothness ("Smoothness", Range(0,1)) = 0.5
+	_Metallic ("Metallic", Range(0,1)) = 0.0
+
+	[Header(DETAIL)]
+	[Toggle(_DETAIL_ON)] _HasDetail ("	Enabled", Float) = 0
+	[NoScaleOffset]_DetailAlbedo("	Albedo", 2D) = "white" {}
+	_DetailTiling ("	Tiling", Float) = 10
+	_DetailStrength ("	Strength", Float) = 1
+
+	[Header(CONTOUR)]
+	[Toggle(_CONTOUR_ON)] _HasContour ("	Enabled", Float) = 0
+	_ContourInterval ("	Interval", Float) = 10
+	_ContourThickness ("	Thickness", Float) = 1
+	_ContourFalloff ("	Falloff", Float) = 1
+
+	[Header(SPLAT)]
+	[Toggle(_SPLAT_ON)] _HasSplat ("	Enabled", Float) = 0
+	[NoScaleOffset]_SplatMap("	Map", 2D) = "white" {}
+	_SplatColorR ("	Color R", Color) = (1, 0, 0, 0)
+	_SplatColorG ("	Color G", Color) = (0, 1, 0, 0)
+	_SplatColorB ("	Color B", Color) = (0, 0, 1, 0)
+	_SplatColorA ("	Color A", Color) = (1, 1, 1, 0)
+	_SplatSmoothnessR ("	Smoothness R", Range(0,1)) = 0.5
+	_SplatSmoothnessG ("	Smoothness G", Range(0,1)) = 0.5
+	_SplatSmoothnessB ("	Smoothness B", Range(0,1)) = 0.5
+	_SplatSmoothnessA ("	Smoothness A", Range(0,1)) = 0.5
+END_PROPERTIES
+
+BEGIN_DEFINES
+	#pragma shader_feature_local _ _DETAIL_ON
+	#pragma shader_feature_local _ _CONTOUR_ON
+	#pragma shader_feature_local _ _SPLAT_ON
+END_DEFINES
+
+BEGIN_CBUFFER
+	float3 _BaseColor;
+	float3 _PeakColor;
+	float3 _SlopeTint;
+
+	float _BaseHeight;
+	float _PeakHeight;
+	float _SlopeStrength;
+
+	half  _Smoothness;
+	half  _Metallic;
+
+	float _DetailTiling;
+	float _DetailStrength;
+
+	float _ContourInterval;
+	float _ContourThickness;
+	float _ContourFalloff;
+
+	float4 _SplatColorR;
+	float4 _SplatColorG;
+	float4 _SplatColorB;
+	float4 _SplatColorA;
+	
+	float _SplatSmoothnessR;
+	float _SplatSmoothnessG;
+	float _SplatSmoothnessB;
+	float _SplatSmoothnessA;
+END_CBUFFER
+
+BEGIN_CODE
+	TEXTURE2D(_DetailAlbedo);
+	SAMPLER(sampler_DetailAlbedo);
+
+	TEXTURE2D(_SplatMap);
+	SAMPLER(sampler_SplatMap);
+
+	float3 SampleDetail(float2 uv)
+	{
+		return SAMPLE_TEXTURE2D(_DetailAlbedo, sampler_DetailAlbedo, uv).xyz - 0.5f;
+	}
+
+	void ModifyVertex(inout VertexData v, inout ExtraV2F e)
+	{
+	}
+
+	void SurfaceFunction(inout Surface o, ShaderData d)
+	{
+		float alt = saturate((d.worldSpacePosition.y - _BaseHeight) / (_PeakHeight - _BaseHeight));
+
+		//o.Albedo     = lerp(float3(1.0f, 1.0f, 1.0f), _Tint, d.vertexColor.a);
+		o.Albedo     = lerp(_BaseColor, _PeakColor, alt);
+
+		float slope = pow(abs(1.0f - d.worldSpaceNormal.y), _SlopeStrength);
+
+		o.Albedo += _SlopeTint * slope;
+
+		o.Smoothness = _Smoothness;
+		o.Metallic   = _Metallic;
+
+	#if _DETAIL_ON
+		float3 detail = 0.0f;
+
+		detail += SampleDetail(d.texcoord0 * _DetailTiling);
+		detail += SampleDetail(d.texcoord0 * _DetailTiling / 10);
+
+		o.Albedo += detail * _DetailStrength;
+	#endif
+
+	#if _CONTOUR_ON
+		float midline = abs(d.worldSpacePosition.y % _ContourInterval / (_ContourInterval * 0.5f) - 1.0f);
+
+		midline = saturate(midline + _ContourThickness);
+
+		midline = pow(midline, _ContourFalloff);
+
+		o.Albedo *= 1.0f - midline;
+	#endif
+
+	#if _SPLAT_ON
+		float4 splat = SAMPLE_TEXTURE2D(_SplatMap, sampler_SplatMap, d.texcoord0);
+		o.Albedo = lerp(o.Albedo, _SplatColorR.xyz, splat.x * _SplatColorR.w);
+		o.Albedo = lerp(o.Albedo, _SplatColorG.xyz, splat.y * _SplatColorG.w);
+		o.Albedo = lerp(o.Albedo, _SplatColorB.xyz, splat.z * _SplatColorB.w);
+		o.Albedo = lerp(o.Albedo, _SplatColorA.xyz, splat.w * _SplatColorA.w);
+
+		o.Smoothness = lerp(o.Smoothness, _SplatSmoothnessR, splat.x * _SplatColorR.w);
+		o.Smoothness = lerp(o.Smoothness, _SplatSmoothnessG, splat.y * _SplatColorG.w);
+		o.Smoothness = lerp(o.Smoothness, _SplatSmoothnessB, splat.z * _SplatColorB.w);
+		o.Smoothness = lerp(o.Smoothness, _SplatSmoothnessA, splat.w * _SplatColorA.w);
+	#endif
+	}
+END_CODE

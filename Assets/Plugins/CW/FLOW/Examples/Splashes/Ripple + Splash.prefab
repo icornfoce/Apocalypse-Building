@@ -1,0 +1,80 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &3528167323250840014
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3528167323250840011}
+  - component: {fileID: 3528167323250840008}
+  - component: {fileID: 3528167323250840009}
+  m_Layer: 2
+  m_Name: Ripple + Splash
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3528167323250840011
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3528167323250840014}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3528167323250840008
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3528167323250840014}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a556ce706306b8b4ea7993149a7e99a2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  size: {x: 2, y: 0, z: 2}
+  shape: {fileID: 2800000, guid: d6089aa662906d74eb90791d9bf508be, type: 3}
+  shapeChannel: 3
+  center: 1
+  apply: 0
+  mode: 30
+  heightMin: -100
+  heightMax: 100
+  fluid: {fileID: 0}
+  angle: 0
+  directions: {fileID: 2800000, guid: 4c67a4f52d32c444598efa9e15ece529, type: 3}
+  color: {r: 1, g: 1, b: 1, a: 1}
+  colorChannels: {x: 1, y: 1, z: 1, w: 1}
+  strength: 5
+  onApplied:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &3528167323250840009
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3528167323250840014}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e0cb831365316444b865260238d36615, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  prefabs:
+  - {fileID: 94248566080272201, guid: c9ee3094605c73642bdd4d03084bb151, type: 3}
+  onSplash:
+    m_PersistentCalls:
+      m_Calls: []

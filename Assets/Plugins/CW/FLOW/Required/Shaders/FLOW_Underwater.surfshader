@@ -1,0 +1,107 @@
+﻿BEGIN_OPTIONS
+	GrabPass { "_Grab" }
+	Alpha "Blend"
+	//Workflow "Unlit"
+END_OPTIONS
+
+BEGIN_SUBSHADERS
+	"FLOW_Shared.surfshader"
+END_SUBSHADERS
+
+BEGIN_PROPERTIES
+	[Header(TRANSPARENCY)]
+	[KeywordEnum(Off, Vertical, Depth, March Fluid, March Fluid And Depth)] _Alpha ("	Mode", Float) = 0
+	_RangeMax ("	Range Max", Float) = 25
+	_AlphaStep ("	Step", Float) = 2.0
+	_AlphaMaxSteps ("	Max Steps", Int) = 100
+END_PROPERTIES
+
+BEGIN_DEFINES
+	#pragma shader_feature_local _ALPHA_OFF _ALPHA_VERTICAL _ALPHA_DEPTH _ALPHA_MARCH_FLUID _ALPHA_MARCH_FLUID_AND_DEPTH
+END_DEFINES
+
+BEGIN_CBUFFER
+	float _FlowGroundOffset;
+	float _FlowSurfaceOffset;
+
+	float _RangeMax;
+	float _AlphaStep;
+	int _AlphaMaxSteps;
+END_CBUFFER
+
+BEGIN_CODE
+	void ModifyVertex(inout VertexData v, inout ExtraV2F e)
+	{
+		float vertT = _FlowCameraHeight + 1.0f;
+		float vertB = _FlowCameraHeight - 1.0f;
+
+		float unMin = e.blackboard.groundHeight + _FlowGroundOffset;
+		float unMax = e.blackboard.surfaceHeight - 0.01f;
+
+		vertT = clamp(vertT, unMin, unMax);
+		vertB = clamp(vertB, unMin, unMax);
+
+		v.vertex.y = lerp(vertB, vertT, v.vertex.y) - _FlowSimulationHeight;
+		v.normal = e.blackboard.surfaceNormal;
+
+		v.vertexColor = e.blackboard.fluid.RGBA;
+
+		e.extraV2F0.xyz = SGT_O2V(v.vertex).xyz;
+		e.extraV2F0.w   = e.blackboard.fluid.Depth;
+
+		e.extraV2F1 = e.blackboard.fluid.ESMV;
+	}
+
+	void SurfaceFunction(inout Surface o, ShaderData d)
+	{
+		Fluid fluid;
+
+		fluid.RGBA  = d.vertexColor;
+		fluid.Depth = d.extraV2F0.w;
+		fluid.ESMV  = d.extraV2F1;
+
+		/*
+		float3 wcam    = _WorldSpaceCameraPos;
+		float3 step    = normalize(d.worldSpacePosition - wcam);
+
+		
+		float  distMax = _Range * max(1.0f - fluid.RGBA.w, 0.01f);
+
+		#if _TRANSPARENCY_USE_DEPTH
+			float distTex = GetLinearEyeDepth(d.screenUV) * length(d.extraV2F0.xyz / d.extraV2F0.z);
+
+			float dist = RayMarchUnder(wcam, step, _TransparencyStep, _TransparencyMaxSteps, min(distTex, distMax));
+		#else
+			float dist = RayMarchInside(wcam, step, _TransparencyStep, _TransparencyMaxSteps, distMax);
+		#endif
+		*/
+		#if _ALPHA_OFF
+			o.Alpha = 1.0f;
+		#else
+			float3 position  = _WorldSpaceCameraPos;
+			float3 step      = d.worldSpacePosition - position;
+			//float2 bentScrUV = d.screenUV + o.Normal.xy * 0.05f * log(1.0f + fluid.Depth * 1.0f);
+			float  distMax   = max(_RangeMax * 0.001f, _RangeMax * (1.0f - fluid.RGBA.w));
+			//float  camtDist  = GetLinearEyeDepth(bentScrUV) * length(d.extraV2F0.xyz / d.extraV2F0.z);
+			float camtDist = GetLinearEyeDepth(d.screenUV) * length(d.extraV2F0.xyz / d.extraV2F0.z);
+
+			#if _ALPHA_VERTICAL
+				float dist = fluid.Depth;
+			#elif _ALPHA_DEPTH
+				float dist = camtDist;
+			#elif _ALPHA_MARCH_FLUID
+				float dist = RayMarchInside(position, normalize(step), _AlphaStep, _AlphaMaxSteps, distMax);
+			#elif _ALPHA_MARCH_FLUID_AND_DEPTH
+				float dist = RayMarchInside(position, normalize(step), _AlphaStep, _AlphaMaxSteps, min(camtDist, distMax));
+			#endif
+
+			// Set opacity based on distance through fluid relative to the maximum distance, and make sure high opacity fluids become solid
+			o.Alpha = saturate(dist / distMax + pow(fluid.RGBA.w, 10.0f));
+		#endif
+
+		o.Albedo     = fluid.RGBA.xyz;
+		
+		o.Smoothness = fluid.ESMV.y * 0;
+		o.Metallic   = fluid.ESMV.z;
+	}
+END_CODE

@@ -1,0 +1,140 @@
+﻿BEGIN_OPTIONS
+	Tags { "Queue"="AlphaTest" "IgnoreProjector"="True" "RenderType"="TransparentCutout" }
+END_OPTIONS
+
+BEGIN_SUBSHADERS
+	"FLOW_Shared.surfshader"
+END_SUBSHADERS
+
+BEGIN_PROPERTIES
+	[NoScaleOffset]_MainTex("Albedo (RGB) Alpha (A)", 2D) = "white" {}
+	[NoScaleOffset][Normal]_BumpMap("Normal (RGBA)", 2D) = "bump" {}
+
+	[Header(SCALE)]
+	_ScaleBase ("	Base", Float) = 1
+	_ScaleVolume ("	Volume", Float) = 1
+
+	[Header(STRETCH)]
+	[Toggle(_STRETCH_ON)] _HasStretch ("	Enabled", Float) = 0
+	_StretchScale ("	Scale", Float) = 5
+END_PROPERTIES
+
+BEGIN_CBUFFER
+	int2  _PartCountXY;
+	float _FlowDelta;
+
+	float _ScaleBase;
+	float _ScaleVolume;
+
+	float _StretchScale;
+END_CBUFFER
+
+BEGIN_DEFINES
+	#pragma shader_feature_local _ _STRETCH_ON
+END_DEFINES
+
+BEGIN_CODE
+	TEXTURE2D(_MainTex);
+	SAMPLER(sampler_MainTex);
+	TEXTURE2D(_BumpMap);
+	SAMPLER(sampler_BumpMap);
+
+	TEXTURE2D(_PartDataA);
+	SAMPLER(sampler_PartDataA);
+	TEXTURE2D(_PartDataB);
+	SAMPLER(sampler_PartDataB);
+	TEXTURE2D(_PartDataC);
+	SAMPLER(sampler_PartDataC);
+	TEXTURE2D(_PartDataD);
+	SAMPLER(sampler_PartDataD);
+	TEXTURE2D(_PartDataE);
+	SAMPLER(sampler_PartDataE);
+	TEXTURE2D(_PartDataF);
+	SAMPLER(sampler_PartDataF);
+
+	Particle GetParticle(float2 uv)
+	{
+		return DecodeParticle(SAMPLE_TEXTURE2D_LOD(_PartDataA, sampler_PartDataA, uv, 0), SAMPLE_TEXTURE2D_LOD(_PartDataB, sampler_PartDataB, uv, 0));
+	}
+
+	Fluid GetParticleFluid(float2 uv)
+	{
+		float4 c = SAMPLE_TEXTURE2D_LOD(_PartDataC, sampler_PartDataC, uv, 0);
+		float4 d = SAMPLE_TEXTURE2D_LOD(_PartDataD, sampler_PartDataD, uv, 0);
+		float4 e = SAMPLE_TEXTURE2D_LOD(_PartDataE, sampler_PartDataE, uv, 0);
+		float4 f = SAMPLE_TEXTURE2D_LOD(_PartDataF, sampler_PartDataF, uv, 0);
+		return DecodeFluid(c, d, e, f);
+	}
+
+	float2 Rotate(float2 v, float a)
+	{
+		float s = sin(a);
+		float c = cos(a);
+		return float2(c * v.x - s * v.y, s * v.x + c * v.y);
+	}
+
+	void ModifyVertex(inout VertexData v, inout ExtraV2F e)
+	{
+		float2   particlePixel = v.texcoord1.xy;
+		float2   particleCoord = SnapCoordFromPixel(particlePixel, _PartCountXY);
+		Particle particle      = GetParticle(particleCoord);
+		Fluid    fluid         = GetParticleFluid(particleCoord);
+		float    size          = particle.Age < particle.Life;
+		float4   wpos          = float4(particle.Position, 1.0f);
+		float2   rvec          = v.texcoord0.xy * size;
+
+		rvec *= _ScaleBase + _ScaleVolume * pow(abs(3.0f * fluid.Depth / 12.56637f), 1.0f / 3.0f);
+
+		#if _STRETCH_ON
+			float4 posA = SGT_O2V(float4(particle.Position - particle.Velocity, 1.0f));
+			float4 posB = SGT_O2V(float4(particle.Position + particle.Velocity, 1.0f));
+			float2 posV = posB.xy - posA.xy;
+			rvec.y *= 1.0f + length(particle.Velocity * _StretchScale * _FlowDelta);
+			rvec = Rotate(rvec, atan2(posV.x, posV.y));
+		#endif
+
+		wpos.xyz += UNITY_MATRIX_V[0].xyz * rvec.x;
+		wpos.xyz += UNITY_MATRIX_V[1].xyz * rvec.y;
+
+		v.vertex        = SGT_W2O(wpos);
+		v.normal        = UNITY_MATRIX_V[2].xyz;
+		v.tangent       = float4(UNITY_MATRIX_V[0].xyz, -1.0f);
+		v.texcoord0.zw  = Rotate(v.texcoord0.xy, v.texcoord1.z);
+		v.texcoord3.x   = v.texcoord1.x + v.texcoord1.y * _PartCountXY.x;
+		v.texcoord0    += 0.5f;
+		v.texcoord1     = fluid.RGBA;
+		v.texcoord2     = fluid.ESMV;
+	}
+
+	void SurfaceFunction(inout Surface o, ShaderData d)
+	{
+		Fluid fluid;
+
+		fluid.RGBA = d.texcoord1;
+		fluid.ESMV = d.texcoord2;
+
+		float4 texMain = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, d.texcoord0.zw);
+		float4 bump    = SAMPLE_TEXTURE2D(_BumpMap, sampler_BumpMap, d.texcoord0.xy);
+
+		//clip(texMain.a - 0.5f);
+
+		float DITHER_THRESHOLDS[16] =
+		{
+			1.0 / 17.0,  9.0 / 17.0,  3.0 / 17.0, 11.0 / 17.0,
+			13.0 / 17.0,  5.0 / 17.0, 15.0 / 17.0,  7.0 / 17.0,
+			4.0 / 17.0, 12.0 / 17.0,  2.0 / 17.0, 10.0 / 17.0,
+			16.0 / 17.0,  8.0 / 17.0, 14.0 / 17.0,  6.0 / 17.0
+		};
+
+		float2 uv    = d.screenUV.xy * _ScreenParams.xy + d.texcoord3.x;
+		uint   index = (uint(uv.x) % uint(4)) * uint(4) + (uint(uv.y) % uint(4));
+
+		clip(texMain.a - DITHER_THRESHOLDS[index]);
+
+		o.Albedo     = fluid.RGBA.xyz;
+		o.Emission   = fluid.ESMV.x * fluid.RGBA.xyz;
+		o.Smoothness = fluid.ESMV.y;
+		o.Metallic   = fluid.ESMV.z;
+		o.Normal     = UnpackScaleNormal(bump, 1.0f);
+	}
+END_CODE

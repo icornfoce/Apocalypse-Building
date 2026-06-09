@@ -1,0 +1,77 @@
+﻿BEGIN_OPTIONS
+	GrabPass { "_Grab" }
+	Tags { "RenderType" = "Transparent" "Queue" = "Transparent" }
+	Alpha "Blend"
+END_OPTIONS
+
+BEGIN_SUBSHADERS
+	"FLOW_Shared.surfshader"
+END_SUBSHADERS
+
+BEGIN_PROPERTIES
+	[Header(TRANSPARENCY)]
+	[KeywordEnum(Off, Vertical, Depth, March Fluid, March Fluid And Depth)] _Alpha ("	Mode", Float) = 0
+	_RangeMax ("	Range Max", Float) = 25
+	_AlphaStep ("	Step", Float) = 2.0
+	_AlphaMaxSteps ("	Max Steps", Int) = 100
+	_AlphaDepthScale ("	Depth Scale", Float) = 0.1
+END_PROPERTIES
+
+BEGIN_DEFINES
+	#pragma shader_feature_local _ALPHA_OFF _ALPHA_VERTICAL _ALPHA_DEPTH _ALPHA_MARCH_FLUID _ALPHA_MARCH_FLUID_AND_DEPTH
+END_DEFINES
+
+BEGIN_CBUFFER
+	float _RangeMax;
+	float _AlphaStep;
+	int _AlphaMaxSteps;
+	float _AlphaDepthScale;
+END_CBUFFER
+
+BEGIN_PASS("All")
+	ZWrite On
+END_PASS
+
+BEGIN_CODE
+	void SurfaceFunction(inout Surface o, ShaderData d)
+	{
+		#if _ALPHA_OFF
+		#else
+			float3 position  = d.worldSpacePosition;
+			float3 step      = d.worldSpacePosition - _WorldSpaceCameraPos;
+			float2 bentScrUV = d.screenUV + o.Normal.xy * 0.05f * log(1.0f + d.blackboard.fluid.Depth * 1.0f);
+			float  distMax   = max(_RangeMax * 0.001f, _RangeMax * (1.0f - d.blackboard.fluid.RGBA.w));
+			float  distRange = distMax;
+			float  vertDist  = length(d.extraV2F0.xyz);
+			float  camtDist  = GetLinearEyeDepth(bentScrUV) * length(d.extraV2F0.xyz / d.extraV2F0.z);
+
+			if (camtDist < vertDist)
+			{
+				camtDist = GetLinearEyeDepth(d.screenUV) * length(d.extraV2F0.xyz / d.extraV2F0.z);
+			}
+
+			float diffDist = max(0.0f, camtDist - vertDist);
+
+			// The depth buffer becomes unusable at certain ranges, so fade it out
+			diffDist += max(0.0f, camtDist * _AlphaDepthScale - _RangeMax);
+			distRange = min(distRange, diffDist);
+
+			#if _ALPHA_VERTICAL
+				float dist = d.blackboard.fluid.Depth;
+			#elif _ALPHA_DEPTH
+				float dist = diffDist;
+			#elif _ALPHA_MARCH_FLUID
+				float dist = RayMarchInside(position, normalize(step), _AlphaStep, _AlphaMaxSteps, distMax);
+			#elif _ALPHA_MARCH_FLUID_AND_DEPTH
+				float dist = RayMarchInside(position, normalize(step), _AlphaStep, _AlphaMaxSteps, distRange);
+			#endif
+
+			// Set opacity based on distance through fluid relative to the maximum distance, and make sure high opacity fluids become solid
+			float opacity = saturate(dist / distMax + d.blackboard.foam + pow(d.blackboard.fluid.RGBA.w, 10.0f));
+
+			o.Albedo    = lerp(0.0f, o.Albedo, opacity);
+			o.Emission  = lerp(GetSceneColor(bentScrUV), o.Emission, opacity);
+			//o.Emission += o.Albedo * d.blackboard.fluid.ESMV.x * opacity;
+		#endif
+	}
+END_CODE

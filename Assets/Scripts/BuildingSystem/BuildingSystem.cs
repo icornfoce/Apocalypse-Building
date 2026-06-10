@@ -1778,18 +1778,20 @@ namespace Simulation.Building
                 boxHalfExtents.z = Mathf.Max(0.05f, boxHalfExtents.z - 0.02f);
 
                 RaycastHit[] hits = UnityEngine.Physics.BoxCastAll(
-                    rayStart, 
-                    boxHalfExtents, 
-                    Vector3.up, 
-                    Quaternion.identity, 
-                    0.4f, 
-                    structureLayer
+                    rayStart,
+                    boxHalfExtents,
+                    Vector3.up,
+                    Quaternion.identity,
+                    0.4f,
+                    structureLayer,
+                    QueryTriggerInteraction.Ignore
                 );
                 System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
 
                 foreach (var hit in hits)
                 {
-                    if (hit.collider.gameObject == structureObj || hit.collider.transform.IsChildOf(structureObj.transform))
+                    // กรองเป้าหมายที่ยึดไม่ได้ (ตัวเอง/trigger/ซากพัง-หลุด/gadget/prop ไดนามิก)
+                    if (!TryGetAttachCandidate(hit.collider, structureObj, out _, out _))
                         continue;
 
                     var hitUnit = hit.collider.GetComponentInParent<StructureUnit>();
@@ -1833,28 +1835,32 @@ namespace Simulation.Building
                 Quaternion boxRotation = structureObj.transform.rotation;
 
                 RaycastHit[] hits = UnityEngine.Physics.BoxCastAll(
-                    rayStart, 
-                    boxHalfExtents, 
-                    Vector3.down, 
-                    boxRotation, 
-                    0.4f, 
-                    groundLayer | structureLayer
+                    rayStart,
+                    boxHalfExtents,
+                    Vector3.down,
+                    boxRotation,
+                    0.4f,
+                    groundLayer | structureLayer,
+                    QueryTriggerInteraction.Ignore
                 );
                 System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
 
                 foreach (var hit in hits)
                 {
-                    // Skip if we hit ourselves (check root to be safe with compound colliders)
-                    if (hit.collider.gameObject == structureObj || hit.collider.transform.IsChildOf(structureObj.transform))
+                    // กรองเป้าหมายที่ยึดไม่ได้ (ตัวเอง/trigger/ซากพัง-หลุด/gadget/prop ไดนามิก)
+                    // กันเคสเช่น: เศษซากกองอยู่ใต้ชิ้น → เดิมจะเกาะซากแทนพื้น
+                    if (!TryGetAttachCandidate(hit.collider, structureObj, out _, out _))
                         continue;
 
                     actualTarget = hit.collider;
                     break;
                 }
 
-                // Fallback: ตรวจ "พื้น/สภาพแวดล้อม" ที่อยู่ใต้ฐานโดยตรง
-                // ไม่ผูกกับ Y=0 (รองรับพื้นที่อยู่ระดับใดก็ได้) และไม่ผูก Layer (ยิงทุกชั้น)
-                // ระยะสั้นๆ เพื่อให้เฉพาะของที่ "วางอยู่บน" พื้นจริงๆ ถึงจะยึด (กันของลอยยึดมั่ว)
+                // Fallback: ตรวจ "พื้น/สภาพแวดล้อม/โครงสร้าง" ที่อยู่ใต้ฐานโดยตรง ด้วย OverlapBox
+                // เหตุผลที่ไม่ใช้ BoxCast: BoxCast ของ Unity "มองไม่เห็น" collider ที่กล่องซ้อนทับ
+                // อยู่ตั้งแต่เริ่ม cast → ถ้าชิ้นจมลงพื้น/ตัวค้ำเล็กน้อย (จาก snap หรือทศนิยม)
+                // จะหาพื้นไม่เจอเลยทั้งที่วางทับอยู่ — นี่คือสาเหตุหลักของ "พื้นไม่ต่อ joint กับ ground"
+                // OverlapBox เจอเสมอแม้ซ้อนกัน. ไม่ผูก Y=0 และไม่ผูก Layer (ยิงทุกชั้น)
                 if (actualTarget == null)
                 {
                     // ใช้ "ขอบล่างจริง" ของ Collider (ไม่พึ่ง pivot math ที่อาจคลาดเคลื่อน → ยิงผิดที่)
@@ -1862,22 +1868,41 @@ namespace Simulation.Building
                     Vector3 cc = baseCol != null ? baseCol.bounds.center : structureObj.transform.position;
                     float realBottom = baseCol != null ? baseCol.bounds.min.y : (structureObj.transform.position.y - pivotToBottom);
 
-                    Vector3 groundRayStart = new Vector3(cc.x, realBottom + 0.3f, cc.z);
-                    Vector3 groundHalfExtents = boxHalfExtents;
-                    groundHalfExtents.y = 0.05f;
+                    // แผ่นบางครอบฐาน: จาก realBottom+0.10 ลงไปถึง realBottom-0.20
+                    // (ครอบทั้งเคส "จมลงไป" และ "ลอยห่างเล็กน้อย" — สั้นพอไม่ให้ของลอยไกลยึดมั่ว)
+                    Vector3 slabHalf = boxHalfExtents;   // footprint เดิม (หดขอบ 2cm กันเกี่ยวเพื่อนบ้านด้านข้าง)
+                    slabHalf.y = 0.15f;
+                    Vector3 slabCenter = new Vector3(cc.x, realBottom - 0.05f, cc.z);
 
-                    // ยิงทุก Layer ระยะกว้างขึ้น (0.8) เพื่อหา "พื้น/สภาพแวดล้อม" ใต้ฐานให้ชัวร์
-                    RaycastHit[] groundHits = UnityEngine.Physics.BoxCastAll(
-                        groundRayStart, groundHalfExtents, Vector3.down, boxRotation, 0.8f, ~0, QueryTriggerInteraction.Ignore);
-                    System.Array.Sort(groundHits, (a, b) => a.distance.CompareTo(b.distance));
+                    Collider[] underCols = UnityEngine.Physics.OverlapBox(
+                        slabCenter, slabHalf, boxRotation, ~0, QueryTriggerInteraction.Ignore);
 
-                    foreach (var gh in groundHits)
+                    // เลือกโครงสร้างที่ใกล้จุดกึ่งกลางฐานที่สุดก่อน, ไม่มีค่อยใช้พื้น/สภาพแวดล้อม (ground)
+                    Collider bestStructure = null, bestGround = null;
+                    float bestSqrDist = float.MaxValue;
+                    Vector3 basePoint = new Vector3(cc.x, realBottom, cc.z);
+
+                    foreach (var uc in underCols)
                     {
-                        if (gh.collider == null) continue;
-                        if (gh.collider.gameObject == structureObj || gh.collider.transform.IsChildOf(structureObj.transform)) continue;
-                        actualTarget = gh.collider;
-                        break;
+                        if (!TryGetAttachCandidate(uc, structureObj, out _, out bool groundLike)) continue;
+
+                        if (groundLike)
+                        {
+                            if (bestGround == null) bestGround = uc;
+                            continue;
+                        }
+
+                        // โครงสร้าง: ใช้ระยะจากจุดกึ่งกลางฐาน (collider โครงสร้างถูกบังคับ convex แล้ว
+                        // ใน StructureUnit.Initialize → ClosestPoint ใช้ได้ปลอดภัย)
+                        float sqrDist = (uc.ClosestPoint(basePoint) - basePoint).sqrMagnitude;
+                        if (sqrDist < bestSqrDist)
+                        {
+                            bestSqrDist = sqrDist;
+                            bestStructure = uc;
+                        }
                     }
+
+                    actualTarget = bestStructure != null ? bestStructure : bestGround;
                 }
             }
 
@@ -2041,10 +2066,13 @@ namespace Simulation.Building
             // ── หาเพื่อนบ้าน "ด้วย Collider จริง" ──
             // ยิง OverlapBox ตามรูปทรง/การหมุนของแต่ละ Collider (ขยายเล็กน้อย) เพื่อจับชิ้นที่ "สัมผัสจริง"
             // แม่นกว่าการใช้ AABB ที่พองเกินจริงเมื่อชิ้นถูกหมุน
-            HashSet<StructureUnit> neighbors = new HashSet<StructureUnit>();
+            // เก็บ "คู่ collider ที่สัมผัสกันจริง" ไว้ด้วย เพื่อใช้ตัดสินแกนสัมผัสแบบ per-collider
+            // เมื่อ AABB รวมทั้งชิ้นตัดสินไม่ได้ (ชิ้น compound เช่น บันได ทำให้กล่องอ้วนเกินจริง)
+            Dictionary<StructureUnit, KeyValuePair<Collider, Collider>> neighbors =
+                new Dictionary<StructureUnit, KeyValuePair<Collider, Collider>>();
             foreach (var myCol in myColliders)
             {
-                if (myCol == null) continue;
+                if (myCol == null || myCol.isTrigger) continue;
                 GetColliderOrientedBox(myCol, out Vector3 oc, out Vector3 ohe, out Quaternion orot);
                 ohe += Vector3.one * jointHitboxExpand;
 
@@ -2053,20 +2081,27 @@ namespace Simulation.Building
                 {
                     if (hitCol == null) continue;
                     var ou = hitCol.GetComponentInParent<StructureUnit>();
-                    if (ou != null && ou != newUnit) neighbors.Add(ou);
+                    if (ou != null && ou != newUnit && !neighbors.ContainsKey(ou))
+                        neighbors.Add(ou, new KeyValuePair<Collider, Collider>(myCol, hitCol));
                 }
             }
 
-            foreach (var unit in neighbors)
+            foreach (var kv in neighbors)
             {
+                StructureUnit unit = kv.Key;
                 if (unit == null || unit.Data == null) continue;
 
                 // ไม่ต่อ Joint กับ Gadget (Gadget มี Joint หลักตัวเดียว ไม่ให้ใครมาเกาะ)
                 if (unit.Data.isGadget) continue;
 
+                // ไม่ต่อกับชิ้นที่พัง/หลุดไปแล้ว (สำคัญตอน TryReattachJoint ระหว่างจำลอง)
+                var nStress = unit.GetComponent<Simulation.Physics.StructuralStress>();
+                if (nStress != null && (nStress.IsBroken || nStress.IsDetached)) continue;
+
                 Rigidbody otherRb = unit.GetComponent<Rigidbody>();
                 if (otherRb == null || otherRb == mainConnected) continue;
-                if (HasJointTo(structureObj, otherRb)) continue; // กันต่อซ้ำ
+                if (HasJointTo(structureObj, otherRb)) continue;   // กันต่อซ้ำฝั่งเรา
+                if (HasJointTo(unit.gameObject, newRb)) continue;  // กันต่อซ้ำสองทิศ (อีกฝั่งต่อมาหาเราแล้ว)
 
                 Collider[] otherColliders = unit.GetComponentsInChildren<Collider>();
                 if (otherColliders.Length == 0) continue;
@@ -2075,6 +2110,12 @@ namespace Simulation.Building
                 // หาทิศสัมผัสแบบแกนตรง: 0=X(ซ้าย/ขวา), 1=Y(บน/ล่าง), 2=Z(หน้า/หลัง)
                 // คืน -1 = สัมผัสแบบขอบ/มุม (แนวทแยง) → ข้าม (Joint ได้แค่ 6 ด้านตรงๆ)
                 int contactAxis = GetFaceContactAxis(myBounds, otherBounds);
+
+                // AABB รวมตัดสินไม่ได้ → ลองใหม่จาก "คู่ collider ที่สัมผัสจริง"
+                // (แก้เคสบันได/ชิ้น compound ติดกับเพื่อนบ้านแต่ไม่ยอมต่อ joint)
+                if (contactAxis < 0 && kv.Value.Key != null && kv.Value.Value != null)
+                    contactAxis = GetFaceContactAxis(kv.Value.Key.bounds, kv.Value.Value.bounds);
+
                 if (contactAxis < 0) continue;
 
                 // กฎพื้น:
@@ -2130,7 +2171,9 @@ namespace Simulation.Building
         {
             Vector3 diff = b.center - a.center;
             Vector3 sumHalf = (a.size + b.size) * 0.5f;
-            float eps = 0.05f;
+            // eps เล็กลงจาก 0.05 → 0.02: ชิ้นบางๆ (เช่น กำแพงหนา ~0.1) ที่มีช่องว่างเล็กน้อย
+            // จาก snap จะยังนับว่า "ซ้อนทับ" ในแกนนั้น — เดิมถูกตัดเป็นแนวทแยงทั้งที่ติดกันจริง
+            float eps = 0.02f;
 
             // นับแกนที่ "ซ้อนทับ" กัน — หน้าต่อหน้าต้องซ้อนทับอย่างน้อย 2 แกน
             int overlapCount = 0;
@@ -2157,6 +2200,42 @@ namespace Simulation.Building
             foreach (var j in obj.GetComponents<Joint>())
                 if (j != null && j.connectedBody == target) return true;
             return false;
+        }
+
+        /// <summary>
+        /// ตรวจว่า Collider นี้ใช้เป็น "จุดยึด Joint" ได้หรือไม่ และยึดแบบไหน
+        /// คืน false ถ้า: เป็น trigger / เป็นของตัวเอง / โครงสร้างพัง-หลุดแล้ว / เป็น Gadget /
+        /// เป็นวัตถุมี Rigidbody ที่ไม่ใช่โครงสร้าง (เศษซาก/prop ไดนามิก — ห้ามเชื่อมเด็ดขาด)
+        /// targetRb   = Rigidbody ของโครงสร้างเป้าหมาย (null ถ้า groundLike)
+        /// groundLike = วัตถุนิ่งในฉากที่ไม่ใช่โครงสร้าง (พื้น/สภาพแวดล้อม) → ยึดกับโลกได้
+        /// </summary>
+        private bool TryGetAttachCandidate(Collider col, GameObject self, out Rigidbody targetRb, out bool groundLike)
+        {
+            targetRb = null;
+            groundLike = false;
+
+            if (col == null || col.isTrigger) return false;
+            if (col.gameObject == self || col.transform.IsChildOf(self.transform)) return false;
+
+            var unit = col.GetComponentInParent<StructureUnit>();
+            if (unit != null)
+            {
+                if (unit.gameObject == self) return false;
+                if (unit.Data != null && unit.Data.isGadget) return false; // กฎเดิม: ห้ามยึดกับ Gadget
+
+                // ห้ามยึดกับชิ้นที่พัง/หลุดแล้ว (เศษซาก) — เดิมไม่กรอง ทำให้เกาะซากแทนพื้น/ตัวค้ำจริง
+                var stress = unit.GetComponent<Simulation.Physics.StructuralStress>();
+                if (stress != null && (stress.IsBroken || stress.IsDetached)) return false;
+
+                targetRb = unit.GetComponent<Rigidbody>();
+                return targetRb != null;
+            }
+
+            // ไม่ใช่โครงสร้าง: ถ้ามี Rigidbody (prop/เศษไดนามิกอื่น) ห้ามเชื่อม
+            // ถ้านิ่งสนิท (ไม่มี Rigidbody) → ถือเป็นพื้น/สภาพแวดล้อม ยึดกับโลกได้
+            if (col.GetComponentInParent<Rigidbody>() != null) return false;
+            groundLike = true;
+            return true;
         }
 
         /// <summary>

@@ -9,6 +9,10 @@ namespace Simulation.Mission
     /// </summary>
     public class StrongWindDisaster : DisasterBase
     {
+        // อัตรา gust เฉลี่ย (ครั้ง/วินาที) — ใช้สูตร 1-exp(-rate*dt) ให้ไม่ขึ้นกับ framerate
+        // (ของเดิม 5% ต่อเฟรม ≈ 3 ครั้ง/วินาที ที่ 60fps แต่ที่ 144fps จะถี่กว่า ~2.4 เท่า)
+        private const float GUST_RATE_PER_SECOND = 3f;
+
         public StrongWindDisaster(DisasterData data, MonoBehaviour runner) : base(data, runner) { }
 
         protected override void OnUpdate(float dt)
@@ -47,8 +51,8 @@ namespace Simulation.Mission
                 Simulation.Physics.WindResponse.ApplyWindForceDistributed(
                     unit, windForce, data.windLoadSpread, ForceMode.Force);
 
-                // ลมกระแทกแรงเป็นช่วง (gust) — กระจายแรงเช่นกัน
-                if (Random.value < 0.05f)
+                // ลมกระแทกแรงเป็นช่วง (gust) — ความน่าจะเป็นแบบ frame-rate independent
+                if (Random.value < 1f - Mathf.Exp(-GUST_RATE_PER_SECOND * dt))
                 {
                     Simulation.Physics.WindResponse.ApplyWindForceDistributed(
                         unit, windForce * 3f, data.windLoadSpread, ForceMode.Impulse);

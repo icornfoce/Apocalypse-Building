@@ -63,8 +63,15 @@ namespace Simulation.Physics
                  "(0 = รับไว้เองหมด, 1 = ส่งลงโครงสร้างเกือบหมด) — ช่วยให้บันไดไม่หลุดง่ายและช่วยค้ำโครงสร้าง")]
         [Range(0f, 1f)] [SerializeField] private float windForceTransmission = 0.6f;
 
+        [Tooltip("สัดส่วนแรงลมส่วนที่บันไดรับเอง ที่ถูก 'ปัดขึ้น' แล้วแปลงเป็นแรงกดลง " +
+                 "(ยิ่งสูง บันไดยิ่งถูกผลักล้มยากและนั่งแน่นบนโครงสร้าง) — สเกลตามความตรงของแกนกับลม")]
+        [Range(0f, 1f)] [SerializeField] private float deflectDownforceFraction = 0.5f;
+
         /// <summary>สัดส่วนแรงลมที่บันไดส่งต่อลงโครงสร้าง (ใช้โดย WindResponse.ApplyWindForceDistributed)</summary>
         public float WindForceTransmission => windForceTransmission;
+
+        /// <summary>สัดส่วนแรงผลักที่ถูกแปลงเป็นแรงกดลงเมื่อหันรับลมตรง (ใช้โดย WindResponse)</summary>
+        public float DeflectDownforceFraction => deflectDownforceFraction;
 
         // ── cache ──
         private Transform _t;
@@ -101,6 +108,22 @@ namespace Simulation.Physics
             }
             if (invertAxis) a = -a;
             return a.sqrMagnitude > 1e-6f ? a.normalized : Vector3.zero;
+        }
+
+        /// <summary>
+        /// ความตรงของแกนรับลมกับทิศลม [0..1]
+        /// 0 = ต่ำกว่า threshold/ไม่ตรง, 1 = ตรงเป๊ะ. windDir ไม่ต้อง normalized มาก่อนก็ได้
+        /// </summary>
+        public float GetSelfAlignment(Vector3 windDir)
+        {
+            if (windDir.sqrMagnitude < 1e-6f) return 0f;
+
+            Vector3 axis = AxisWorld();
+            if (axis == Vector3.zero) return 0f;
+
+            float dot = Vector3.Dot(axis, windDir.normalized);
+            if (dot < alignmentThreshold) return 0f;
+            return Mathf.InverseLerp(alignmentThreshold, 1f, dot);
         }
 
         /// <summary>

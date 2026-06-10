@@ -155,6 +155,22 @@ namespace Simulation.Mission
             if (worldCanvas != null) worldCanvas.SetActive(false);
         }
 
+        /// <summary>
+        /// เริ่มต้นด่านตามชื่อด่านที่กำหนดใน missionData
+        /// </summary>
+        public void StartLevel()
+        {
+            if (missionData == null)
+            {
+                Debug.LogError($"[LevelNode] {name} ไม่มี MissionData สำหรับเริ่มด่าน");
+                return;
+            }
+
+            string targetSceneName = missionData.missionName;
+            Debug.Log($"[LevelNode] เริ่มต้นด่าน: {targetSceneName}");
+            GameSceneManager.Instance.LoadScene(targetSceneName);
+        }
+
 #if UNITY_EDITOR
         private void OnDrawGizmosSelected()
         {
@@ -195,7 +211,15 @@ namespace Simulation.UI
         {
             if (targetCamera != null) { _cam = targetCamera.transform; return; }
             var main = UnityEngine.Camera.main;
-            _cam = main != null ? main.transform : null;
+            if (main != null)
+            {
+                _cam = main.transform;
+            }
+            else
+            {
+                var anyCam = FindFirstObjectByType<UnityEngine.Camera>();
+                if (anyCam != null) _cam = anyCam.transform;
+            }
         }
 
         private void LateUpdate()
@@ -223,53 +247,6 @@ namespace Simulation.UI
 
             if (flip) rot *= Quaternion.Euler(0f, 180f, 0f);
             transform.rotation = rot;
-        }
-    }
-
-    /// <summary>
-    /// SceneButton — ตัวช่วยเปลี่ยนซีนสำหรับปุ่ม UI (ย้ายมารวมไว้ในไฟล์ LevelNode.cs)
-    ///
-    /// วิธีใช้:
-    ///   1) แปะคอมโพเนนต์นี้บน GameObject ของปุ่ม (Button)
-    ///   2) เลือก action (และใส่ targetScene ถ้าเลือก LoadByName)
-    ///   3) ที่ Button > OnClick() กด + ลาก GameObject เดียวกันนี้เข้าไป เลือกเมธอด SceneButton.Go()
-    /// </summary>
-    public class SceneButton : MonoBehaviour
-    {
-        public enum Action
-        {
-            LoadByName,     // โหลดซีนตามชื่อใน targetScene
-            MainMenu,       // ไปเมนูหลัก
-            LevelSelect,    // ไปหน้าเลือกด่าน
-            ReloadCurrent,  // โหลดซีนปัจจุบันใหม่
-            Quit            // ออกจากเกม
-        }
-
-        [Tooltip("การกระทำเมื่อกดปุ่ม")]
-        [SerializeField] private Action action = Action.LoadByName;
-
-        [Tooltip("ชื่อซีนปลายทาง (ใช้เมื่อ action = LoadByName) ต้องตรงกับ Build Settings")]
-        [SerializeField] private string targetScene = "";
-
-        /// <summary>ผูกเมธอดนี้กับ Button.onClick ใน Inspector</summary>
-        public void Go()
-        {
-            var mgr = GameSceneManager.Instance; // สร้างให้อัตโนมัติถ้ายังไม่มี
-
-            switch (action)
-            {
-                case Action.MainMenu:      mgr.LoadMainMenu();        break;
-                case Action.LevelSelect:   mgr.LoadLevelSelect();     break;
-                case Action.ReloadCurrent: mgr.ReloadCurrentScene();  break;
-                case Action.Quit:          mgr.QuitGame();            break;
-                default:                   mgr.LoadScene(targetScene); break;
-            }
-        }
-
-        /// <summary>เรียกจากโค้ด/ปุ่มอื่นเพื่อโหลดซีนตามชื่อโดยตรง</summary>
-        public void LoadScene(string sceneName)
-        {
-            GameSceneManager.Instance.LoadScene(sceneName);
         }
     }
 }

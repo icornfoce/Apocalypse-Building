@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0837ce6ae0cc02d4386014dddfbffbab, type: 3}
   m_Name: Mission-LV.5
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.Mission.MissionData
-  missionName: Lv.2
+  missionName: Lv.5
   description: 
   requiredFloors: 0
   requiredAreaPerFloor: 0
@@ -28,4 +28,6 @@ MonoBehaviour:
   - disasterData: {fileID: 11400000, guid: 874313a13026ad04b8ee226a20258b52, type: 2}
     startTime: 12
   simulationDuration: 125
+  enableTax: 0
+  taxRate: 0
   nextMission: {fileID: 0}

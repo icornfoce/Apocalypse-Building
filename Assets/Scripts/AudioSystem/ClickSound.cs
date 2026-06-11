@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Scripting.APIUpdating;
 
 namespace AudioSystem
 {
@@ -8,6 +9,7 @@ namespace AudioSystem
     /// รองรับการเล่นเสียง SFX จากที่ไหนก็ได้ผ่าน Instance
     /// และสามารถติดลงบน GameObject เพื่อให้ปุ่มทุกปุ่มมีเสียงได้
     /// </summary>
+    [MovedFrom(true, "AudioSystem", "Assembly-CSharp", "SoundManager")]
     public class ClickSound : MonoBehaviour
     {
         public static ClickSound Instance { get; private set; }

@@ -96,9 +96,17 @@ namespace Simulation.Mission
 
             if (_player != null) { pos = _player.position; return true; }
 
-            if (useCameraIfNoPlayer && UnityEngine.Camera.main != null)
+            // ค้นหากล้องหลัก (ถ้า Camera.main เป็น null ให้หาจาก CameraController)
+            UnityEngine.Camera mainCam = UnityEngine.Camera.main;
+            if (mainCam == null)
             {
-                pos = UnityEngine.Camera.main.transform.position;
+                var camCtrl = FindFirstObjectByType<Simulation.Camera.CameraController>();
+                if (camCtrl != null) mainCam = camCtrl.GetComponent<UnityEngine.Camera>();
+            }
+
+            if (useCameraIfNoPlayer && mainCam != null)
+            {
+                pos = mainCam.transform.position;
                 return true;
             }
 
@@ -210,21 +218,58 @@ namespace Simulation.UI
         private void CacheCamera()
         {
             if (targetCamera != null) { _cam = targetCamera.transform; return; }
+            
+            // 1. ลองหาจาก Camera.main
             var main = UnityEngine.Camera.main;
             if (main != null)
             {
                 _cam = main.transform;
+                return;
             }
-            else
+
+            // 2. ลองหาจาก CameraController (กล้องหลักของเกม)
+            var camCtrl = FindFirstObjectByType<Simulation.Camera.CameraController>();
+            if (camCtrl != null)
             {
-                var anyCam = FindFirstObjectByType<UnityEngine.Camera>();
-                if (anyCam != null) _cam = anyCam.transform;
+                _cam = camCtrl.transform;
+                return;
             }
+
+            // 3. ลองหาจากกล้องอะไรก็ได้ที่ไม่ใช่ UI Camera
+            var cameras = FindObjectsByType<UnityEngine.Camera>(FindObjectsSortMode.None);
+            foreach (var cam in cameras)
+            {
+                if (cam.gameObject.name.Contains("UI") || cam.gameObject.name.Contains("Interface")) continue;
+                _cam = cam.transform;
+                return;
+            }
+
+            // 4. fallback
+            var anyCam = FindFirstObjectByType<UnityEngine.Camera>();
+            if (anyCam != null) _cam = anyCam.transform;
         }
 
         private void LateUpdate()
         {
-            if (_cam == null)
+            bool needRecache = _cam == null;
+            if (!needRecache && targetCamera == null)
+            {
+                var activeMain = UnityEngine.Camera.main;
+                if (activeMain != null && _cam != activeMain.transform)
+                {
+                    needRecache = true;
+                }
+                else if (activeMain == null)
+                {
+                    var camCtrl = FindFirstObjectByType<Simulation.Camera.CameraController>();
+                    if (camCtrl != null && _cam != camCtrl.transform)
+                    {
+                        needRecache = true;
+                    }
+                }
+            }
+
+            if (needRecache)
             {
                 CacheCamera();
                 if (_cam == null) return; // ยังไม่มีกล้อง

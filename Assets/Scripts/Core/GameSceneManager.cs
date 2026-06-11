@@ -43,11 +43,6 @@ namespace Simulation.Core
             }
         }
 
-        [Header("Default Scene Names (ต้องตรงกับ Build Settings)")]
-        [Tooltip("ชื่อซีนเมนูหลัก")]
-        [SerializeField] private string mainMenuScene = "MainMenu";
-        [Tooltip("ชื่อซีนหน้าเลือกด่าน")]
-        [SerializeField] private string levelSelectScene = "LevelSelect";
 
         [Header("Debug")]
         [SerializeField] private bool logTransitions = true;
@@ -105,20 +100,20 @@ namespace Simulation.Core
         // ────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// โหลดซีนตามชื่อ (ต้องอยู่ใน Build Settings). คืน true ถ้าเริ่มโหลดได้
+        /// โหลดซีนตามชื่อ (ต้องอยู่ใน Build Settings)
         /// </summary>
-        public bool LoadScene(string sceneName)
+        public void LoadScene(string sceneName)
         {
             if (string.IsNullOrWhiteSpace(sceneName))
             {
                 Debug.LogError("[GameSceneManager] LoadScene: sceneName ว่างเปล่า");
-                return false;
+                return;
             }
 
             if (IsLoading)
             {
                 Debug.LogWarning($"[GameSceneManager] กำลังโหลดซีนอื่นอยู่ — ข้ามคำสั่งโหลด '{sceneName}'");
-                return false;
+                return;
             }
 
             // ตรวจว่าซีนอยู่ใน Build Settings จริงไหม (กันพลาดที่พบบ่อยที่สุด)
@@ -128,7 +123,7 @@ namespace Simulation.Core
                     $"[GameSceneManager] ไม่พบซีน '{sceneName}' ใน Build Settings!\n" +
                     "วิธีแก้: File > Build Settings (หรือ Build Profiles) แล้วลากไฟล์ซีนเข้าช่อง " +
                     "'Scenes In Build' และตรวจให้สะกดชื่อตรงกัน (case-sensitive ไม่ต้องใส่ .unity).");
-                return false;
+                return;
             }
 
             if (logTransitions)
@@ -139,18 +134,17 @@ namespace Simulation.Core
 
             // โหลดทันทีตามที่เลือกไว้ (Single = ปิดซีนเดิมแล้วเปิดซีนใหม่)
             USceneManager.LoadScene(sceneName, LoadSceneMode.Single);
-            return true;
         }
 
         /// <summary>โหลดซีนปัจจุบันใหม่ (เริ่มด่านใหม่/ลองใหม่)</summary>
-        public bool ReloadCurrentScene()
+        public void ReloadCurrentScene()
         {
             // โหลดด้วย buildIndex ของซีนปัจจุบันโดยตรง เพื่อให้ reload ได้เสมอแม้จะกำลังเทสต์อยู่
             Scene active = USceneManager.GetActiveScene();
             if (IsLoading)
             {
                 Debug.LogWarning("[GameSceneManager] กำลังโหลดซีนอยู่ — ข้ามคำสั่ง reload");
-                return false;
+                return;
             }
 
             IsLoading = true;
@@ -162,16 +156,8 @@ namespace Simulation.Core
                 USceneManager.LoadScene(active.buildIndex, LoadSceneMode.Single);
             else
                 USceneManager.LoadScene(active.name, LoadSceneMode.Single);
-            return true;
         }
 
-        /// <summary>ไปเมนูหลัก</summary>
-        public bool LoadMainMenu() => LoadScene(mainMenuScene);
-
-        /// <summary>ไปหน้าเลือกด่าน</summary>
-        public bool LoadLevelSelect() => LoadScene(levelSelectScene);
-
-        /// <summary>ออกจากเกม (ใน Editor จะหยุด Play แทน)</summary>
         public void QuitGame()
         {
             if (logTransitions) Debug.Log("[GameSceneManager] ออกจากเกม");

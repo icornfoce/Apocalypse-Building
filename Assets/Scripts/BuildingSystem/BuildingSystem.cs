@@ -252,6 +252,16 @@ namespace Simulation.Building
 
         private void Update()
         {
+            if (mainCamera == null)
+            {
+                mainCamera = UnityEngine.Camera.main;
+                if (mainCamera != null)
+                {
+                    _cameraController = mainCamera.GetComponent<Simulation.Camera.CameraController>();
+                }
+            }
+            if (mainCamera == null) return;
+
             HandleFloorSwitch();
 
             // ปิดระบบสร้างทั้งหมดถ้ากำลังเริ่มการจำลองฟิสิกส์ (ป้องกันการวางของขณะร่วง)

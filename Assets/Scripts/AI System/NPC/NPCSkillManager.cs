@@ -173,15 +173,19 @@ namespace Simulation.NPC
                     UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
                     return;
 
-                Ray ray = UnityEngine.Camera.main.ScreenPointToRay(Input.mousePosition);
-                if (UnityEngine.Physics.Raycast(ray, out RaycastHit hit, 100f))
+                UnityEngine.Camera mainCam = UnityEngine.Camera.main;
+                if (mainCam != null)
                 {
-                    // เช็คว่าคลิกที่ NPC หรือไม่
-                    NPCController clickedNPC = hit.collider.GetComponentInParent<NPCController>();
-                    if (clickedNPC != null)
+                    Ray ray = mainCam.ScreenPointToRay(Input.mousePosition);
+                    if (UnityEngine.Physics.Raycast(ray, out RaycastHit hit, 100f))
                     {
-                        SelectNPC(clickedNPC);
-                        return;
+                        // เช็คว่าคลิกที่ NPC หรือไม่
+                        NPCController clickedNPC = hit.collider.GetComponentInParent<NPCController>();
+                        if (clickedNPC != null)
+                        {
+                            SelectNPC(clickedNPC);
+                            return;
+                        }
                     }
                 }
             }
@@ -189,15 +193,19 @@ namespace Simulation.NPC
             // ── Right Click / Click Ground: สั่ง NPC เดิน ──
             if (_selectedNPC != null && Input.GetMouseButtonDown(1))
             {
-                Ray ray = UnityEngine.Camera.main.ScreenPointToRay(Input.mousePosition);
-                int groundMask = LayerMask.GetMask("Ground", "Structure");
-                if (UnityEngine.Physics.Raycast(ray, out RaycastHit hit, 200f, groundMask))
+                UnityEngine.Camera mainCam = UnityEngine.Camera.main;
+                if (mainCam != null)
                 {
-                    // ส่งคำสั่งเดินไปยัง NPC
-                    _selectedNPC.MoveTo(hit.point);
+                    Ray ray = mainCam.ScreenPointToRay(Input.mousePosition);
+                    int groundMask = LayerMask.GetMask("Ground", "Structure");
+                    if (UnityEngine.Physics.Raycast(ray, out RaycastHit hit, 200f, groundMask))
+                    {
+                        // ส่งคำสั่งเดินไปยัง NPC
+                        _selectedNPC.MoveTo(hit.point);
 
-                    // VFX ที่จุดกดพื้น (waypoint marker)
-                    SpawnMoveVFX(hit.point);
+                        // VFX ที่จุดกดพื้น (waypoint marker)
+                        SpawnMoveVFX(hit.point);
+                    }
                 }
             }
         }

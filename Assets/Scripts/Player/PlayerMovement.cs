@@ -87,10 +87,30 @@ namespace Simulation.Player
 
         private void ApplyCameraFollow()
         {
-            if (targetCamera == null) return;
+            if (targetCamera == null)
+            {
+                if (UnityEngine.Camera.main != null)
+                {
+                    targetCamera = UnityEngine.Camera.main.transform;
+                }
+                else
+                {
+                    return;
+                }
+            }
 
-            Vector3 targetPosition = transform.position + cameraOffset;
-            targetCamera.position = Vector3.Lerp(targetCamera.position, targetPosition, cameraLerpSpeed * Time.deltaTime);
+            var cameraController = targetCamera.GetComponent<Simulation.Camera.CameraController>();
+            if (cameraController != null)
+            {
+                // เลื่อนจุดหมุน (PivotPoint) ของกล้องตามตัวผู้เล่นแบบนุ่มนวล
+                cameraController.PivotPoint = Vector3.Lerp(cameraController.PivotPoint, transform.position, cameraLerpSpeed * Time.deltaTime);
+            }
+            else
+            {
+                // เลื่อนตำแหน่งกล้องตรงๆ ถ้าไม่มี CameraController
+                Vector3 targetPosition = transform.position + cameraOffset;
+                targetCamera.position = Vector3.Lerp(targetCamera.position, targetPosition, cameraLerpSpeed * Time.deltaTime);
+            }
         }
 
         private void ApplyEffects()

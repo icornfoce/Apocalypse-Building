@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine.Scripting.APIUpdating;
 
 namespace Simulation.Camera
 {
@@ -12,6 +13,7 @@ namespace Simulation.Camera
     ///   ใช้ SphereCastAll เพื่อจับของที่บังได้กว้างกว่า Raycast ปกติ
     ///   รองรับทั้ง Standard Shader และ URP Lit Shader
     /// </summary>
+    [MovedFrom(true, "BuildingSimulation.Camera", "Assembly-CSharp", "BlenderCameraController")]
     public class CameraController : MonoBehaviour
     {
         [Header("Camera Rotation")]
@@ -338,6 +340,12 @@ namespace Simulation.Camera
         /// Current floor index being viewed (read-only from outside).
         /// </summary>
         public int CurrentViewFloor { get; private set; } = 1;
+
+        public Vector3 PivotPoint
+        {
+            get => pivotPoint;
+            set => pivotPoint = value;
+        }
 
         public void FocusOn(Vector3 point)
         {

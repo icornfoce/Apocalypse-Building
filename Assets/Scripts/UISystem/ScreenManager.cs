@@ -37,8 +37,16 @@ namespace Simulation.UI
                 Destroy(gameObject);
                 return;
             }
+        }
 
-            // Initialize dictionary and hide all screens
+        private void OnDestroy()
+        {
+            if (Instance == this) Instance = null;
+        }
+
+        // Initialize dictionary and hide all screens
+        private void Start()
+        {
             foreach (var screen in screens)
             {
                 if (screen.screenObject != null)
@@ -59,10 +67,7 @@ namespace Simulation.UI
                     }
                 }
             }
-        }
 
-        private void Start()
-        {
             if (!string.IsNullOrEmpty(startScreen))
             {
                 OpenScreen(startScreen);

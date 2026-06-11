@@ -87,7 +87,7 @@ namespace Simulation.Player
 
         private void ApplyCameraFollow()
         {
-            if (targetCamera == null)
+            if (targetCamera == null || targetCamera.gameObject == null)
             {
                 if (UnityEngine.Camera.main != null)
                 {
@@ -95,6 +95,7 @@ namespace Simulation.Player
                 }
                 else
                 {
+                    targetCamera = null;
                     return;
                 }
             }

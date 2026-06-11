@@ -85,6 +85,11 @@ namespace Simulation.NPC
             else { Destroy(this); return; }
         }
 
+        private void OnDestroy()
+        {
+            if (Instance == this) Instance = null;
+        }
+
         private void Update()
         {
             if (SimulationManager.Instance == null || !SimulationManager.Instance.IsSimulating) return;

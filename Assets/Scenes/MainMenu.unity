@@ -397,7 +397,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1069816842}
+      - m_Target: {fileID: 1632526145}
         m_TargetAssemblyTypeName: Simulation.Core.GameSceneManager, Assembly-CSharp
         m_MethodName: LoadScene
         m_Mode: 5
@@ -583,7 +583,6 @@ GameObject:
   - component: {fileID: 1069816839}
   - component: {fileID: 1069816838}
   - component: {fileID: 1069816841}
-  - component: {fileID: 1069816842}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -709,19 +708,6 @@ MonoBehaviour:
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
---- !u!114 &1069816842
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1069816837}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e160b1596fdb2024e9e16bd3e6abbe81, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Simulation.Core.GameSceneManager
-  logTransitions: 1
 --- !u!1 &1205314615
 GameObject:
   m_ObjectHideFlags: 0
@@ -982,7 +968,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1069816842}
+      - m_Target: {fileID: 1632526145}
         m_TargetAssemblyTypeName: Simulation.Core.GameSceneManager, Assembly-CSharp
         m_MethodName: QuitGame
         m_Mode: 1
@@ -1101,6 +1087,51 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1467040997}
   m_CullTransparentMesh: 1
+--- !u!1 &1632526144
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1632526146}
+  - component: {fileID: 1632526145}
+  m_Layer: 0
+  m_Name: Manager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1632526145
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1632526144}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e160b1596fdb2024e9e16bd3e6abbe81, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Simulation.Core.GameSceneManager
+  logTransitions: 1
+--- !u!4 &1632526146
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1632526144}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 401.72125, y: 304.0759, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2004094712
 GameObject:
   m_ObjectHideFlags: 0
@@ -1182,6 +1213,7 @@ SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 1069816840}
+  - {fileID: 1632526146}
   - {fileID: 766310302}
   - {fileID: 1237417415}
   - {fileID: 138424948}

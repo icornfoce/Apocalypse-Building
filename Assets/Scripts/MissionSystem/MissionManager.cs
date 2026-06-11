@@ -70,6 +70,11 @@ namespace Simulation.Mission
             else Destroy(this);
         }
 
+        private void OnDestroy()
+        {
+            if (Instance == this) Instance = null;
+        }
+
         private void Start()
         {
             if (currentMission != null)

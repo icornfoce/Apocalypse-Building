@@ -65,25 +65,21 @@ namespace Simulation.Core
 
         private void Awake()
         {
-            // บังคับให้มีตัวเดียว + อยู่ข้ามซีน
+            // บังคับให้มีตัวเดียวในแต่ละซีน
             if (_instance != null && _instance != this)
             {
                 Destroy(gameObject);
                 return;
             }
-
             _instance = this;
-            transform.SetParent(null);          // ต้องเป็น root object ก่อนเรียก DontDestroyOnLoad
-            DontDestroyOnLoad(gameObject);
-
             USceneManager.sceneLoaded += HandleSceneLoaded;
         }
 
         private void OnDestroy()
         {
-            // ถอด event เฉพาะ instance ที่เป็นตัวจริง (กัน unsubscribe ของตัวที่ถูก Destroy ทิ้ง)
             if (_instance == this)
             {
+                _instance = null;
                 USceneManager.sceneLoaded -= HandleSceneLoaded;
             }
         }

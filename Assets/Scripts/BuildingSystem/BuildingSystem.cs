@@ -195,6 +195,11 @@ namespace Simulation.Building
 #endif
         }
 
+        private void OnDestroy()
+        {
+            if (Instance == this) Instance = null;
+        }
+
 #if UNITY_EDITOR
         private void Reset()
         {

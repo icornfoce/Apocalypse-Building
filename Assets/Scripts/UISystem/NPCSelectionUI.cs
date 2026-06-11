@@ -62,6 +62,17 @@ namespace Simulation.NPC
             else { Destroy(gameObject); return; }
         }
 
+        private void OnDestroy()
+        {
+            if (Instance == this) Instance = null;
+
+            if (NPCSkillManager.Instance != null)
+            {
+                NPCSkillManager.Instance.OnNPCSelected -= ShowSkillPanel;
+                NPCSkillManager.Instance.OnNPCDeselected -= HideSkillPanel;
+            }
+        }
+
         private void Start()
         {
             // ซ่อน Panel เริ่มต้น
@@ -76,14 +87,7 @@ namespace Simulation.NPC
             }
         }
 
-        private void OnDestroy()
-        {
-            if (NPCSkillManager.Instance != null)
-            {
-                NPCSkillManager.Instance.OnNPCSelected -= ShowSkillPanel;
-                NPCSkillManager.Instance.OnNPCDeselected -= HideSkillPanel;
-            }
-        }
+
 
         private void Update()
         {

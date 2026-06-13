@@ -43,6 +43,10 @@ namespace Simulation.Mission
         [Tooltip("billboard แบบตั้งตรง (หมุนเฉพาะแกน Y) — ปิด = หันเต็มขนานจอ")]
         [SerializeField] private bool billboardYAxisOnly = true;
 
+        [Header("Scale Animation")]
+        [Tooltip("ความเร็วในการย่อ/ขยาย UI")]
+        [SerializeField] private float scaleSpeed = 8f;
+
         [Header("Lock (ถ้าใช้ระบบปลดล็อกผ่าน ScreenManager)")]
         [Tooltip("ต้องปลดล็อกก่อนถึงจะเปิดได้")]
         [SerializeField] private bool requireUnlock = false;
@@ -54,35 +58,79 @@ namespace Simulation.Mission
         private Transform _player;
         private bool _isOpen;
         private float _timer;
+        private Vector3 _originalScale;
 
         public bool IsOpen => _isOpen;
 
         private void Awake()
         {
-            // ซ่อน UI ไว้ก่อนตั้งแต่เริ่ม
-            if (worldCanvas != null) worldCanvas.SetActive(false);
+            // ซ่อน UI ไว้ก่อนตั้งแต่เริ่ม และจำขนาดดั้งเดิมไว้
+            if (worldCanvas != null)
+            {
+                _originalScale = worldCanvas.transform.localScale;
+                worldCanvas.transform.localScale = Vector3.zero;
+                worldCanvas.SetActive(false);
+            }
         }
 
         private void Update()
         {
-            // throttle การตรวจระยะ
+            // 1. ตรวจสอบ proximity (ใช้ checkInterval เพื่อลดโหลด)
+            bool runCheck = true;
             if (checkInterval > 0f)
             {
                 _timer -= Time.deltaTime;
-                if (_timer > 0f) return;
-                _timer = checkInterval;
+                if (_timer > 0f)
+                {
+                    runCheck = false;
+                }
+                else
+                {
+                    _timer = checkInterval;
+                }
             }
 
-            if (!TryGetWatcherPosition(out Vector3 watcher)) return;
+            if (runCheck)
+            {
+                if (TryGetWatcherPosition(out Vector3 watcher))
+                {
+                    float sqr = (watcher - transform.position).sqrMagnitude;
+                    float openR  = activationRange;
+                    float closeR = activationRange + Mathf.Max(0f, deactivationPadding);
 
-            float sqr = (watcher - transform.position).sqrMagnitude;
-            float openR  = activationRange;
-            float closeR = activationRange + Mathf.Max(0f, deactivationPadding);
+                    if (!_isOpen && sqr <= openR * openR)
+                        Open();
+                    else if (_isOpen && sqr > closeR * closeR)
+                        Close();
+                }
+            }
 
-            if (!_isOpen && sqr <= openR * openR)
-                Open();
-            else if (_isOpen && sqr > closeR * closeR)
-                Close();
+            // 2. อัปเดตขนาด UI ทุกเฟรมเพื่อให้การขยายดูนุ่มนวล
+            UpdateScale();
+        }
+
+        private void UpdateScale()
+        {
+            if (worldCanvas == null) return;
+
+            Vector3 targetScale = _isOpen ? _originalScale : Vector3.zero;
+
+            // ค่อยๆ ปรับขนาดไปยังเป้าหมาย
+            worldCanvas.transform.localScale = Vector3.Lerp(worldCanvas.transform.localScale, targetScale, Time.deltaTime * scaleSpeed);
+
+            // ถ้าโหนดปิดอยู่และขนาดหดลงจนเกือบเป็นศูนย์ (เทียบกับขนาดจริง) ให้ซ่อน Canvas
+            if (!_isOpen && worldCanvas.activeSelf)
+            {
+                float originalSqr = _originalScale.sqrMagnitude;
+                float currentSqr = worldCanvas.transform.localScale.sqrMagnitude;
+                
+                // ถ้าย่อเหลือต่ำกว่า 1% ของขนาดเดิม ให้ปิดการแสดงผล
+                if (originalSqr > 0f && (currentSqr / originalSqr) < 0.0001f)
+                {
+                    worldCanvas.SetActive(false);
+                    worldCanvas.transform.localScale = Vector3.zero; // รีเซ็ตเป็น 0 พอดี
+                }
+            }
         }
 
         /// <summary>หาตำแหน่งที่ใช้วัดระยะ: ผู้เล่นก่อน ถ้าไม่มีค่อยใช้กล้อง</summary>
@@ -96,17 +144,9 @@ namespace Simulation.Mission
 
             if (_player != null) { pos = _player.position; return true; }
 
-            // ค้นหากล้องหลัก (ถ้า Camera.main เป็น null ให้หาจาก CameraController)
-            UnityEngine.Camera mainCam = UnityEngine.Camera.main;
-            if (mainCam == null)
+            if (useCameraIfNoPlayer && UnityEngine.Camera.main != null)
             {
-                var camCtrl = FindFirstObjectByType<Simulation.Camera.CameraController>();
-                if (camCtrl != null) mainCam = camCtrl.GetComponent<UnityEngine.Camera>();
-            }
-
-            if (useCameraIfNoPlayer && mainCam != null)
-            {
-                pos = mainCam.transform.position;
+                pos = UnityEngine.Camera.main.transform.position;
                 return true;
             }
 
@@ -160,7 +200,6 @@ namespace Simulation.Mission
         private void Close()
         {
             _isOpen = false;
-            if (worldCanvas != null) worldCanvas.SetActive(false);
         }
 
         /// <summary>
@@ -218,58 +257,21 @@ namespace Simulation.UI
         private void CacheCamera()
         {
             if (targetCamera != null) { _cam = targetCamera.transform; return; }
-            
-            // 1. ลองหาจาก Camera.main
             var main = UnityEngine.Camera.main;
             if (main != null)
             {
                 _cam = main.transform;
-                return;
             }
-
-            // 2. ลองหาจาก CameraController (กล้องหลักของเกม)
-            var camCtrl = FindFirstObjectByType<Simulation.Camera.CameraController>();
-            if (camCtrl != null)
+            else
             {
-                _cam = camCtrl.transform;
-                return;
+                var anyCam = FindFirstObjectByType<UnityEngine.Camera>();
+                if (anyCam != null) _cam = anyCam.transform;
             }
-
-            // 3. ลองหาจากกล้องอะไรก็ได้ที่ไม่ใช่ UI Camera
-            var cameras = FindObjectsByType<UnityEngine.Camera>(FindObjectsSortMode.None);
-            foreach (var cam in cameras)
-            {
-                if (cam.gameObject.name.Contains("UI") || cam.gameObject.name.Contains("Interface")) continue;
-                _cam = cam.transform;
-                return;
-            }
-
-            // 4. fallback
-            var anyCam = FindFirstObjectByType<UnityEngine.Camera>();
-            if (anyCam != null) _cam = anyCam.transform;
         }
 
         private void LateUpdate()
         {
-            bool needRecache = _cam == null;
-            if (!needRecache && targetCamera == null)
-            {
-                var activeMain = UnityEngine.Camera.main;
-                if (activeMain != null && _cam != activeMain.transform)
-                {
-                    needRecache = true;
-                }
-                else if (activeMain == null)
-                {
-                    var camCtrl = FindFirstObjectByType<Simulation.Camera.CameraController>();
-                    if (camCtrl != null && _cam != camCtrl.transform)
-                    {
-                        needRecache = true;
-                    }
-                }
-            }
-
-            if (needRecache)
+            if (_cam == null || (targetCamera == null && UnityEngine.Camera.main != null && _cam != UnityEngine.Camera.main.transform))
             {
                 CacheCamera();
                 if (_cam == null) return; // ยังไม่มีกล้อง

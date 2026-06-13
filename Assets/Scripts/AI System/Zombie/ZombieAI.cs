@@ -108,9 +108,10 @@ namespace Simulation.Mission
             _personAttackTimer += Time.deltaTime;
             _wallAttackTimer += Time.deltaTime;
 
-            // เช็คพื้นรองรับ เพื่อให้ตกลงมาถ้าพื้นพัง
+            // เช็คพื้นรองรับ เพื่อให้ตกลงมาถ้าพื้นพัง (ตรวจสอบเฉพาะเลเยอร์ Ground และ Structure)
+            int floorMask = LayerMask.GetMask("Ground", "Structure");
             float rayDist = 0.8f;
-            bool hasFloor = UnityEngine.Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, rayDist, UnityEngine.Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+            bool hasFloor = UnityEngine.Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, rayDist, floorMask, QueryTriggerInteraction.Ignore);
 
             if (!hasFloor && _agent != null && _agent.enabled)
             {

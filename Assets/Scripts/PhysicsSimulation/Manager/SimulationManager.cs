@@ -161,6 +161,9 @@ namespace Simulation.Physics
                 // (สามารถปรับผ่าน Inspector ของ SimulationManager object ได้เลย)
             }
             
+            // จำกัดการอบ NavMesh เฉพาะบนเลเยอร์ Ground และ Structure เท่านั้น
+            surface.layerMask = LayerMask.GetMask("Ground", "Structure");
+            
             surface.BuildNavMesh();
         }
 

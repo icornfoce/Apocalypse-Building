@@ -151,6 +151,13 @@ namespace Simulation.Mission
                         }
                     }
 
+                    // เช็คไม่ให้เกิดทับโครงสร้าง/สิ่งก่อสร้าง
+                    int structureMask = LayerMask.GetMask("Structure");
+                    if (UnityEngine.Physics.CheckBox(hitPoint + Vector3.up * 1f, new Vector3(0.5f, 1f, 0.5f), Quaternion.identity, structureMask))
+                    {
+                        continue;
+                    }
+
                     finalPos = hitPoint;
                     foundPos = true;
                     break;
@@ -160,16 +167,61 @@ namespace Simulation.Mission
             // ถ้าสุ่มไม่สำเร็จใน 30 รอบ (อาจจะเพราะรัศมีแคบไปหรือ Grid ใหญ่มาก) ให้ขยับออกไปไกลขึ้นเป็น fallback
             if (!foundPos)
             {
-                Vector2 fallbackCircle = Random.insideUnitCircle.normalized * (data.radius > 0 ? data.radius * 1.5f : 30f);
-                Vector3 fallbackPos = data.centerOffset + new Vector3(fallbackCircle.x, 0, fallbackCircle.y);
-                
-                if (UnityEngine.Physics.Raycast(fallbackPos + Vector3.up * 50f, Vector3.down, out RaycastHit fallbackHit, 100f, groundMask))
+                float fallbackRadius = data.radius > 0 ? data.radius * 1.5f : 30f;
+                for (int attempt = 0; attempt < 50; attempt++)
+                {
+                    Vector2 fallbackCircle = Random.insideUnitCircle.normalized * (fallbackRadius + attempt * 2f);
+                    Vector3 fallbackPos = data.centerOffset + new Vector3(fallbackCircle.x, 50f, fallbackCircle.y);
+                    
+                    if (UnityEngine.Physics.Raycast(fallbackPos, Vector3.down, out RaycastHit fallbackHit, 100f, groundMask))
+                    {
+                        Vector3 hitPoint = fallbackHit.point;
+                        
+                        if (BuildingSystem.Instance != null)
+                        {
+                            float gridSize = BuildingSystem.Instance.GetGridSize;
+                            float limitX = (BuildingSystem.Instance.GridColumns * gridSize) * 0.5f;
+                            float limitZ = (BuildingSystem.Instance.GridRows * gridSize) * 0.5f;
+
+                            if (hitPoint.x > -limitX && hitPoint.x < limitX &&
+                                hitPoint.z > -limitZ && hitPoint.z < limitZ)
+                            {
+                                continue;
+                            }
+                        }
+
+                        int structureMask = LayerMask.GetMask("Structure");
+                        if (UnityEngine.Physics.CheckBox(hitPoint + Vector3.up * 1f, new Vector3(0.5f, 1f, 0.5f), Quaternion.identity, structureMask))
+                        {
+                            continue;
+                        }
+
+                        finalPos = hitPoint;
+                        foundPos = true;
+                        break;
+                    }
+                }
+            }
+
+            // Absolute Fallback: หากยังไม่พบตำแหน่งที่เหมาะสมจริงๆ
+            if (!foundPos)
+            {
+                float limitX = 20f;
+                float limitZ = 20f;
+                if (BuildingSystem.Instance != null)
+                {
+                    float gridSize = BuildingSystem.Instance.GetGridSize;
+                    limitX = (BuildingSystem.Instance.GridColumns * gridSize) * 0.5f + 5f;
+                    limitZ = (BuildingSystem.Instance.GridRows * gridSize) * 0.5f + 5f;
+                }
+                Vector3 fallbackPos = data.centerOffset + new Vector3(limitX, 50f, limitZ);
+                if (UnityEngine.Physics.Raycast(fallbackPos, Vector3.down, out RaycastHit fallbackHit, 100f, groundMask))
                 {
                     finalPos = fallbackHit.point;
                 }
                 else
                 {
-                    finalPos = fallbackPos;
+                    finalPos = data.centerOffset + new Vector3(limitX, 0f, limitZ);
                 }
             }
 
@@ -178,7 +230,28 @@ namespace Simulation.Mission
             {
                 if (UnityEngine.AI.NavMesh.SamplePosition(finalPos, out UnityEngine.AI.NavMeshHit navHit, 10f, UnityEngine.AI.NavMesh.AllAreas))
                 {
-                    finalPos = navHit.position;
+                    Vector3 testPos = navHit.position;
+                    bool insideGrid = false;
+                    if (BuildingSystem.Instance != null)
+                    {
+                        float gridSize = BuildingSystem.Instance.GetGridSize;
+                        float limitX = (BuildingSystem.Instance.GridColumns * gridSize) * 0.5f;
+                        float limitZ = (BuildingSystem.Instance.GridRows * gridSize) * 0.5f;
+
+                        if (testPos.x > -limitX && testPos.x < limitX &&
+                            testPos.z > -limitZ && testPos.z < limitZ)
+                        {
+                            insideGrid = true;
+                        }
+                    }
+
+                    int structureMask = LayerMask.GetMask("Structure");
+                    bool onStructure = UnityEngine.Physics.CheckBox(testPos + Vector3.up * 1f, new Vector3(0.5f, 1f, 0.5f), Quaternion.identity, structureMask);
+
+                    if (!insideGrid && !onStructure)
+                    {
+                        finalPos = testPos;
+                    }
                 }
             }
 

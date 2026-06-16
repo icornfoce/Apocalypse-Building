@@ -67,5 +67,5 @@
         "*.sln": "*.csproj",
         "*.slnx": "*.csproj"
     },
-    "dotnet.defaultSolution": "NSC-2026.slnx"
+    "dotnet.defaultSolution": "Apocalypse-Building.slnx"
 }

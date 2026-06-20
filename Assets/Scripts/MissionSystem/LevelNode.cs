@@ -47,11 +47,11 @@ namespace Simulation.Mission
         [Tooltip("ความเร็วในการย่อ/ขยาย UI")]
         [SerializeField] private float scaleSpeed = 8f;
 
-        [Header("Lock (ถ้าใช้ระบบปลดล็อกผ่าน ScreenManager)")]
+        [Header("Lock (ถ้าใช้ระบบปลดล็อกผ่าน UIManager)")]
         [Tooltip("ต้องปลดล็อกก่อนถึงจะเปิดได้")]
         [SerializeField] private bool requireUnlock = false;
 
-        [Tooltip("คีย์ชื่อที่ใช้เช็คสถานะปลดล็อก (ScreenManager.IsUnlocked)")]
+        [Tooltip("คีย์ชื่อที่ใช้เช็คสถานะปลดล็อก (UIManager.IsUnlocked)")]
         [SerializeField] private string missionUnlockKey = "MissionInfo";
 
         // ── runtime ──
@@ -164,8 +164,8 @@ namespace Simulation.Mission
 
             // เช็คปลดล็อก (ถ้าเปิดใช้งาน)
             if (requireUnlock
-                && ScreenManager.Instance != null
-                && !ScreenManager.Instance.IsUnlocked(missionUnlockKey))
+                && UIManager.Instance != null
+                && !UIManager.Instance.IsUnlocked(missionUnlockKey))
             {
                 return; // ยังล็อกอยู่ → ไม่เปิด
             }

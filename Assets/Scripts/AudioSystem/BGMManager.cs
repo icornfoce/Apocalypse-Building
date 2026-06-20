@@ -28,6 +28,34 @@ namespace AudioSystem
 
         private AudioSource audioSource;
 
+        private float bgmVolume = 0.5f; // ค่าเริ่มต้น 0.5 (50%)
+        public float BGMVolume
+        {
+            get => bgmVolume;
+            set
+            {
+                bgmVolume = Mathf.Clamp01(value);
+                UpdateCurrentVolume();
+            }
+        }
+
+        private void UpdateCurrentVolume()
+        {
+            if (audioSource != null && bgmTracks != null && audioSource.clip != null)
+            {
+                float trackVolume = 1f;
+                foreach (var track in bgmTracks)
+                {
+                    if (track != null && track.clip == audioSource.clip)
+                    {
+                        trackVolume = track.volume;
+                        break;
+                    }
+                }
+                audioSource.volume = trackVolume * bgmVolume;
+            }
+        }
+
         private void Awake()
         {
             // Singleton pattern
@@ -43,6 +71,9 @@ namespace AudioSystem
             audioSource.loop = false;
             audioSource.playOnAwake = false;
             audioSource.spatialBlend = 0f; // 2D Sound
+
+            // โหลดระดับเสียงของ BGM ที่เซฟไว้
+            bgmVolume = PlayerPrefs.GetFloat("BGMVolume", 0.5f);
         }
 
         private void Start()
@@ -80,10 +111,10 @@ namespace AudioSystem
             }
 
             audioSource.clip = track.clip;
-            audioSource.volume = track.volume;
+            audioSource.volume = track.volume * BGMVolume;
             audioSource.Play();
 
-            Debug.Log($"[BGMManager] กำลังเล่น: {track.clip.name} (Volume: {track.volume})");
+            Debug.Log($"[BGMManager] กำลังเล่น: {track.clip.name} (Volume: {audioSource.volume})");
         }
 
         /// <summary>
@@ -115,7 +146,7 @@ namespace AudioSystem
         /// </summary>
         public void SetMasterVolume(float volume)
         {
-            audioSource.volume = Mathf.Clamp01(volume);
+            BGMVolume = volume;
         }
     }
 }

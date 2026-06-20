@@ -24,6 +24,13 @@ namespace AudioSystem
 
         private AudioSource audioSource;
 
+        private float sfxVolume = 0.5f; // ค่าเริ่มต้น 0.5 (50%)
+        public float SFXVolume
+        {
+            get => sfxVolume;
+            set => sfxVolume = Mathf.Clamp01(value);
+        }
+
         private void Awake()
         {
             // Singleton pattern
@@ -38,6 +45,26 @@ namespace AudioSystem
             audioSource = gameObject.AddComponent<AudioSource>();
             audioSource.playOnAwake = false;
             audioSource.spatialBlend = 0f; // 2D Sound
+
+            // โหลดระดับเสียงของ SFX ที่เซฟไว้
+            sfxVolume = PlayerPrefs.GetFloat("SFXVolume", 0.5f);
+
+            // ลงทะเบียน Event เมื่อโหลดซีนใหม่ เพื่อผูกปุ่มในซีนใหม่
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+        }
+
+        private void OnDestroy()
+        {
+            if (Instance == this)
+            {
+                UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+                Instance = null;
+            }
+        }
+
+        private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
+        {
+            AttachSoundToAllButtons();
         }
 
         private void Start()
@@ -81,7 +108,7 @@ namespace AudioSystem
                 return;
             }
 
-            audioSource.PlayOneShot(clip, Mathf.Clamp01(volume));
+            audioSource.PlayOneShot(clip, Mathf.Clamp01(volume * SFXVolume));
         }
     }
 }

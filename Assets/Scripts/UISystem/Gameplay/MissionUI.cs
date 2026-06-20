@@ -387,7 +387,7 @@ namespace Simulation.UI
         }
 
         /// <summary>
-        /// กลับไปยังหน้าเลือกด่าน (ScreenManager)
+        /// กลับไปยังหน้าเลือกด่าน (UIManager)
         /// </summary>
         public void OnBackToLevelSelectClick()
         {
@@ -396,14 +396,14 @@ namespace Simulation.UI
             if (resultsPanel != null) resultsPanel.SetActive(false);
             if (gameplayHUD != null) gameplayHUD.SetActive(false);
 
-            // เปิดหน้าจอเลือกด่านผ่าน ScreenManager
-            if (ScreenManager.Instance != null)
+            // เปิดหน้าจอเลือกด่านผ่าน UIManager
+            if (UIManager.Instance != null)
             {
-                ScreenManager.Instance.OpenScreen(levelSelectScreenName);
+                UIManager.Instance.OpenScreen(levelSelectScreenName);
             }
             else
             {
-                Debug.LogError("[MissionUI] ScreenManager Instance not found for LevelSelect!");
+                Debug.LogError("[MissionUI] UIManager Instance not found for LevelSelect!");
             }
         }
     }

@@ -58,7 +58,8 @@ namespace Simulation.UI
         [Header("Progression UI")]
         [SerializeField] private Button nextLevelButton;
         [SerializeField] private Button levelSelectButton;
-        [SerializeField] private string levelSelectScreenName = "LevelSelect";
+        [Tooltip("ลาก GameObject ของหน้า Level Select มาใส่")]
+        [SerializeField] private GameObject levelSelectScreen;
 
         [Header("Error Messages")]
         [SerializeField] private TextMeshProUGUI errorText;
@@ -399,7 +400,7 @@ namespace Simulation.UI
             // เปิดหน้าจอเลือกด่านผ่าน UIManager
             if (UIManager.Instance != null)
             {
-                UIManager.Instance.OpenScreen(levelSelectScreenName);
+                UIManager.Instance.OpenScreen(levelSelectScreen);
             }
             else
             {

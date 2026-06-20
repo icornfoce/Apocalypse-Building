@@ -5,8 +5,8 @@ using DG.Tweening;
 namespace Simulation.UI
 {
     /// <summary>
-    /// UIManager - ควบคุมการเปิด/ปิดหน้าจอ UI ต่างๆ ในเกม (พร้อมอนิเมชัน Fade)
-    /// ลาก GameObject ใส่ List ใน Inspector แล้วตั้งชื่อ Screen ได้เลย
+    /// UIManager - ควบคุมการเปิด/ปิดหน้าจอ UI ต่างๆ ในเกม (พร้อมอนิเมชัน Fade + Scale)
+    /// ใช้แบบลาก GameObject ใส่ Inspector ได้เลย ไม่ต้องพิมพ์ชื่อ string
     /// </summary>
     public class UIManager : MonoBehaviour
     {
@@ -15,17 +15,17 @@ namespace Simulation.UI
         [System.Serializable]
         public class ScreenEntry
         {
-            public string screenName;
+            [Tooltip("ลาก GameObject ของหน้าจอมาใส่")]
             public GameObject screenObject;
             public bool hideOnAwake = true;
             public bool isUnlocked = false; // สำหรับด่านที่ต้องปลดล็อก
         }
 
         [Header("Configuration")]
-        [Tooltip("ลาก GameObject ของแต่ละหน้าจอมาใส่ แล้วตั้งชื่อ screenName")]
+        [Tooltip("ลาก GameObject ของแต่ละหน้าจอมาใส่")]
         [SerializeField] private List<ScreenEntry> screens = new List<ScreenEntry>();
-        [Tooltip("ชื่อหน้าจอเริ่มต้นที่จะเปิดอัตโนมัติ")]
-        [SerializeField] private string startScreen = "";
+        [Tooltip("หน้าจอเริ่มต้นที่จะเปิดอัตโนมัติ (ลาก GameObject มาใส่)")]
+        [SerializeField] private GameObject startScreen;
 
         [Header("Animation Settings")]
         [Tooltip("ระยะเวลา Fade (วินาที)")]
@@ -35,9 +35,10 @@ namespace Simulation.UI
         [Tooltip("ขนาดเริ่มต้นตอน Popup เปิดขึ้นมา (เช่น 0.8 = เริ่มจากเล็กแล้วขยาย)")]
         [SerializeField] private float scaleFrom = 0.8f;
 
-        private Dictionary<string, ScreenEntry> _screenDict = new Dictionary<string, ScreenEntry>();
-        private Dictionary<string, CanvasGroup> _canvasGroupCache = new Dictionary<string, CanvasGroup>();
-        private string _currentMainScreen;
+        // ใช้ GameObject เป็น key แทน string
+        private Dictionary<GameObject, ScreenEntry> _screenDict = new Dictionary<GameObject, ScreenEntry>();
+        private Dictionary<GameObject, CanvasGroup> _canvasGroupCache = new Dictionary<GameObject, CanvasGroup>();
+        private GameObject _currentMainScreen;
 
         private void Awake()
         {
@@ -64,12 +65,12 @@ namespace Simulation.UI
             {
                 if (screen.screenObject != null)
                 {
-                    if (!_screenDict.ContainsKey(screen.screenName))
+                    if (!_screenDict.ContainsKey(screen.screenObject))
                     {
-                        _screenDict[screen.screenName] = screen;
+                        _screenDict[screen.screenObject] = screen;
 
                         // เตรียม CanvasGroup สำหรับ Fade (ถ้ายังไม่มีจะเพิ่มให้อัตโนมัติ)
-                        EnsureCanvasGroup(screen.screenName, screen.screenObject);
+                        EnsureCanvasGroup(screen.screenObject);
 
                         // ซ่อนเฉพาะหน้าที่ตั้งค่าไว้
                         if (screen.hideOnAwake)
@@ -79,12 +80,12 @@ namespace Simulation.UI
                     }
                     else
                     {
-                        Debug.LogWarning($"[UIManager] ชื่อหน้าจอซ้ำ: {screen.screenName}");
+                        Debug.LogWarning($"[UIManager] GameObject ซ้ำ: {screen.screenObject.name}");
                     }
                 }
             }
 
-            if (!string.IsNullOrEmpty(startScreen))
+            if (startScreen != null)
             {
                 OpenScreen(startScreen);
             }
@@ -93,9 +94,9 @@ namespace Simulation.UI
         /// <summary>
         /// เตรียม CanvasGroup ให้กับ GameObject (ถ้ายังไม่มีจะเพิ่มอัตโนมัติ)
         /// </summary>
-        private CanvasGroup EnsureCanvasGroup(string name, GameObject obj)
+        private CanvasGroup EnsureCanvasGroup(GameObject obj)
         {
-            if (_canvasGroupCache.TryGetValue(name, out CanvasGroup cached))
+            if (_canvasGroupCache.TryGetValue(obj, out CanvasGroup cached))
                 return cached;
 
             CanvasGroup cg = obj.GetComponent<CanvasGroup>();
@@ -103,8 +104,38 @@ namespace Simulation.UI
             {
                 cg = obj.AddComponent<CanvasGroup>();
             }
-            _canvasGroupCache[name] = cg;
+            _canvasGroupCache[obj] = cg;
             return cg;
+        }
+
+        /// <summary>
+        /// ตรวจสอบและลงทะเบียนหน้าจออัตโนมัติหากยังไม่ได้อยู่ในระบบ
+        /// </summary>
+        private bool RegisterScreenIfMissing(GameObject screen)
+        {
+            if (screen == null) return false;
+
+            // ตรวจสอบว่าเป็น Prefab หรือไม่ (ต้องเป็นวัตถุที่อยู่ใน Scene)
+            if (!screen.scene.IsValid() || screen.gameObject.scene.name == null)
+            {
+                Debug.LogError($"[UIManager] '{screen.name}' เป็น Prefab ที่อยู่ใน Assets! กรุณาลาก GameObject จาก Hierarchy (ช่องซ้ายมือใน Scene) ไปใส่แทน");
+                return false;
+            }
+
+            if (!_screenDict.ContainsKey(screen))
+            {
+                ScreenEntry newEntry = new ScreenEntry
+                {
+                    screenObject = screen,
+                    hideOnAwake = false,
+                    isUnlocked = true
+                };
+                screens.Add(newEntry);
+                _screenDict[screen] = newEntry;
+                EnsureCanvasGroup(screen);
+                Debug.Log($"[UIManager] ลงทะเบียนหน้าจอ '{screen.name}' เข้าสู่ระบบอัตโนมัติ");
+            }
+            return true;
         }
 
         // ─────────────────────────────────────────────
@@ -113,80 +144,78 @@ namespace Simulation.UI
 
         /// <summary>
         /// เปิดหน้าจอหลัก พร้อมอนิเมชัน Fade + Scale
+        /// ลาก GameObject ที่ต้องการเปิดใส่ได้เลย
         /// </summary>
-        /// <param name="name">ชื่อหน้าจอ</param>
+        /// <param name="screen">GameObject ของหน้าจอที่ต้องการเปิด</param>
         /// <param name="closeAllOthers">ถ้า true จะปิดทุกหน้าจอก่อนเปิดใหม่</param>
-        public void OpenScreen(string name, bool closeAllOthers = true)
+        public void OpenScreen(GameObject screen, bool closeAllOthers = true)
         {
-            if (!_screenDict.ContainsKey(name))
-            {
-                Debug.LogWarning($"[UIManager] ไม่พบหน้าจอชื่อ '{name}'!");
-                return;
-            }
+            if (screen == null) return;
+            if (!RegisterScreenIfMissing(screen)) return;
 
             if (closeAllOthers)
             {
                 CloseAllImmediate();
             }
-            else if (!string.IsNullOrEmpty(_currentMainScreen) && _currentMainScreen != name)
+            else if (_currentMainScreen != null && _currentMainScreen != screen)
             {
                 CloseScreenImmediate(_currentMainScreen);
             }
 
-            AnimateOpen(name);
-            _currentMainScreen = name;
+            AnimateOpen(screen);
+            _currentMainScreen = screen;
         }
 
         /// <summary>
         /// เปิดหน้าจอแบบทับซ้อน (Overlay) โดยไม่ปิดหน้าจอหลัก พร้อมอนิเมชัน
         /// </summary>
-        public void ShowOverlay(string name)
+        public void ShowOverlay(GameObject screen)
         {
-            if (_screenDict.ContainsKey(name))
-            {
-                AnimateOpen(name);
-            }
+            if (screen == null) return;
+            if (!RegisterScreenIfMissing(screen)) return;
+
+            AnimateOpen(screen);
         }
 
         /// <summary>
         /// ปิดหน้าจอ พร้อมอนิเมชัน Fade Out
         /// </summary>
-        public void CloseScreen(string name)
+        public void CloseScreen(GameObject screen)
         {
-            if (_screenDict.ContainsKey(name))
-            {
-                AnimateClose(name);
-                if (name == _currentMainScreen) _currentMainScreen = "";
-            }
+            if (screen == null) return;
+            if (!RegisterScreenIfMissing(screen)) return;
+
+            AnimateClose(screen);
+            if (screen == _currentMainScreen) _currentMainScreen = null;
         }
 
         /// <summary>
         /// สลับเปิด/ปิด หน้าจอ
         /// </summary>
-        public void ToggleScreen(string name)
+        public void ToggleScreen(GameObject screen)
         {
-            if (_screenDict.TryGetValue(name, out ScreenEntry entry))
-            {
-                if (entry.screenObject.activeSelf)
-                    CloseScreen(name);
-                else
-                    ShowOverlay(name);
-            }
+            if (screen == null) return;
+            if (!RegisterScreenIfMissing(screen)) return;
+
+            if (screen.activeSelf)
+                CloseScreen(screen);
+            else
+                ShowOverlay(screen);
         }
 
         /// <summary>
-        /// ปิดทุกหน้าจอ (ไม่มีอนิเมชัน — ใช้ภายในก่อนเปิดหน้าจอใหม่)
+        /// ปิดทุกหน้าจอ
         /// </summary>
         public void CloseAll()
         {
             CloseAllImmediate();
         }
 
-        public bool IsScreenOpen(string name)
+        public bool IsScreenOpen(GameObject screen)
         {
-            if (_screenDict.TryGetValue(name, out ScreenEntry entry))
+            if (screen != null)
             {
-                return entry.screenObject.activeSelf;
+                return screen.activeSelf;
             }
             return false;
         }
@@ -196,29 +225,31 @@ namespace Simulation.UI
         // ─────────────────────────────────────────────
 
         /// <summary>
-        /// สั่งปลดล็อกด่าน/หน้าจอ ตามชื่อที่ระบุ
+        /// สั่งปลดล็อกด่าน/หน้าจอ (ลาก GameObject มาใส่ได้เลย)
         /// </summary>
-        public void UnlockScreen(string name)
+        public void UnlockScreen(GameObject screen)
         {
-            foreach (var screen in screens)
+            if (screen == null) return;
+            if (!RegisterScreenIfMissing(screen)) return;
+
+            if (_screenDict.TryGetValue(screen, out ScreenEntry entry))
             {
-                if (screen.screenName == name)
-                {
-                    screen.isUnlocked = true;
-                    Debug.Log($"[UIManager] ปลดล็อก '{name}' สำเร็จ!");
-                    return;
-                }
+                entry.isUnlocked = true;
+                Debug.Log($"[UIManager] ปลดล็อก '{screen.name}' สำเร็จ!");
             }
         }
 
         /// <summary>
         /// เช็คว่าหน้าจอ/ด่านนี้ปลดล็อกแล้วหรือยัง
         /// </summary>
-        public bool IsUnlocked(string name)
+        public bool IsUnlocked(GameObject screen)
         {
-            foreach (var screen in screens)
+            if (screen == null) return false;
+            if (!RegisterScreenIfMissing(screen)) return false;
+
+            if (_screenDict.TryGetValue(screen, out ScreenEntry entry))
             {
-                if (screen.screenName == name) return screen.isUnlocked;
+                return entry.isUnlocked;
             }
             return false;
         }
@@ -230,47 +261,40 @@ namespace Simulation.UI
         /// <summary>
         /// อนิเมชันเปิด: Fade In + Scale จากเล็กไปใหญ่
         /// </summary>
-        private void AnimateOpen(string name)
+        private void AnimateOpen(GameObject screen)
         {
-            var entry = _screenDict[name];
-            var obj = entry.screenObject;
-            var cg = EnsureCanvasGroup(name, obj);
+            var cg = EnsureCanvasGroup(screen);
 
             // Kill tween เก่าที่ค้างอยู่
             cg.DOKill();
-            obj.transform.DOKill();
+            screen.transform.DOKill();
 
             // ตั้งค่าเริ่มต้นก่อนแสดง
             cg.alpha = 0f;
             cg.blocksRaycasts = true;
             cg.interactable = true;
-            obj.transform.localScale = Vector3.one * scaleFrom;
+            screen.transform.localScale = Vector3.one * scaleFrom;
 
             // เปิด GameObject
-            obj.SetActive(true);
+            screen.SetActive(true);
 
             // เล่นอนิเมชัน Fade + Scale พร้อมกัน
             cg.DOFade(1f, fadeDuration).SetEase(Ease.OutQuad);
-            obj.transform.DOScale(Vector3.one, scaleDuration).SetEase(Ease.OutBack);
+            screen.transform.DOScale(Vector3.one, scaleDuration).SetEase(Ease.OutBack);
         }
 
         /// <summary>
         /// อนิเมชันปิด: Fade Out + Scale จากใหญ่ไปเล็ก แล้วปิด GameObject
         /// </summary>
-        private void AnimateClose(string name)
+        private void AnimateClose(GameObject screen)
         {
-            if (!_screenDict.ContainsKey(name)) return;
+            if (screen == null || !screen.activeSelf) return;
 
-            var entry = _screenDict[name];
-            var obj = entry.screenObject;
-
-            if (!obj.activeSelf) return;
-
-            var cg = EnsureCanvasGroup(name, obj);
+            var cg = EnsureCanvasGroup(screen);
 
             // Kill tween เก่า
             cg.DOKill();
-            obj.transform.DOKill();
+            screen.transform.DOKill();
 
             // ป้องกันการคลิกระหว่างปิด
             cg.blocksRaycasts = false;
@@ -278,32 +302,30 @@ namespace Simulation.UI
 
             // เล่นอนิเมชัน Fade Out + Scale Down
             cg.DOFade(0f, fadeDuration).SetEase(Ease.InQuad);
-            obj.transform.DOScale(Vector3.one * scaleFrom, scaleDuration)
+            screen.transform.DOScale(Vector3.one * scaleFrom, scaleDuration)
                 .SetEase(Ease.InBack)
                 .OnComplete(() =>
                 {
-                    obj.SetActive(false);
-                    obj.transform.localScale = Vector3.one; // รีเซ็ตสเกลกลับ
+                    screen.SetActive(false);
+                    screen.transform.localScale = Vector3.one; // รีเซ็ตสเกลกลับ
                 });
         }
 
         /// <summary>
-        /// ปิดหน้าจอทันที ไม่มีอนิเมชัน (ใช้ภายในเพื่อเคลียร์ก่อนเปิดหน้าจอใหม่)
+        /// ปิดหน้าจอทันที ไม่มีอนิเมชัน
         /// </summary>
-        private void CloseScreenImmediate(string name)
+        private void CloseScreenImmediate(GameObject screen)
         {
-            if (!_screenDict.ContainsKey(name)) return;
+            if (screen == null) return;
 
-            var entry = _screenDict[name];
-            var obj = entry.screenObject;
-            var cg = EnsureCanvasGroup(name, obj);
+            var cg = EnsureCanvasGroup(screen);
 
             cg.DOKill();
-            obj.transform.DOKill();
+            screen.transform.DOKill();
 
             cg.alpha = 0f;
-            obj.transform.localScale = Vector3.one;
-            obj.SetActive(false);
+            screen.transform.localScale = Vector3.one;
+            screen.SetActive(false);
         }
 
         /// <summary>
@@ -313,10 +335,10 @@ namespace Simulation.UI
         {
             foreach (var kvp in _screenDict)
             {
-                var obj = kvp.Value.screenObject;
+                var obj = kvp.Key;
                 if (obj != null)
                 {
-                    var cg = EnsureCanvasGroup(kvp.Key, obj);
+                    var cg = EnsureCanvasGroup(obj);
                     cg.DOKill();
                     obj.transform.DOKill();
                     cg.alpha = 0f;
@@ -324,7 +346,7 @@ namespace Simulation.UI
                     obj.SetActive(false);
                 }
             }
-            _currentMainScreen = "";
+            _currentMainScreen = null;
         }
     }
 }

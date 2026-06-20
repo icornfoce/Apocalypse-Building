@@ -53,7 +53,23 @@ namespace Simulation.Player
 
             if (inputDirection.magnitude >= 0.1f)
             {
-                _moveDirection = inputDirection;
+                // คำนวณทิศทางการเคลื่อนที่ตามมุมกล้อง (Camera Relative Movement)
+                if (targetCamera != null)
+                {
+                    Vector3 camForward = targetCamera.forward;
+                    Vector3 camRight = targetCamera.right;
+                    camForward.y = 0f;
+                    camRight.y = 0f;
+                    camForward.Normalize();
+                    camRight.Normalize();
+                    
+                    _moveDirection = (camForward * vertical + camRight * horizontal).normalized;
+                }
+                else
+                {
+                    _moveDirection = inputDirection;
+                }
+
                 _currentSpeed = Mathf.MoveTowards(_currentSpeed, maxSpeed, acceleration * Time.deltaTime);
             }
             else
@@ -118,7 +134,9 @@ namespace Simulation.Player
         {
             if (animator != null)
             {
-                animator.SetFloat(speedParameterName, _currentSpeed);
+                // ส่งความเร็วแบบ Normalized (0 ถึง 1) ไปยัง Animator แทนค่าดิบ (0 ถึง 6) เพื่อป้องกันอนิเมชันวิ่งเร็วผิดปกติ
+                float normalizedSpeed = maxSpeed > 0f ? Mathf.Clamp01(_currentSpeed / maxSpeed) : 0f;
+                animator.SetFloat(speedParameterName, normalizedSpeed);
             }
 
             if (moveVfx != null)

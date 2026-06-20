@@ -120,15 +120,9 @@ namespace Simulation.Camera
                 pitch -= mouseY * mouseRotateSensitivity * 100f * Time.unscaledDeltaTime;
             }
 
-            // Still support WASD but as an alternative or just remove it? 
-            // The user said "Change from wasd to click right", so I will make WASD secondary or remove.
-            // Let's keep WASD as an option but prioritize mouse.
-            float h = Input.GetAxis("Horizontal"); 
-            float v = Input.GetAxis("Vertical");
-
-            yaw += h * keyboardRotateSpeed * Time.unscaledDeltaTime;
-            pitch -= v * keyboardRotateSpeed * Time.unscaledDeltaTime;
-
+            // ลบการหมุนกล้องด้วยปุ่มลูกศร/WASD ออก เนื่องจากชนกับปุ่มควบคุมการเคลื่อนที่ของตัวละคร
+            // ให้ใช้การคลิกขวาค้างลากเมาส์หมุนแทนตามที่ต้องการ
+            
             // จำกัดการเลื่อนขึ้น-ลงของเมาส์ (การก้ม-เงย) บังคับช่วงปลอดภัย 20 ถึง 80 องศา
             float effectiveMinPitch = Mathf.Max(20f, minPitch);
             float effectiveMaxPitch = Mathf.Min(80f, maxPitch);

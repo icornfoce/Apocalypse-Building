@@ -51,8 +51,8 @@ namespace Simulation.Mission
         [Tooltip("ต้องปลดล็อกก่อนถึงจะเปิดได้")]
         [SerializeField] private bool requireUnlock = false;
 
-        [Tooltip("คีย์ชื่อที่ใช้เช็คสถานะปลดล็อก (UIManager.IsUnlocked)")]
-        [SerializeField] private string missionUnlockKey = "MissionInfo";
+        [Tooltip("ลาก GameObject ของหน้าจอที่ต้องปลดล็อกก่อน (UIManager.IsUnlocked)")]
+        [SerializeField] private GameObject missionUnlockScreen;
 
         // ── runtime ──
         private Transform _player;
@@ -165,7 +165,7 @@ namespace Simulation.Mission
             // เช็คปลดล็อก (ถ้าเปิดใช้งาน)
             if (requireUnlock
                 && UIManager.Instance != null
-                && !UIManager.Instance.IsUnlocked(missionUnlockKey))
+                && !UIManager.Instance.IsUnlocked(missionUnlockScreen))
             {
                 return; // ยังล็อกอยู่ → ไม่เปิด
             }

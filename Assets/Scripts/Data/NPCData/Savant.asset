@@ -29,7 +29,7 @@ MonoBehaviour:
   maxPillarCondition: 0
   maxAreaCondition: 0
   minFloorCondition: 0
-  prefab: {fileID: 920048339523193700, guid: b4334e1578f12a947a4035fb9964b642, type: 3}
+  prefab: {fileID: 6926948371897205108, guid: ba5658f68204f9c4790c4555ddf7d277, type: 3}
   selectionVFX: {fileID: 0}
   skillActivateVFX: {fileID: 0}
   skillEffectVFX: {fileID: 0}

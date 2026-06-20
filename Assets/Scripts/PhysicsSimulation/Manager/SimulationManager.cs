@@ -181,8 +181,17 @@ namespace Simulation.Physics
             if (!isSimulating) return;
             isSimulating = false;
 
+            // ล้างสถานะ NPC ก่อน (เพื่อให้ _placedSkillTypes ถูก reset สำหรับรอบถัดไป)
+            if (Simulation.NPC.NPCSkillManager.Instance != null)
+            {
+                Simulation.NPC.NPCSkillManager.Instance.ClearAllNPCs();
+            }
+
             // ลบตัวละครจริงทิ้ง
             ClearCharacters();
+
+            // เปิด PersonTarget ที่ถูกปิดตอน StartFadeOut กลับมา (เพื่อให้เริ่มรอบใหม่ได้)
+            ResetAllPersonTargets();
 
             // รีเซ็ตประตูทั้งหมดกลับสถานะปิด
             ResetAllDoors();
@@ -395,7 +404,7 @@ namespace Simulation.Physics
             ClearCharacters();
 
             PersonSpawner[] spawners = FindObjectsByType<PersonSpawner>(FindObjectsSortMode.None);
-            PersonTarget[] targets = FindObjectsByType<PersonTarget>(FindObjectsSortMode.None);
+            PersonTarget[] targets = FindObjectsByType<PersonTarget>(FindObjectsInactive.Include, FindObjectsSortMode.None);
 
             if (spawners.Length > 0 && targets.Length > 0)
             {
@@ -488,6 +497,18 @@ namespace Simulation.Physics
             foreach (var door in doors)
             {
                 door.ResetDoor();
+            }
+        }
+
+        /// <summary>
+        /// เปิด PersonTarget ทั้งหมดกลับมา (ที่ถูกปิดจาก StartFadeOut ตอน Simulate รอบก่อน)
+        /// </summary>
+        private void ResetAllPersonTargets()
+        {
+            PersonTarget[] targets = FindObjectsByType<PersonTarget>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            foreach (var t in targets)
+            {
+                if (t != null) t.ResetTarget();
             }
         }
 

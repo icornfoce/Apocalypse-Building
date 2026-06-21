@@ -1,4 +1,5 @@
 using UnityEngine;
+using Simulation.Building;
 
 namespace Simulation.Character
 {
@@ -30,7 +31,18 @@ namespace Simulation.Character
 
         public void ResetTarget()
         {
-            // ฟังก์ชันเผื่อโดนเรียกจากที่อื่น ให้เปิดตัวเองกลับมา
+            // เช็คว่าตัวมันหรือพ่อมันเป็น StructureUnit ที่ถูกวางอยู่จริง ไม่ใช่ถูกลบ (sold/inactive)
+            StructureUnit unit = GetComponent<StructureUnit>();
+            if (unit == null) unit = GetComponentInParent<StructureUnit>();
+            
+            if (unit != null && Simulation.Building.BuildingSystem.Instance != null)
+            {
+                if (!Simulation.Building.BuildingSystem.Instance.IsStructurePlaced(unit))
+                {
+                    // ถ้าไม่อยู่ใน PlacedStructures แสดงว่าถูกลบ (sold) ไปแล้ว ห้ามเปิดคืน!
+                    return;
+                }
+            }
             gameObject.SetActive(true);
         }
 

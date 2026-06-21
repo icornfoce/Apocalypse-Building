@@ -1,5 +1,6 @@
 using UnityEngine;
 using Simulation.Building;
+using Simulation.NPC;
 
 namespace Simulation.Mission
 {
@@ -67,6 +68,25 @@ namespace Simulation.Mission
                     if (!hasCover)
                     {
                         DamagePerson(person, data.peopleDamagePerSecond * dt);
+                    }
+                }
+
+                var npcs = GetAllNPCs();
+                foreach (var npc in npcs)
+                {
+                    if (npc == null) continue;
+
+                    // เช็คว่ามีหลังคาบังไหม (Raycast ขึ้นไป)
+                    bool hasCover = UnityEngine.Physics.Raycast(
+                        npc.transform.position,
+                        Vector3.up,
+                        20f,
+                        LayerMask.GetMask("Structure")
+                    );
+
+                    if (!hasCover)
+                    {
+                        DamageNPC(npc, data.peopleDamagePerSecond * dt);
                     }
                 }
             }

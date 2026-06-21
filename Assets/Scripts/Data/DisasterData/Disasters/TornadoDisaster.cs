@@ -1,5 +1,6 @@
 using UnityEngine;
 using Simulation.Building;
+using Simulation.NPC;
 
 namespace Simulation.Mission
 {
@@ -90,6 +91,27 @@ namespace Simulation.Mission
                 if (data.peopleDamagePerSecond > 0f)
                 {
                     DamagePerson(person, data.peopleDamagePerSecond * dt);
+                }
+            }
+
+            var npcs = GetAllNPCs();
+            foreach (var npc in npcs)
+            {
+                if (npc == null) continue;
+                float dist = Vector3.Distance(npc.transform.position, _tornadoCenter);
+                if (dist > effectRadius) continue;
+
+                Rigidbody nrb = npc.GetComponent<Rigidbody>();
+                if (nrb != null)
+                {
+                    Vector3 toCenter = (_tornadoCenter - npc.transform.position).normalized;
+                    float pull = data.tornadoPullForce * 0.5f * (1f - (dist / effectRadius));
+                    nrb.AddForce(toCenter * pull + Vector3.up * data.tornadoLiftForce * 0.3f, ForceMode.Force);
+                }
+
+                if (data.peopleDamagePerSecond > 0f)
+                {
+                    DamageNPC(npc, data.peopleDamagePerSecond * dt);
                 }
             }
 

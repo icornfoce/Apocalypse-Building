@@ -1,5 +1,6 @@
 using UnityEngine;
 using Simulation.Building;
+using Simulation.NPC;
 
 namespace Simulation.Mission
 {
@@ -69,6 +70,15 @@ namespace Simulation.Mission
                 if (person != null && person.transform.position.y < _currentWaterLevel)
                 {
                     DamagePerson(person, data.peopleDamagePerSecond * dt);
+                }
+            }
+
+            var npcs = GetAllNPCs();
+            foreach (var npc in npcs)
+            {
+                if (npc != null && npc.transform.position.y < _currentWaterLevel)
+                {
+                    DamageNPC(npc, data.peopleDamagePerSecond * dt);
                 }
             }
         }

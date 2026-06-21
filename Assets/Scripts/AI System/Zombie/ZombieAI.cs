@@ -66,6 +66,7 @@ namespace Simulation.Mission
         protected virtual void Awake()
         {
             _agent = GetComponent<NavMeshAgent>();
+            if (_agent != null) _agent.enabled = false;
             _rb = GetComponent<Rigidbody>();
             _currentHealth = maxHealth;
             _rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;

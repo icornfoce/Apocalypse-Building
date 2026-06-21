@@ -1,5 +1,6 @@
 using UnityEngine;
 using Simulation.Building;
+using Simulation.NPC;
 
 namespace Simulation.Mission
 {
@@ -92,6 +93,37 @@ namespace Simulation.Mission
                 if (data.peopleDamagePerSecond > 0f)
                 {
                     DamagePerson(person, data.peopleDamagePerSecond * dt);
+                }
+            }
+
+            var npcs = GetAllNPCs();
+            foreach (var npc in npcs)
+            {
+                if (npc == null) continue;
+                
+                if (force.magnitude > 500f)
+                {
+                    var agent = npc.GetComponent<UnityEngine.AI.NavMeshAgent>();
+                    if (agent != null && agent.enabled)
+                    {
+                        agent.enabled = false;
+                        var col = npc.GetComponent<CapsuleCollider>();
+                        if (col != null) col.isTrigger = false;
+                        
+                        Rigidbody rbCheck = npc.GetComponent<Rigidbody>();
+                        if (rbCheck != null) rbCheck.isKinematic = false;
+                    }
+                }
+
+                Rigidbody nrb = npc.GetComponent<Rigidbody>();
+                if (nrb != null && !nrb.isKinematic)
+                {
+                    nrb.AddForce(force * 0.5f, ForceMode.Force);
+                }
+                
+                if (data.peopleDamagePerSecond > 0f)
+                {
+                    DamageNPC(npc, data.peopleDamagePerSecond * dt);
                 }
             }
         }

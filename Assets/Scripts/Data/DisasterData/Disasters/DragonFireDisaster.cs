@@ -2,6 +2,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using Simulation.Building;
 using Simulation.Character;
+using Simulation.NPC;
 
 namespace Simulation.Mission
 {
@@ -135,6 +136,14 @@ namespace Simulation.Mission
                 if (person != null)
                 {
                     DamagePerson(person, data.intensity * dt);
+                    return;
+                }
+
+                // NPC ก็บังไฟได้ -> โดนเผา แล้วหยุด
+                NPCController npc = col.GetComponentInParent<NPCController>();
+                if (npc != null)
+                {
+                    DamageNPC(npc, data.intensity * dt);
                     return;
                 }
 

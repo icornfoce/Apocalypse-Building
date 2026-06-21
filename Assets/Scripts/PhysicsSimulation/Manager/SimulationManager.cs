@@ -126,6 +126,13 @@ namespace Simulation.Physics
                     ai.InitializeAgent();
                 }
 
+                // ถ้าเป็น NPC พิเศษ ให้เปิด AI
+                Simulation.NPC.NPCController npc = snap.unit.GetComponent<Simulation.NPC.NPCController>();
+                if (npc != null && npc.Data != null)
+                {
+                    npc.Initialize(npc.Data);
+                }
+
                 Rigidbody rb = snap.unit.GetComponent<Rigidbody>();
                 if (rb != null)
                 {

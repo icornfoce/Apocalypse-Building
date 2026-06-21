@@ -1,5 +1,6 @@
 using UnityEngine;
 using Simulation.Building;
+using Simulation.NPC;
 
 namespace Simulation.Mission
 {
@@ -65,6 +66,12 @@ namespace Simulation.Mission
                 foreach (var person in people)
                 {
                     DamagePerson(person, data.peopleDamagePerSecond * dt);
+                }
+
+                var npcs = GetAllNPCs();
+                foreach (var npc in npcs)
+                {
+                    DamageNPC(npc, data.peopleDamagePerSecond * dt);
                 }
             }
         }

@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using Simulation.Building;
 using Simulation.Character;
+using Simulation.NPC;
 
 namespace Simulation.Mission
 {
@@ -130,6 +131,14 @@ namespace Simulation.Mission
         }
 
         /// <summary>
+        /// หา NPCController ทั้งหมดในฉาก
+        /// </summary>
+        protected NPCController[] GetAllNPCs()
+        {
+            return Object.FindObjectsByType<NPCController>(FindObjectsSortMode.None);
+        }
+
+        /// <summary>
         /// ใส่ดาเมจให้โครงสร้างผ่าน StructuralStress
         /// </summary>
         protected void DamageStructure(StructureUnit unit, float damage)
@@ -150,6 +159,17 @@ namespace Simulation.Mission
             if (person != null)
             {
                 person.TakeDamage(damage);
+            }
+        }
+
+        /// <summary>
+        /// ใส่ดาเมจให้ NPC
+        /// </summary>
+        protected void DamageNPC(NPCController npc, float damage)
+        {
+            if (npc != null)
+            {
+                npc.TakeDamage(damage);
             }
         }
 

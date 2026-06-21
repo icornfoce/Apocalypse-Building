@@ -118,6 +118,7 @@ namespace Simulation.Building
         public bool IsPlacing => _currentMode == BuildMode.Placing;
         public bool IsMoving => _currentMode == BuildMode.Moving;
         public bool IsDeleting => _currentMode == BuildMode.Deleting;
+        public bool IsStructurePlaced(StructureUnit unit) => _placedStructures.Contains(unit);
         public bool IsPainting => _currentMode == BuildMode.Painting;
         public MaterialData SelectedMaterial => _selectedMaterial;
         public int CurrentFloor => _currentFloor;

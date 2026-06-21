@@ -411,6 +411,9 @@ namespace Simulation.Physics
                 // สำหรับแต่ละ Target ให้เกิดคนที่ Spawner อันแรกสุดแล้วเดินไปหา
                 foreach (var target in targets)
                 {
+                    // ข้าม PersonTarget ที่ถูกลบ/ขายไปแล้ว (SetActive(false))
+                    if (target == null || !target.gameObject.activeInHierarchy) continue;
+
                     PersonSpawner spawner = spawners[0]; 
                     
                     // ป้องกันการเกิดนอก NavMesh (เช่น จุด Spawn จมดิน หรือลอย)
@@ -452,7 +455,7 @@ namespace Simulation.Physics
                         if (npcController != null)
                         {
                             charObj = npcController.gameObject;
-                            npcController.MoveTo(target.transform.position); // สั่งเดินไปที่เป้าหมาย
+                            npcController.MoveTo(target.transform.position, target); // สั่งเดินไปที่เป้าหมาย + ซ่อน PersonTarget ตอนถึง
                         }
                     }
                     else if (personAIPrefab != null)

@@ -51,7 +51,7 @@ namespace Simulation.NPC
 
         [Header("World Space Skill Panel Settings")]
         [Tooltip("สเกลของ Skill Panel ใน World Space")]
-        [SerializeField] private float worldScale = 0.01f;
+        [SerializeField] private float worldScale = 0.005f;
         [Tooltip("ความสูงจากพื้นดินที่แผงจะลอยเหนือหัว NPC")]
         [SerializeField] private float yOffset = 2.5f;
 

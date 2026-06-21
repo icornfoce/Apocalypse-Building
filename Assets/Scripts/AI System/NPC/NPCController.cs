@@ -4,9 +4,9 @@ using System.Collections;
 using System.Collections.Generic;
 using Simulation.Data;
 using Simulation.Building;
+using Simulation.Character;
 using Simulation.Physics;
 using Simulation.Mission;
-using Simulation.Character;
 
 namespace Simulation.NPC
 {
@@ -71,6 +71,8 @@ namespace Simulation.NPC
         private Vector3 _fleeDirection;
         private bool _hasManualDestination = false;
         private Vector3 _manualDestination;
+        private PersonTarget _personTarget;
+        private bool _hasReachedPersonTarget = false;
 
         // ── Public Properties ──
         public NPCSkillData Data => _data;
@@ -101,6 +103,10 @@ namespace Simulation.NPC
             _agent.radius = 0.35f;
             _agent.height = 1.8f;
             _agent.obstacleAvoidanceType = ObstacleAvoidanceType.LowQualityObstacleAvoidance;
+
+            // ตรวจสอบ Collider ให้ไม่เป็น Trigger (ซอมบี้ต้องตรวจระยะได้)
+            CapsuleCollider capsule = GetComponent<CapsuleCollider>();
+            if (capsule != null) capsule.isTrigger = false;
 
             _animator = GetComponentInChildren<Animator>();
             _audioSource = GetComponent<AudioSource>();
@@ -166,6 +172,14 @@ namespace Simulation.NPC
                     if (_agent.remainingDistance <= _agent.stoppingDistance)
                     {
                         _hasManualDestination = false;
+
+                        // ถึง PersonTarget แล้ว → ซ่อน PersonTarget
+                        if (!_hasReachedPersonTarget && _personTarget != null)
+                        {
+                            _hasReachedPersonTarget = true;
+                            _personTarget.gameObject.SetActive(false);
+                            _personTarget = null;
+                        }
                     }
                 }
 
@@ -353,10 +367,22 @@ namespace Simulation.NPC
         /// </summary>
         public void MoveTo(Vector3 worldPosition)
         {
+            MoveTo(worldPosition, null);
+        }
+
+        /// <summary>
+        /// สั่ง NPC เดินไปที่จุดที่กำหนด พร้อมเก็บ PersonTarget ไว้ซ่อนตอนถึง
+        /// </summary>
+        public void MoveTo(Vector3 worldPosition, PersonTarget personTarget)
+        {
             if (_isDead || _agent == null || !_agent.enabled) return;
 
             // ยกเลิกการซ่อมถ้ากำลังทำอยู่
             if (_isRepairing) StopRepairing();
+
+            // เก็บ PersonTarget ไว้เพื่อซ่อนตอนถึง
+            _personTarget = personTarget;
+            _hasReachedPersonTarget = false;
 
             // หาจุดที่ใกล้ที่สุดบน NavMesh
             if (NavMesh.SamplePosition(worldPosition, out NavMeshHit hit, 10f, NavMesh.AllAreas))

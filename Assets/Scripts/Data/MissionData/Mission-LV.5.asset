@@ -16,7 +16,7 @@ MonoBehaviour:
   description: 
   requiredFloors: 0
   requiredAreaPerFloor: 0
-  requiredPopulation: 6
+  requiredPopulation: 1
   gridColumns: 10
   gridRows: 10
   startingBudget: 15000
@@ -24,9 +24,9 @@ MonoBehaviour:
   - disasterData: {fileID: 11400000, guid: bb55b614006e412458fedc3527402926, type: 2}
     startTime: 5
   - disasterData: {fileID: 11400000, guid: a6bdbd91f8127a040b6b32277e8cce5a, type: 2}
-    startTime: 8
+    startTime: 10
   - disasterData: {fileID: 11400000, guid: 874313a13026ad04b8ee226a20258b52, type: 2}
-    startTime: 12
+    startTime: 15
   simulationDuration: 125
   enableTax: 0
   taxRate: 0

@@ -128,7 +128,7 @@ MonoBehaviour:
   countsTowardsPopulation: 1
   detectionRange: 7
   fleeSpeed: 4
-  panicVFXPrefab: {fileID: 8414682718330250377, guid: 99ef0255061a84d4bb0ab81428d22d6f, type: 3}
+  panicVFXPrefab: {fileID: 5985634496115995773, guid: 8c0c6ebb15b1d354aaafbe629076a086, type: 3}
   damageImpactThreshold: 3
 --- !u!1001 &4707054685673364814
 PrefabInstance:

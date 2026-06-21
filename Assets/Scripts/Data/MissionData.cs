@@ -39,7 +39,7 @@ namespace Simulation.Mission
         public int requiredAreaPerFloor = 0;
 
         [Header("Population Requirements")]
-        [Tooltip("จำนวนคนที่ต้องรองรับ (PersonTarget ที่ต้องวาง) (0 = ไม่มี)")]
+        [Tooltip("จำนวนคนที่ต้องรองรับ อย่างน้อยตามที่ระบุ (0 = ไม่มี)")]
         [Min(0)]
         public int requiredPopulation = 0;
 

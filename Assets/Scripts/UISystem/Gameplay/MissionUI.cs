@@ -4,7 +4,6 @@ using UnityEngine.UI;
 using TMPro;
 using Simulation.Building;
 using Simulation.Mission;
-using Simulation.Physics;
 
 namespace Simulation.UI
 {
@@ -86,6 +85,9 @@ namespace Simulation.UI
         private Color _originalAreaColor;
         private Color _originalPopulationColor;
 
+        private float _lastStatsCheckTime;
+        private const float StatsUpdateInterval = 0.2f;
+
         private void Start()
         {
             // สร้าง AudioSource สำหรับเสียง SFX
@@ -141,24 +143,40 @@ namespace Simulation.UI
             }
 
             // อัปเดตเวลาและสถานะด่าน
-            if (MissionManager.Instance != null && MissionManager.Instance.IsMissionActive)
+            if (MissionManager.Instance != null)
             {
-                if (timerText != null)
+                if (MissionManager.Instance.IsMissionActive)
                 {
-                    timerText.text = $"Time: {MissionManager.Instance.SimulationTimeRemaining:F1}s";
+                    if (timerText != null)
+                    {
+                        timerText.text = $"Time: {MissionManager.Instance.SimulationTimeRemaining:F1}s";
+                    }
                 }
-            }
-
-            // อัปเดตสถานะเงื่อนไข (แบบ Realtime ก่อนเริ่ม)
-            if (MissionManager.Instance != null && !MissionManager.Instance.IsMissionActive)
-            {
-                UpdateRequirementStatus();
+                else
+                {
+                    // อัปเดตสถานะเงื่อนไข (แบบ Realtime ก่อนเริ่ม) โดยเช็คเป็นระยะแทนทุกเฟรม
+                    if (Time.time - _lastStatsCheckTime >= StatsUpdateInterval)
+                    {
+                        _lastStatsCheckTime = Time.time;
+                        UpdateRequirementStatus();
+                    }
+                }
             }
         }
 
         private void OnEnable()
         {
             UpdateMissionInfo();
+        }
+
+        private void OnDestroy()
+        {
+            if (MissionManager.Instance != null)
+            {
+                MissionManager.Instance.OnMissionStarted -= HandleMissionStarted;
+                MissionManager.Instance.OnMissionCompleted -= HandleMissionCompleted;
+                MissionManager.Instance.OnValidationFailed -= HandleValidationFailed;
+            }
         }
 
         public void UpdateMissionInfo()
@@ -194,11 +212,11 @@ namespace Simulation.UI
                     bool ok = stats.floors >= mission.requiredFloors;
                     floorsStatusText.text = $"Floors: {stats.floors}/{mission.requiredFloors}";
                     floorsStatusText.color = ok ? completedColor : _originalFloorsColor;
-                    floorsStatusText.gameObject.SetActive(true);
+                    if (!floorsStatusText.gameObject.activeSelf) floorsStatusText.gameObject.SetActive(true);
                 }
                 else
                 {
-                    floorsStatusText.gameObject.SetActive(false);
+                    if (floorsStatusText.gameObject.activeSelf) floorsStatusText.gameObject.SetActive(false);
                 }
             }
 
@@ -210,11 +228,11 @@ namespace Simulation.UI
                     bool ok = stats.area >= mission.requiredAreaPerFloor;
                     areaStatusText.text = $"Area: {stats.area}/{mission.requiredAreaPerFloor} m²";
                     areaStatusText.color = ok ? completedColor : _originalAreaColor;
-                    areaStatusText.gameObject.SetActive(true);
+                    if (!areaStatusText.gameObject.activeSelf) areaStatusText.gameObject.SetActive(true);
                 }
                 else
                 {
-                    areaStatusText.gameObject.SetActive(false);
+                    if (areaStatusText.gameObject.activeSelf) areaStatusText.gameObject.SetActive(false);
                 }
             }
 
@@ -224,17 +242,17 @@ namespace Simulation.UI
                 if (mission.requiredPopulation > 0)
                 {
                     bool ok = stats.people >= mission.requiredPopulation;
-                    populationStatusText.text = $"People: {stats.people}/{mission.requiredPopulation}";
+                    string personWord = mission.requiredPopulation == 1 ? "person" : "people";
+                    populationStatusText.text = $"Need {mission.requiredPopulation} {personWord}";
                     populationStatusText.color = ok ? completedColor : _originalPopulationColor;
-                    populationStatusText.gameObject.SetActive(true);
                 }
                 else
                 {
-                    // ถ้าไม่ต้องบังคับจำนวนคนขั้นต่ำ ให้ขึ้นแค่จำนวนคนปัจจุบัน (เช่น People: 1)
+                    // ถ้าไม่ต้องบังคับจำนวนคนขั้นต่ำ ให้ขึ้นแค่จำนวนคนปัจจุบัน
                     populationStatusText.text = $"People: {stats.people}";
                     populationStatusText.color = _originalPopulationColor;
-                    populationStatusText.gameObject.SetActive(true);
                 }
+                if (!populationStatusText.gameObject.activeSelf) populationStatusText.gameObject.SetActive(true);
             }
         }
 
@@ -436,21 +454,15 @@ namespace Simulation.UI
                 if (missionPanel != null) UIManager.Instance.CloseScreen(missionPanel);
                 if (resultsPanel != null) UIManager.Instance.CloseScreen(resultsPanel);
                 if (gameplayHUD != null) UIManager.Instance.CloseScreen(gameplayHUD);
+                
+                // เปิดหน้าจอเลือกด่านผ่าน UIManager
+                UIManager.Instance.OpenScreen(levelSelectScreen);
             }
             else
             {
                 if (missionPanel != null) missionPanel.SetActive(false);
                 if (resultsPanel != null) resultsPanel.SetActive(false);
                 if (gameplayHUD != null) gameplayHUD.SetActive(false);
-            }
-
-            // เปิดหน้าจอเลือกด่านผ่าน UIManager
-            if (UIManager.Instance != null)
-            {
-                UIManager.Instance.OpenScreen(levelSelectScreen);
-            }
-            else
-            {
                 Debug.LogError("[MissionUI] UIManager Instance not found for LevelSelect!");
             }
         }

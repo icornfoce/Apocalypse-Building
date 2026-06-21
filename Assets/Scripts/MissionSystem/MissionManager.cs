@@ -372,7 +372,7 @@ namespace Simulation.Mission
                 int people = CountPlacedPeople();
                 if (people < currentMission.requiredPopulation)
                 {
-                    return $"Not enough population! Need {currentMission.requiredPopulation} (Current: {people})";
+                    return $"Not enough population! Need at least {currentMission.requiredPopulation} (Current: {people})";
                 }
             }
 

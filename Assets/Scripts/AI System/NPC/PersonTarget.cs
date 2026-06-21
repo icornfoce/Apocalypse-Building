@@ -18,13 +18,6 @@ namespace Simulation.Character
         private void Start()
         {
             InitializeMaterials();
-            
-            // ปิด Collider ไม่ให้เป็นส่วนหนึ่งของฟิสิกส์สิ่งก่อสร้าง
-            Collider[] cols = GetComponentsInChildren<Collider>(true);
-            foreach (var col in cols)
-            {
-                col.isTrigger = true; 
-            }
         }
 
         public void StartFadeOut(PersonAI person)

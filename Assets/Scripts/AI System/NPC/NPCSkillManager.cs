@@ -36,6 +36,7 @@ namespace Simulation.NPC
         private List<NPCController> _spawnedNPCs = new List<NPCController>();
         private HashSet<NPCSkillType> _placedSkillTypes = new HashSet<NPCSkillType>();
         private GameObject _activeSelectionVFX;
+        private GameObject _activeMoveMarker;
 
         // ── Passive Skill State ──
         private bool _economistActive = false;
@@ -312,8 +313,15 @@ namespace Simulation.NPC
 
         private void SpawnMoveVFX(Vector3 position)
         {
+            if (_activeMoveMarker != null)
+            {
+                Destroy(_activeMoveMarker);
+            }
+
             // สร้าง VFX จุดหมายปลายทาง (วงกลมที่พื้นค่อยๆ จาง)
             GameObject marker = new GameObject("MoveMarker");
+            _activeMoveMarker = marker;
+            
             marker.transform.position = position + Vector3.up * 0.05f;
             marker.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
 

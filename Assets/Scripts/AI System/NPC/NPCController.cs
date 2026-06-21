@@ -69,6 +69,8 @@ namespace Simulation.NPC
         private GameObject _activePanicVFX;
         private float _panicTimer;
         private Vector3 _fleeDirection;
+        private bool _hasManualDestination = false;
+        private Vector3 _manualDestination;
 
         // ── Public Properties ──
         public NPCSkillData Data => _data;
@@ -113,15 +115,13 @@ namespace Simulation.NPC
                 _agent.enabled = true;
                 _rb.isKinematic = true;
 
-                var col = GetComponent<CapsuleCollider>();
-                if (col != null) col.isTrigger = true;
+
             }
             else
             {
                 _agent.enabled = false;
                 _rb.isKinematic = false;
-                var col = GetComponent<CapsuleCollider>();
-                if (col != null) col.isTrigger = false;
+
             }
         }
 
@@ -161,10 +161,18 @@ namespace Simulation.NPC
 
             if (_agent != null && _agent.enabled && _agent.isOnNavMesh && hasFloor)
             {
+                if (_hasManualDestination && !_agent.pathPending)
+                {
+                    if (_agent.remainingDistance <= _agent.stoppingDistance)
+                    {
+                        _hasManualDestination = false;
+                    }
+                }
+
                 // ── ระบบตรวจจับซอมบี้และวิ่งหนี ──
                 HandleFleeBehavior();
 
-                if (IsFleeing)
+                if (IsFleeing && !_hasManualDestination)
                 {
                     _agent.isStopped = false;
                     _agent.speed = fleeSpeed;
@@ -177,7 +185,7 @@ namespace Simulation.NPC
                 }
                 else
                 {
-                    // คืนค่า speed ปกติเมื่อไม่หนี
+                    // คืนค่า speed ปกติเมื่อไม่หนี (หรือตอนที่มี manual destination)
                     if (_data != null) _agent.speed = _data.moveSpeed;
                 }
             }
@@ -187,8 +195,7 @@ namespace Simulation.NPC
                 StopFleeing();
                 _agent.enabled = false;
                 if (_rb != null) _rb.isKinematic = false;
-                var col = GetComponent<CapsuleCollider>();
-                if (col != null) col.isTrigger = false;
+
             }
 
             // Animation: เดิน
@@ -356,6 +363,8 @@ namespace Simulation.NPC
             {
                 _agent.isStopped = false;
                 _agent.SetDestination(hit.position);
+                _hasManualDestination = true;
+                _manualDestination = hit.position;
 
                 // SFX เดิน
                 if (_data != null && _data.walkSFX != null)
@@ -720,23 +729,8 @@ namespace Simulation.NPC
         // Collision / Crush Damage
         // ────────────────────────────────────────────────────────────────
 
-        private void OnTriggerEnter(Collider other)
-        {
-            if (_isDead) return;
-            Rigidbody otherRb = other.attachedRigidbody;
-            if (otherRb != null)
-            {
-                float impact = otherRb.linearVelocity.magnitude;
-                if (impact > damageImpactThreshold)
-                {
-                    float massFactor = Mathf.Clamp(otherRb.mass, 1f, 500f);
-                    TakeDamage(impact * massFactor * 2f);
 
-                    // กระเด้งกลับ (Knockback / Bounce)
-                    ApplyBounce(otherRb, impact);
-                }
-            }
-        }
+
 
         private void OnCollisionEnter(Collision collision)
         {

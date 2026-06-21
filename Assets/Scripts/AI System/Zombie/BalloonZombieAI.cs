@@ -57,8 +57,6 @@ namespace Simulation.Mission
                 _rb.isKinematic = true;
             }
 
-            var col = GetComponent<CapsuleCollider>();
-            if (col != null) col.isTrigger = false;
         }
 
         protected override void Start()
@@ -117,7 +115,7 @@ namespace Simulation.Mission
                         _rb.isKinematic = false;
                         _rb.useGravity = true;
                     }
-                    if (capsule != null) capsule.isTrigger = false;
+
                 }
                 else if (hasFloor && _agent != null && !_agent.enabled && !_isBitingFloor && _rb != null && _rb.linearVelocity.sqrMagnitude < 0.1f)
                 {
@@ -128,7 +126,7 @@ namespace Simulation.Mission
                         _agent.enabled = true;
                         _rb.isKinematic = true;
                         _rb.collisionDetectionMode = CollisionDetectionMode.Discrete;
-                        if (capsule != null) capsule.isTrigger = true;
+
 
                         // เล่น SFX / Animation ตอนสัมผัสพื้นปกติ
                         if (audioSource != null && landSFX != null) audioSource.PlayOneShot(landSFX);
@@ -341,8 +339,7 @@ namespace Simulation.Mission
                 _rb.useGravity = true;
             }
 
-            var col = GetComponent<CapsuleCollider>();
-            if (col != null) col.isTrigger = false;
+
 
             // เล่น SFX / Animation ตอนลูกโป่งแตก
             if (audioSource != null && balloonPopSFX != null) audioSource.PlayOneShot(balloonPopSFX);

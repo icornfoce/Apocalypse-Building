@@ -50131,7 +50131,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 176a9ced7108dee4a8ed40eb4b6b53ea, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.NPC.NPCSkillManager
-  availableNPCs: []
+  availableNPCs:
+  - {fileID: 11400000, guid: f0f1ca05b3665f24abe6c29f752d79d1, type: 2}
+  - {fileID: 11400000, guid: 8b48a063cc96eef4dbe2565048cc67e9, type: 2}
+  - {fileID: 11400000, guid: b980d63cf68f8bd4bbfa9a32399cdb67, type: 2}
+  - {fileID: 11400000, guid: 472f39f4aa758894286283dac9eecb61, type: 2}
   _selectedNPC: {fileID: 0}
   defaultSelectionVFX: {fileID: 0}
 --- !u!114 &1858835447

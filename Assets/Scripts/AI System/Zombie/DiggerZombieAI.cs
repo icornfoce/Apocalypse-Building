@@ -122,8 +122,7 @@ namespace Simulation.Mission
                     _rb.isKinematic = false;
                     _rb.useGravity = true;
                 }
-                var col = GetComponent<CapsuleCollider>();
-                if (col != null) col.isTrigger = false;
+
             }
             else if (hasFloor && _agent != null && !_agent.enabled && _rb != null && _rb.linearVelocity.sqrMagnitude < 0.1f)
             {
@@ -132,8 +131,6 @@ namespace Simulation.Mission
                     transform.position = hit.position;
                     _agent.enabled = true;
                     _rb.isKinematic = true;
-                    var col = GetComponent<CapsuleCollider>();
-                    if (col != null) col.isTrigger = true;
                 }
             }
         }
@@ -209,8 +206,7 @@ namespace Simulation.Mission
                 _rb.isKinematic = true;
                 _rb.useGravity = false;
             }
-            var col = GetComponent<CapsuleCollider>();
-            if (col != null) col.isTrigger = true;
+
         }
 
         private void MoveUnderground()

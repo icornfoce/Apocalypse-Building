@@ -94,8 +94,6 @@ namespace Simulation.Mission
                     _agent.enabled = true;
                     
                     if (_rb != null) _rb.isKinematic = true;
-                    var col = GetComponent<CapsuleCollider>();
-                    if (col != null) col.isTrigger = true;
                 }
             }
         }
@@ -121,8 +119,7 @@ namespace Simulation.Mission
                     _rb.isKinematic = false;
                     _rb.useGravity = true;
                 }
-                var col = GetComponent<CapsuleCollider>();
-                if (col != null) col.isTrigger = false;
+
             }
             else if (hasFloor && _agent != null && !_agent.enabled && _rb != null && _rb.linearVelocity.sqrMagnitude < 0.1f)
             {
@@ -141,8 +138,6 @@ namespace Simulation.Mission
                     _rb.isKinematic = true;
                     // คืนค่า collision mode กลับปกติ (ประหยัด performance)
                     _rb.collisionDetectionMode = CollisionDetectionMode.Discrete;
-                    var col = GetComponent<CapsuleCollider>();
-                    if (col != null) col.isTrigger = true;
                 }
             }
 
@@ -508,27 +503,7 @@ namespace Simulation.Mission
             }
         }
 
-        // ── Crush Damage (เหมือน PersonAI) ─────────────────────────────
-
-        protected virtual void OnTriggerEnter(Collider other)
-        {
-            if (_isDead) return;
-
-            // ขณะที่ collider เป็น trigger ให้รับความเสียหายจากสิ่งของที่ร่วงลงมาโดน
-            Rigidbody otherRb = other.attachedRigidbody;
-            if (otherRb != null)
-            {
-                float impact = otherRb.linearVelocity.magnitude;
-                if (impact > damageImpactThreshold)
-                {
-                    float massFactor = Mathf.Clamp(otherRb.mass, 1f, 500f);
-                    TakeDamage(impact * massFactor * 2f);
-                    
-                    // กระเด้งกลับ (Knockback / Bounce)
-                    ApplyBounce(otherRb, impact);
-                }
-            }
-        }
+        // ── Crush Damage ─────────────────────────────────────────────
 
         protected virtual void OnCollisionEnter(Collision collision)
         {

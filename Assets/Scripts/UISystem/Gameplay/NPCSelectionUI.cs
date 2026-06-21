@@ -49,6 +49,12 @@ namespace Simulation.NPC
         [SerializeField] private Button skillNPCUseButton;
         [SerializeField] private RawImage skillNPCHealthBar;
 
+        [Header("World Space Skill Panel Settings")]
+        [Tooltip("สเกลของ Skill Panel ใน World Space")]
+        [SerializeField] private float worldScale = 0.01f;
+        [Tooltip("ความสูงจากพื้นดินที่แผงจะลอยเหนือหัว NPC")]
+        [SerializeField] private float yOffset = 2.5f;
+
         // ── Runtime State ──
         private System.Action<NPCSkillData> _onSelected;
         private NPCController _currentNPC;
@@ -94,6 +100,15 @@ namespace Simulation.NPC
             // อัปเดตข้อมูล NPC ใน Skill Panel แบบ Realtime
             if (_currentNPC != null && skillPanel != null && skillPanel.activeSelf)
             {
+                // กำหนดตำแหน่งให้อยู่บนหัว NPC
+                skillPanel.transform.position = _currentNPC.transform.position + Vector3.up * yOffset;
+
+                // หันหน้าเข้าหากล้องหลัก (Billboard)
+                if (UnityEngine.Camera.main != null)
+                {
+                    skillPanel.transform.rotation = UnityEngine.Camera.main.transform.rotation;
+                }
+
                 if (skillNPCHealthText != null)
                 {
                     skillNPCHealthText.text = $"HP: {_currentNPC.CurrentHealth:F0}/{_currentNPC.Data.maxHealth:F0}";
@@ -111,7 +126,7 @@ namespace Simulation.NPC
 
                 if (skillNPCStatusText != null)
                 {
-                    skillNPCStatusText.text = _currentNPC.SkillActive ? "สกิลทำงานอยู่..." : "พร้อมใช้งาน";
+                    skillNPCStatusText.text = _currentNPC.SkillActive ? "Skill Active..." : "Ready";
                     skillNPCStatusText.color = _currentNPC.SkillActive ? Color.yellow : Color.green;
                 }
             }
@@ -232,6 +247,24 @@ namespace Simulation.NPC
             if (skillPanel != null)
             {
                 skillPanel.SetActive(true);
+
+                // เปลี่ยนแผงควบคุมให้เป็น World Space Canvas
+                Canvas canvas = skillPanel.GetComponent<Canvas>();
+                if (canvas == null)
+                {
+                    canvas = skillPanel.AddComponent<Canvas>();
+                }
+                canvas.renderMode = RenderMode.WorldSpace;
+
+                // ตรวจสอบ GraphicRaycaster เพื่อให้ยังกดปุ่มใช้สกิลใน World Space ได้
+                GraphicRaycaster raycaster = skillPanel.GetComponent<GraphicRaycaster>();
+                if (raycaster == null)
+                {
+                    raycaster = skillPanel.AddComponent<GraphicRaycaster>();
+                }
+
+                // ตั้งสเกลของ World Space Canvas
+                skillPanel.transform.localScale = new Vector3(worldScale, worldScale, worldScale);
             }
 
             if (npc == null || npc.Data == null) return;
@@ -245,7 +278,7 @@ namespace Simulation.NPC
 
             if (skillNPCSkillText != null)
             {
-                skillNPCSkillText.text = $"สกิล: {GetSkillName(npc.Data.skillType)}";
+                skillNPCSkillText.text = $"Skill: {GetSkillName(npc.Data.skillType)}";
             }
 
             bool isPassive = npc.Data.skillType == NPCSkillType.Economist
@@ -259,14 +292,14 @@ namespace Simulation.NPC
                 var btnTextComp = skillNPCUseButton.GetComponentInChildren<TextMeshProUGUI>();
                 if (btnTextComp != null)
                 {
-                    btnTextComp.text = isPassive ? "สกิลอัตโนมัติ (Passive)" : "ใช้สกิล";
+                    btnTextComp.text = isPassive ? "Passive" : "Use Skill";
                 }
                 else
                 {
                     var legacyText = skillNPCUseButton.GetComponentInChildren<Text>();
                     if (legacyText != null)
                     {
-                        legacyText.text = isPassive ? "สกิลอัตโนมัติ (Passive)" : "ใช้สกิล";
+                        legacyText.text = isPassive ? "Passive" : "Use Skill";
                     }
                 }
 
@@ -311,13 +344,13 @@ namespace Simulation.NPC
         {
             switch (type)
             {
-                case NPCSkillType.Engineer:  return "แสดงแรงเค้น";
-                case NPCSkillType.Builder:   return "ซ่อมโครงสร้าง";
-                case NPCSkillType.Economist: return "ลดราคา 10% (Auto)";
-                case NPCSkillType.Architect: return "สะท้อนดาเมจ 20%";
-                case NPCSkillType.Politician:return "ยกเลิกภาษี (Auto)";
-                case NPCSkillType.Commander: return "เรียกทหารยิง";
-                default: return "ไม่ทราบ";
+                case NPCSkillType.Engineer:  return "Show Stress";
+                case NPCSkillType.Builder:   return "Repair Structures";
+                case NPCSkillType.Economist: return "10% Discount (Auto)";
+                case NPCSkillType.Architect: return "20% Reflect Damage";
+                case NPCSkillType.Politician:return "No Tax (Auto)";
+                case NPCSkillType.Commander: return "Call Soldier Support";
+                default: return "Unknown";
             }
         }
     }

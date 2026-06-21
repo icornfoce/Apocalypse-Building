@@ -18,7 +18,7 @@ namespace Simulation.Camera
     {
         [Header("Camera Rotation")]
         [SerializeField] private float mouseRotateSensitivity = 2f;
-        [SerializeField] private float keyboardRotateSpeed = 60f;
+        // [SerializeField] private float keyboardRotateSpeed = 60f; // Commented out to resolve unused field warning
         [SerializeField] private float minPitch = 10f;
         [SerializeField] private float maxPitch = 85f;
 

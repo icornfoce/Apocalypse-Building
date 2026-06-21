@@ -91,15 +91,13 @@ namespace Simulation.Character
                     _agent.obstacleAvoidanceType = ObstacleAvoidanceType.LowQualityObstacleAvoidance;
 
                     if (_rb != null) _rb.isKinematic = true;
-                    var col = GetComponent<CapsuleCollider>();
-                    if (col != null) col.isTrigger = true;
+
                 }
                 else
                 {
                     _agent.enabled = false;
                     if (_rb != null) _rb.isKinematic = false;
-                    var col = GetComponent<CapsuleCollider>();
-                    if (col != null) col.isTrigger = false;
+
                 }
             }
         }
@@ -192,8 +190,7 @@ namespace Simulation.Character
                 StopFleeing();
                 _agent.enabled = false;
                 if (_rb != null) _rb.isKinematic = false;
-                var col = GetComponent<CapsuleCollider>();
-                if (col != null) col.isTrigger = false;
+
             }
         }
 
@@ -338,23 +335,8 @@ namespace Simulation.Character
             if (_currentHealth <= 0) Die(isZombieBite);
         }
 
-        private void OnTriggerEnter(Collider other)
-        {
-            if (_isDead) return;
-            Rigidbody otherRb = other.attachedRigidbody;
-            if (otherRb != null)
-            {
-                float impact = otherRb.linearVelocity.magnitude;
-                if (impact > damageImpactThreshold)
-                {
-                    float massFactor = Mathf.Clamp(otherRb.mass, 1f, 500f);
-                    TakeDamage(impact * massFactor * 2f);
-                    
-                    // กระเด้งกลับ (Knockback / Bounce)
-                    ApplyBounce(otherRb, impact);
-                }
-            }
-        }
+
+
 
         private void OnCollisionEnter(Collision collision)
         {

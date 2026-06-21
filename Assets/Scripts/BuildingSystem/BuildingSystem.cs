@@ -790,32 +790,37 @@ namespace Simulation.Building
                         totalCost += itemPrice;
                     }
 
-                    // Population cap: ห้ามวาง PersonTarget เกินจำนวนที่กำหนดใน MissionData
-                    // แก้ไข: ตรวจสอบเฉพาะเมื่อของที่จะวางมี Component PersonTarget เท่านั้น เพื่อไม่ให้ไปบล็อกการวาง Gadget/Furniture
-                    if (isPlacingPerson && ptOnPrefab.countsTowardsPopulation && MissionManager.Instance != null && MissionManager.Instance.CurrentMission != null)
+                    // เช็คว่า NPC ตัวนี้ถูกวางไปแล้วหรือยัง (ป้องกันการวางซ้ำ)
+                    bool isNPC = false;
+                    if (Simulation.NPC.NPCSkillManager.Instance != null)
                     {
-                        int maxPop = MissionManager.Instance.CurrentMission.requiredPopulation;
-                        if (maxPop > 0)
+                        foreach (var npcData in Simulation.NPC.NPCSkillManager.Instance.availableNPCs)
                         {
-                            var targets = FindObjectsByType<Simulation.Character.PersonTarget>(FindObjectsSortMode.None);
-                            int currentPop = 0;
-                            foreach (var t in targets)
+                            if (npcData != null && npcData.npcName == _selectedData.structureName)
                             {
-                                if (t != null && t.countsTowardsPopulation)
-                                {
-                                    // ข้ามการนับ Ghost Preview (ตัวจำลองที่กำลังลากอยู่)
-                                    if (t.gameObject.name.Contains("Ghost")) continue;
-
-                                    // นับทุกคนรวมถึง Alpha
-                                    currentPop++;
-                                }
+                                isNPC = true;
+                                break;
                             }
+                        }
+                    }
 
-                            // รวมจำนวนคนที่กำลังลากวางในการเช็คด้วย และจำกัดการวางไม่ให้เกิน maxPop
-                            if (currentPop + _dragPositions.Count > maxPop)
+                    if (isNPC)
+                    {
+                        // ตรวจสอบในสิ่งก่อสร้างที่วางไว้แล้วว่ามีชื่อเดียวกันหรือไม่
+                        bool alreadyPlaced = false;
+                        foreach (var unit in _placedStructures)
+                        {
+                            if (unit != null && unit.gameObject.activeInHierarchy && unit.Data != null && unit.Data.structureName == _selectedData.structureName)
                             {
-                                allValid = false;
+                                alreadyPlaced = true;
+                                break;
                             }
+                        }
+                        
+                        // ถ้าเกิดมีการวางตัวนี้ไปแล้ว หรือผู้เล่นกำลังลากวางหลายตัวพร้อมกัน ให้ปฏิเสธการวาง
+                        if (alreadyPlaced || _dragPositions.Count > 1)
+                        {
+                            allValid = false;
                         }
                     }
                 }

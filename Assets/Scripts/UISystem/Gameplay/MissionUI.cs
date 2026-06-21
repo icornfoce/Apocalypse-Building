@@ -230,7 +230,10 @@ namespace Simulation.UI
                 }
                 else
                 {
-                    populationStatusText.gameObject.SetActive(false);
+                    // ถ้าไม่ต้องบังคับจำนวนคนขั้นต่ำ ให้ขึ้นแค่จำนวนคนปัจจุบัน (เช่น People: 1)
+                    populationStatusText.text = $"People: {stats.people}";
+                    populationStatusText.color = _originalPopulationColor;
+                    populationStatusText.gameObject.SetActive(true);
                 }
             }
         }
@@ -256,9 +259,18 @@ namespace Simulation.UI
         {
             if (startButtonText != null) startButtonText.text = "STOP";
             
-            if (missionPanel != null) missionPanel.SetActive(false);
-            if (gameplayHUD != null) gameplayHUD.SetActive(true);
-            if (resultsPanel != null) resultsPanel.SetActive(false);
+            if (UIManager.Instance != null)
+            {
+                if (missionPanel != null) UIManager.Instance.CloseScreen(missionPanel);
+                if (gameplayHUD != null) UIManager.Instance.OpenScreen(gameplayHUD);
+                if (resultsPanel != null) UIManager.Instance.CloseScreen(resultsPanel);
+            }
+            else
+            {
+                if (missionPanel != null) missionPanel.SetActive(false);
+                if (gameplayHUD != null) gameplayHUD.SetActive(true);
+                if (resultsPanel != null) resultsPanel.SetActive(false);
+            }
 
             if (errorText != null) errorText.gameObject.SetActive(false);
 
@@ -271,9 +283,18 @@ namespace Simulation.UI
         {
             if (startButtonText != null) startButtonText.text = "RESTART";
             
-            if (resultsPanel != null) resultsPanel.SetActive(true);
-            if (gameplayHUD != null) gameplayHUD.SetActive(false);
-            if (missionPanel != null) missionPanel.SetActive(false);
+            if (UIManager.Instance != null)
+            {
+                if (resultsPanel != null) UIManager.Instance.OpenScreen(resultsPanel);
+                if (gameplayHUD != null) UIManager.Instance.CloseScreen(gameplayHUD);
+                if (missionPanel != null) UIManager.Instance.CloseScreen(missionPanel);
+            }
+            else
+            {
+                if (resultsPanel != null) resultsPanel.SetActive(true);
+                if (gameplayHUD != null) gameplayHUD.SetActive(false);
+                if (missionPanel != null) missionPanel.SetActive(false);
+            }
 
             if (resultTitleText != null) resultTitleText.text = "MISSION COMPLETE!";
 
@@ -348,9 +369,18 @@ namespace Simulation.UI
         /// </summary>
         public void OnRestartClick()
         {
-            if (resultsPanel != null) resultsPanel.SetActive(false);
-            if (gameplayHUD != null) gameplayHUD.SetActive(true);
-            if (missionPanel != null) missionPanel.SetActive(true);
+            if (UIManager.Instance != null)
+            {
+                if (resultsPanel != null) UIManager.Instance.CloseScreen(resultsPanel);
+                if (gameplayHUD != null) UIManager.Instance.OpenScreen(gameplayHUD);
+                if (missionPanel != null) UIManager.Instance.OpenScreen(missionPanel);
+            }
+            else
+            {
+                if (resultsPanel != null) resultsPanel.SetActive(false);
+                if (gameplayHUD != null) gameplayHUD.SetActive(true);
+                if (missionPanel != null) missionPanel.SetActive(true);
+            }
             
             if (startButtonText != null) startButtonText.text = "START";
 
@@ -374,8 +404,16 @@ namespace Simulation.UI
                 MissionManager.Instance.SetMission(nextMission);
                 
                 // ปิดหน้าสรุปผล และเปิดหน้าข้อมูลด่านใหม่
-                if (resultsPanel != null) resultsPanel.SetActive(false);
-                if (missionPanel != null) missionPanel.SetActive(true);
+                if (UIManager.Instance != null)
+                {
+                    if (resultsPanel != null) UIManager.Instance.CloseScreen(resultsPanel);
+                    if (missionPanel != null) UIManager.Instance.OpenScreen(missionPanel);
+                }
+                else
+                {
+                    if (resultsPanel != null) resultsPanel.SetActive(false);
+                    if (missionPanel != null) missionPanel.SetActive(true);
+                }
                 
                 UpdateMissionInfo();
                 Debug.Log($"[MissionUI] Transition to next level: {nextMission.missionName}");
@@ -393,9 +431,18 @@ namespace Simulation.UI
         public void OnBackToLevelSelectClick()
         {
             // ปิด UI ทุกอย่างของ Mission นี้
-            if (missionPanel != null) missionPanel.SetActive(false);
-            if (resultsPanel != null) resultsPanel.SetActive(false);
-            if (gameplayHUD != null) gameplayHUD.SetActive(false);
+            if (UIManager.Instance != null)
+            {
+                if (missionPanel != null) UIManager.Instance.CloseScreen(missionPanel);
+                if (resultsPanel != null) UIManager.Instance.CloseScreen(resultsPanel);
+                if (gameplayHUD != null) UIManager.Instance.CloseScreen(gameplayHUD);
+            }
+            else
+            {
+                if (missionPanel != null) missionPanel.SetActive(false);
+                if (resultsPanel != null) resultsPanel.SetActive(false);
+                if (gameplayHUD != null) gameplayHUD.SetActive(false);
+            }
 
             // เปิดหน้าจอเลือกด่านผ่าน UIManager
             if (UIManager.Instance != null)

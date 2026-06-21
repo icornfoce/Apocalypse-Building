@@ -4,6 +4,7 @@ using UnityEngine.UI;
 using TMPro;
 using Simulation.Building;
 using Simulation.Mission;
+using Simulation.Core;
 
 namespace Simulation.UI
 {
@@ -46,6 +47,7 @@ namespace Simulation.UI
 
         [Header("Simulation Controls")]
         [SerializeField] private Button startSimButton;
+        [SerializeField] private Button stopSimButton;
         [SerializeField] private TextMeshProUGUI startButtonText;
 
         [Header("Results UI (Inside MissionResults Screen)")]
@@ -57,8 +59,6 @@ namespace Simulation.UI
         [Header("Progression UI")]
         [SerializeField] private Button nextLevelButton;
         [SerializeField] private Button levelSelectButton;
-        [Tooltip("ลาก GameObject ของหน้า Level Select มาใส่")]
-        [SerializeField] private GameObject levelSelectScreen;
 
         [Header("Error Messages")]
         [SerializeField] private TextMeshProUGUI errorText;
@@ -99,6 +99,7 @@ namespace Simulation.UI
             if (MissionManager.Instance != null)
             {
                 MissionManager.Instance.OnMissionStarted += HandleMissionStarted;
+                MissionManager.Instance.OnMissionStopped += HandleMissionStopped;
                 MissionManager.Instance.OnMissionCompleted += HandleMissionCompleted;
                 MissionManager.Instance.OnValidationFailed += HandleValidationFailed;
             }
@@ -106,6 +107,11 @@ namespace Simulation.UI
             if (startSimButton != null)
             {
                 startSimButton.onClick.AddListener(OnStartButtonClick);
+            }
+
+            if (stopSimButton != null)
+            {
+                stopSimButton.onClick.AddListener(OnStopButtonClick);
             }
 
             if (restartButton != null)
@@ -129,6 +135,9 @@ namespace Simulation.UI
             if (floorsStatusText != null) _originalFloorsColor = floorsStatusText.color;
             if (areaStatusText != null) _originalAreaColor = areaStatusText.color;
             if (populationStatusText != null) _originalPopulationColor = populationStatusText.color;
+
+            // ตั้งค่าสถานะเริ่มต้นของปุ่ม
+            UpdateButtonStates(false);
 
             UpdateMissionInfo();
         }
@@ -174,6 +183,7 @@ namespace Simulation.UI
             if (MissionManager.Instance != null)
             {
                 MissionManager.Instance.OnMissionStarted -= HandleMissionStarted;
+                MissionManager.Instance.OnMissionStopped -= HandleMissionStopped;
                 MissionManager.Instance.OnMissionCompleted -= HandleMissionCompleted;
                 MissionManager.Instance.OnValidationFailed -= HandleValidationFailed;
             }
@@ -262,9 +272,8 @@ namespace Simulation.UI
 
             if (MissionManager.Instance.IsMissionActive)
             {
-                // ถ้ากำลังเล่นอยู่ ปุ่มนี้อาจทำหน้าที่ Stop
+                // ถ้าสลับปุ่มเป็นปุ่มเดียวแล้วยังค้างอยู่ ให้ Stop
                 MissionManager.Instance.EndMission(false);
-                if (startButtonText != null) startButtonText.text = "START";
             }
             else
             {
@@ -273,9 +282,15 @@ namespace Simulation.UI
             }
         }
 
+        private void OnStopButtonClick()
+        {
+            if (MissionManager.Instance == null) return;
+            MissionManager.Instance.EndMission(false);
+        }
+
         private void HandleMissionStarted()
         {
-            if (startButtonText != null) startButtonText.text = "STOP";
+            UpdateButtonStates(true);
             
             if (UIManager.Instance != null)
             {
@@ -297,9 +312,27 @@ namespace Simulation.UI
                 _sfxSource.PlayOneShot(startSuccessSound, sfxVolume);
         }
 
+        private void HandleMissionStopped()
+        {
+            UpdateButtonStates(false);
+
+            if (UIManager.Instance != null)
+            {
+                if (resultsPanel != null) UIManager.Instance.CloseScreen(resultsPanel);
+                if (gameplayHUD != null) UIManager.Instance.OpenScreen(gameplayHUD);
+                if (missionPanel != null) UIManager.Instance.OpenScreen(missionPanel);
+            }
+            else
+            {
+                if (resultsPanel != null) resultsPanel.SetActive(false);
+                if (gameplayHUD != null) gameplayHUD.SetActive(true);
+                if (missionPanel != null) missionPanel.SetActive(true);
+            }
+        }
+
         private void HandleMissionCompleted(int stars)
         {
-            if (startButtonText != null) startButtonText.text = "RESTART";
+            UpdateButtonStates(false);
             
             if (UIManager.Instance != null)
             {
@@ -400,7 +433,7 @@ namespace Simulation.UI
                 if (missionPanel != null) missionPanel.SetActive(true);
             }
             
-            if (startButtonText != null) startButtonText.text = "START";
+            UpdateButtonStates(false);
 
             // รีเซ็ต PersonTarget ทั้งหมดให้กลับมาแสดงผล (Marker) ผ่าน MissionManager
             if (MissionManager.Instance != null)
@@ -444,26 +477,37 @@ namespace Simulation.UI
         }
 
         /// <summary>
-        /// กลับไปยังหน้าเลือกด่าน (UIManager)
+        /// กลับไปยังหน้าเลือกด่าน (ย้ายซีน)
         /// </summary>
         public void OnBackToLevelSelectClick()
         {
-            // ปิด UI ทุกอย่างของ Mission นี้
-            if (UIManager.Instance != null)
+            if (GameSceneManager.Instance != null)
             {
-                if (missionPanel != null) UIManager.Instance.CloseScreen(missionPanel);
-                if (resultsPanel != null) UIManager.Instance.CloseScreen(resultsPanel);
-                if (gameplayHUD != null) UIManager.Instance.CloseScreen(gameplayHUD);
-                
-                // เปิดหน้าจอเลือกด่านผ่าน UIManager
-                UIManager.Instance.OpenScreen(levelSelectScreen);
+                GameSceneManager.Instance.LoadScene("LevelSelect");
             }
             else
             {
-                if (missionPanel != null) missionPanel.SetActive(false);
-                if (resultsPanel != null) resultsPanel.SetActive(false);
-                if (gameplayHUD != null) gameplayHUD.SetActive(false);
-                Debug.LogError("[MissionUI] UIManager Instance not found for LevelSelect!");
+                UnityEngine.SceneManagement.SceneManager.LoadScene("LevelSelect");
+            }
+        }
+
+        /// <summary>
+        /// อัปเดตสถานะการแสดงผลและข้อความของปุ่มตามสถานะการจำลอง (Start / Stop)
+        /// </summary>
+        private void UpdateButtonStates(bool isSimulating)
+        {
+            if (startSimButton != null && stopSimButton != null)
+            {
+                startSimButton.gameObject.SetActive(!isSimulating);
+                stopSimButton.gameObject.SetActive(isSimulating);
+            }
+            else if (startSimButton != null)
+            {
+                startSimButton.gameObject.SetActive(true);
+                if (startButtonText != null)
+                {
+                    startButtonText.text = isSimulating ? "STOP" : "START";
+                }
             }
         }
     }

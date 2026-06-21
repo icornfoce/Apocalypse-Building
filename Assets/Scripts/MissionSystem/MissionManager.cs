@@ -44,6 +44,9 @@ namespace Simulation.Mission
         /// <summary>เรียกเมื่อ Mission เริ่ม</summary>
         public event System.Action OnMissionStarted;
 
+        /// <summary>เรียกเมื่อ Mission ถูกหยุดกลางคัน</summary>
+        public event System.Action OnMissionStopped;
+
         /// <summary>เรียกเมื่อ Mission จบ พร้อมจำนวนดาว</summary>
         public event System.Action<int> OnMissionCompleted;
 
@@ -302,6 +305,7 @@ namespace Simulation.Mission
             {
                 Debug.Log("<color=red>■ Mission Stopped Early</color>");
                 ResetAllPersonTargets();
+                OnMissionStopped?.Invoke();
             }
 
             // หยุด Simulation

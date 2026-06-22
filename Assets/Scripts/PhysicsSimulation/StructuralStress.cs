@@ -371,6 +371,12 @@ namespace Simulation.Physics
             // ข้ามการตรวจจับในช่วง settle เพื่อป้องกันโครงสร้างถล่มตั้งแต่เริ่มจำลอง
             if (_settlementTimer > 0f) return;
 
+            // ── ข้ามการชนจาก "ตัวละคร" (NPC / คน / ซอมบี้) ──
+            // เดินชนประตู/กำแพงต้องไม่ทำให้ Joint หลุดหรือพัง (ตัวละครทุกตัวมี NavMeshAgent, โครงสร้างไม่มี)
+            if (collision.collider != null &&
+                collision.collider.GetComponentInParent<UnityEngine.AI.NavMeshAgent>() != null)
+                return;
+
             float impact = collision.impulse.magnitude;
 
             var unit = GetComponent<Building.StructureUnit>();

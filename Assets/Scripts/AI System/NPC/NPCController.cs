@@ -453,19 +453,14 @@ namespace Simulation.NPC
                 _skillCooldownTimer = _data.skillCooldown;
         }
 
-        // ── 1. วิศวกร: Toggle Stress Visualization ──
-
+        // ── 1. วิศวกร: (สกิลว่าง — ยังไม่กำหนดผล) ──
+        // เดิมเคย Toggle Stress Visualization แต่ถอดออกแล้วตามที่ร้องขอ
+        // (การแสดงค่า Stress ยังเปิด/ปิดได้จากปุ่ม UI ของ BuildUIController ตามเดิม)
         private void SkillEngineer()
         {
-            _stressVisualsOn = !_stressVisualsOn;
-            StructuralStress.SetVisualStatus(_stressVisualsOn);
-
-            _skillActive = _stressVisualsOn;
-
-            // Animation
+            // สกิลเปล่า: ไม่มีผลใดๆ — เว้นไว้ให้กำหนดผลภายหลัง
             if (_animator != null) _animator.SetTrigger("UseSkill");
-
-            Debug.Log($"<color=green>[Engineer]</color> Stress visuals: {(_stressVisualsOn ? "ON" : "OFF")}");
+            Debug.Log("<color=green>[Engineer]</color> (placeholder skill — no effect)");
         }
 
         // ── 2. ช่างก่อสร้าง: เลือกซ่อมโครงสร้าง ──

@@ -344,7 +344,7 @@ namespace Simulation.NPC
         {
             switch (type)
             {
-                case NPCSkillType.Engineer:  return "Show Stress";
+                case NPCSkillType.Engineer:  return "—";
                 case NPCSkillType.Builder:   return "Repair Structures";
                 case NPCSkillType.Economist: return "10% Discount (Auto)";
                 case NPCSkillType.Architect: return "20% Reflect Damage";

@@ -19,7 +19,7 @@ namespace Simulation.Building
 
         [Header("Settings")]
         public float openAngle = 90f;
-        public float smoothSpeed = 5f;
+        public float smoothSpeed = 8f;          // open faster so walkers don't jam against the leaf
         public float detectionRadius = 1.5f;
 
         private Quaternion _closedRotation;
@@ -27,6 +27,7 @@ namespace Simulation.Building
         private bool _shouldBeOpen = false;
         private HashSet<Collider> _occupants = new HashSet<Collider>();
         private BoxCollider _trigger;
+        private float _scanTimer;
 
         private void Start()
         {
@@ -74,9 +75,24 @@ namespace Simulation.Building
 
             // ── ล้าง Collider ที่ถูก Destroy ออก (เช่น PersonAI โดน Destroy ตอน StopSimulation) ──
             _occupants.RemoveWhere(c => c == null);
-            if (_occupants.Count == 0 && _shouldBeOpen)
+
+            // ── เปิดประตูล่วงหน้าเมื่อมีคน/NPC เข้าใกล้ (กันการจ่อบานติดก่อนประตูจะกาง) ──
+            _scanTimer -= Time.deltaTime;
+            if (_scanTimer <= 0f)
             {
-                _shouldBeOpen = false;
+                _scanTimer = 0.2f;
+                bool nearbyPerson = false;
+                var cols = UnityEngine.Physics.OverlapSphere(transform.position, detectionRadius + 1.2f);
+                foreach (var c in cols)
+                {
+                    if (c.GetComponentInParent<PersonAI>() != null || c.GetComponentInParent<NPCController>() != null)
+                    {
+                        nearbyPerson = true;
+                        break;
+                    }
+                }
+                if (nearbyPerson) _shouldBeOpen = true;
+                else if (_occupants.Count == 0) _shouldBeOpen = false;
             }
 
             // หมุนประตูอย่างนุ่มนวล

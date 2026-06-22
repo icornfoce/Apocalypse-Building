@@ -338,21 +338,23 @@ namespace Simulation.Character
 
 
 
+        /// <summary>ความเร็วขั้นต่ำที่ถือว่าวัตถุ "กำลังตก/ปลิว" มาทับ (ต่ำกว่านี้ = ของตั้งนิ่ง)</summary>
+        private const float FallingDebrisSpeed = 2.5f;
+
         private void OnCollisionEnter(Collision collision)
         {
             if (_isDead) return;
-            float impact = collision.relativeVelocity.magnitude;
-            if (impact > damageImpactThreshold)
-            {
-                float massFactor = 1f;
-                if (collision.rigidbody != null)
-                {
-                    massFactor = Mathf.Clamp(collision.rigidbody.mass, 1f, 500f);
-                    // กระเด้งกลับ (Knockback / Bounce)
-                    ApplyBounce(collision.rigidbody, impact);
-                }
-                TakeDamage(impact * massFactor * 2f);
-            }
+
+            // ตอบสนองเฉพาะของที่ตก/ปลิวมาทับจริง — ไม่ใช่ตอนเดินไปชนโครงสร้างที่ตั้งนิ่ง
+            // (เดิมใช้ relativeVelocity รวมความเร็วเดินของเราเอง เลยเผลอดันโครงสร้างพัง)
+            Rigidbody other = collision.rigidbody;
+            if (other == null || other.isKinematic) return;
+            float fallSpeed = other.linearVelocity.magnitude;
+            if (fallSpeed < FallingDebrisSpeed) return;
+
+            float massFactor = Mathf.Clamp(other.mass, 1f, 500f);
+            ApplyBounce(other, fallSpeed);
+            TakeDamage(fallSpeed * massFactor * 2f);
         }
 
         /// <summary>

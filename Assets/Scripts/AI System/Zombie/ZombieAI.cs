@@ -16,7 +16,7 @@ namespace Simulation.Mission
     public class ZombieAI : MonoBehaviour
     {
         [Header("Settings")]
-        public float moveSpeed = 1.5f;
+        public float moveSpeed = 3.5f;   // faster so it can actually catch fleeing NPCs (flee speed ~4); tune in Inspector
         public float attackDamage = 10f;
         public float attackInterval = 1.5f;
         public float attackRange = 1.5f;
@@ -84,7 +84,7 @@ namespace Simulation.Mission
             if (_agent != null)
             {
                 _agent.speed = moveSpeed;
-                _agent.stoppingDistance = attackRange * 0.8f;
+                _agent.stoppingDistance = attackRange * 0.55f;   // press closer so bites land reliably
                 _agent.areaMask = NavMesh.AllAreas;
                 _agent.radius = 0.55f; // เพิ่มขนาดตัวไม่ให้ลอดประตูได้
 
@@ -510,20 +510,20 @@ namespace Simulation.Mission
         {
             if (_isDead) return;
 
-            // รับความเสียหายเมื่อฟิสิกส์ทำงานปกติ (เช่น ตกจากที่สูง หรือมีของหล่นมาทับ)
-            float impact = collision.relativeVelocity.magnitude;
-            if (impact > damageImpactThreshold)
-            {
-                float massFactor = 1f;
-                if (collision.rigidbody != null)
-                {
-                    massFactor = Mathf.Clamp(collision.rigidbody.mass, 1f, 500f);
-                    // กระเด้งกลับ (Knockback / Bounce)
-                    ApplyBounce(collision.rigidbody, impact);
-                }
-                TakeDamage(impact * massFactor * 2f);
-            }
+            // ตอบสนองเฉพาะของที่ "เคลื่อนที่เร็วด้วยตัวเอง" (เพดาน/โครงสร้างที่กำลังถล่มหล่นมาทับ)
+            // ไม่ใช่ตอนเราเดินไปชนโครงสร้างที่ตั้งนิ่ง (เดิมใช้ relativeVelocity ทำให้ดันของพังตอนเดิน)
+            Rigidbody other = collision.rigidbody;
+            if (other == null || other.isKinematic) return;
+            float fallSpeed = other.linearVelocity.magnitude;
+            if (fallSpeed < FallingDebrisSpeed) return;
+
+            float massFactor = Mathf.Clamp(other.mass, 1f, 500f);
+            ApplyBounce(other, fallSpeed);
+            TakeDamage(fallSpeed * massFactor * 2f);
         }
+
+        /// <summary>ความเร็วขั้นต่ำที่ถือว่าวัตถุ "กำลังตก/ปลิว" มาทับ (ต่ำกว่านี้ = ของตั้งนิ่ง ไม่ทำดาเมจ/ไม่ดัน)</summary>
+        protected const float FallingDebrisSpeed = 2.5f;
 
         /// <summary>
         /// ทำให้วัตถุที่ตกลงมาโดนกระเด้งออกไป

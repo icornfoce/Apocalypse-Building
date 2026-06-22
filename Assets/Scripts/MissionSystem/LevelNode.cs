@@ -107,6 +107,12 @@ namespace Simulation.Mission
 
             // 2. อัปเดตขนาด UI ทุกเฟรมเพื่อให้การขยายดูนุ่มนวล
             UpdateScale();
+
+            // 3. ตรวจสอบการกด Spacebar เพื่อเริ่มด่านเมื่อเดินเข้ามาใกล้ (UI เปิดอยู่)
+            if (_isOpen && Input.GetKeyDown(KeyCode.Space))
+            {
+                StartLevel();
+            }
         }
 
         private void UpdateScale()

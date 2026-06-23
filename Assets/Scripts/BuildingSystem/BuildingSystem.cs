@@ -92,6 +92,10 @@ namespace Simulation.Building
         private Vector3 _pickupStartMousePos;
         private bool _isHoldingPickup = false;
 
+        // Right-click hold detection to distinguish between quick cancel and camera drag
+        private float _rightClickDownTime = 0f;
+        private const float RIGHT_CLICK_CANCEL_HOLD_THRESHOLD = 0.25f;
+
         // Frame cooldown: prevents the same click that selects a structure from also placing it
         private bool _justEnteredPlacing = false;
 
@@ -267,6 +271,11 @@ namespace Simulation.Building
                 }
             }
             if (mainCamera == null) return;
+
+            if (Input.GetMouseButtonDown(1))
+            {
+                _rightClickDownTime = Time.time;
+            }
 
             HandleFloorSwitch();
 
@@ -676,7 +685,7 @@ namespace Simulation.Building
 
         private void HandlePlacementMode()
         {
-            if (Input.GetMouseButtonDown(1)) { ExitMode(); return; }
+            if (Input.GetMouseButtonUp(1) && Time.time - _rightClickDownTime <= RIGHT_CLICK_CANCEL_HOLD_THRESHOLD) { ExitMode(); return; }
             
             // Manual rotation for all structures
             if (Input.GetKeyDown(KeyCode.R) && _selectedData != null)
@@ -953,7 +962,7 @@ namespace Simulation.Building
 
         private void HandlePickupMode()
         {
-            if (Input.GetMouseButtonDown(1)) { ExitMode(); return; }
+            if (Input.GetMouseButtonUp(1) && Time.time - _rightClickDownTime <= RIGHT_CLICK_CANCEL_HOLD_THRESHOLD) { ExitMode(); return; }
 
             if (_hasValidTarget)
             {
@@ -1147,7 +1156,7 @@ namespace Simulation.Building
 
         private void HandleMovingMode()
         {
-            if (Input.GetMouseButtonDown(1)) { CancelCurrentMove(); return; }
+            if (Input.GetMouseButtonUp(1) && Time.time - _rightClickDownTime <= RIGHT_CLICK_CANCEL_HOLD_THRESHOLD) { CancelCurrentMove(); return; }
             if (Input.GetKeyDown(KeyCode.R)) ghostBuilder.Rotate();
 
             if (_hasValidTarget && ghostBuilder.HasGhost)
@@ -1239,7 +1248,7 @@ namespace Simulation.Building
 
         private void HandleDeleteMode()
         {
-            if (Input.GetMouseButtonDown(1)) { ExitMode(); return; }
+            if (Input.GetMouseButtonUp(1) && Time.time - _rightClickDownTime <= RIGHT_CLICK_CANCEL_HOLD_THRESHOLD) { ExitMode(); return; }
             if (_hasValidTarget)
             {
                 // Instant single-click deletion if hovering over a unit
@@ -1316,7 +1325,7 @@ namespace Simulation.Building
 
         private void HandlePaintingMode()
         {
-            if (Input.GetMouseButtonDown(1)) { ExitMode(); return; }
+            if (Input.GetMouseButtonUp(1) && Time.time - _rightClickDownTime <= RIGHT_CLICK_CANCEL_HOLD_THRESHOLD) { ExitMode(); return; }
 
             if (Input.GetMouseButtonDown(0))
             {

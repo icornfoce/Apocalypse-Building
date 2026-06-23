@@ -61,7 +61,9 @@ namespace Simulation.NPC
         private float _skillCooldownTimer = 0f;
         private bool _isRepairing = false;
         private StructuralStress _repairTarget;
+#pragma warning disable CS0414
         private bool _stressVisualsOn = false;
+#pragma warning restore CS0414
         private Coroutine _soldierCoroutine;
         private List<GameObject> _spawnedSoldiers = new List<GameObject>();
 
@@ -173,11 +175,20 @@ namespace Simulation.NPC
                     {
                         _hasManualDestination = false;
 
-                        // ถึง PersonTarget แล้ว → ซ่อน PersonTarget
+                        // ถึง PersonTarget แล้ว → ซ่อน Parent StructureUnit หรือตัวมันเอง
                         if (!_hasReachedPersonTarget && _personTarget != null)
                         {
                             _hasReachedPersonTarget = true;
-                            _personTarget.gameObject.SetActive(false);
+                            StructureUnit unit = _personTarget.GetComponent<StructureUnit>();
+                            if (unit == null) unit = _personTarget.GetComponentInParent<StructureUnit>();
+                            if (unit != null)
+                            {
+                                unit.gameObject.SetActive(false);
+                            }
+                            else
+                            {
+                                _personTarget.gameObject.SetActive(false);
+                            }
                             _personTarget = null;
                         }
                     }
@@ -379,6 +390,22 @@ namespace Simulation.NPC
 
             // ยกเลิกการซ่อมถ้ากำลังทำอยู่
             if (_isRepairing) StopRepairing();
+
+            // หากมี PersonTarget เดิมอยู่แล้ว แต่ถูกสั่งให้เดินไปที่อื่น (personTarget ใหม่เป็น null หรือคนละอัน)
+            // ให้ซ่อน/ปิดการทำงานของ Parent StructureUnit หรือตัวมันเองทันที
+            if (_personTarget != null && _personTarget != personTarget)
+            {
+                StructureUnit unit = _personTarget.GetComponent<StructureUnit>();
+                if (unit == null) unit = _personTarget.GetComponentInParent<StructureUnit>();
+                if (unit != null)
+                {
+                    unit.gameObject.SetActive(false);
+                }
+                else
+                {
+                    _personTarget.gameObject.SetActive(false);
+                }
+            }
 
             // เก็บ PersonTarget ไว้เพื่อซ่อนตอนถึง
             _personTarget = personTarget;

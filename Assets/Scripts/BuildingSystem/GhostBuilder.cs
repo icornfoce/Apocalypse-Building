@@ -53,6 +53,7 @@ namespace Simulation.Building
             GameObject template = Instantiate(prefab, Vector3.zero, Quaternion.identity);
             template.name = "Ghost_Template";
             template.SetActive(false);
+            
             SetupGhost(template);
             
             _ghostTemplates.Add(template);
@@ -159,7 +160,8 @@ namespace Simulation.Building
             {
                 // Apply group rotation to the offset
                 Vector3 rotatedOffset = groupRotQ * _templateOffsets[i];
-                _ghostInstances[i].transform.position = anchorPos + rotatedOffset;
+                Vector3 targetPos = anchorPos + rotatedOffset;
+                _ghostInstances[i].transform.position = targetPos;
                 
                 // Apply both group rotation and original template rotation
                 _ghostInstances[i].transform.rotation = groupRotQ * Quaternion.Euler(0, _templateRotations[i], 0);

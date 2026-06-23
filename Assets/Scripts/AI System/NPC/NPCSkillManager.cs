@@ -100,6 +100,18 @@ namespace Simulation.NPC
 
             // ── Update Passive Skills ──
             UpdatePassiveSkills();
+
+            // ── Check if NPC is close to the move marker ──
+            if (_selectedNPC != null && _activeMoveMarker != null)
+            {
+                float distance = Vector3.Distance(_selectedNPC.transform.position, _activeMoveMarker.transform.position);
+                // หากเข้าใกล้จุดหมายในระยะใกล้ (เช่น 0.8 หน่วย) ให้ลบ Marker ทันที
+                if (distance <= 0.8f)
+                {
+                    Destroy(_activeMoveMarker);
+                    _activeMoveMarker = null;
+                }
+            }
         }
 
         // ────────────────────────────────────────────────────────────────
@@ -192,25 +204,20 @@ namespace Simulation.NPC
                             SelectNPC(clickedNPC);
                             return;
                         }
-                    }
-                }
-            }
 
-            // ── Right Click / Click Ground: สั่ง NPC เดิน ──
-            if (_selectedNPC != null && Input.GetMouseButtonDown(1))
-            {
-                UnityEngine.Camera mainCam = UnityEngine.Camera.main;
-                if (mainCam != null)
-                {
-                    Ray ray = mainCam.ScreenPointToRay(Input.mousePosition);
-                    int groundMask = LayerMask.GetMask("Ground", "Structure");
-                    if (UnityEngine.Physics.Raycast(ray, out RaycastHit hit, 200f, groundMask))
-                    {
-                        // ส่งคำสั่งเดินไปยัง NPC
-                        _selectedNPC.MoveTo(hit.point);
+                        // สั่ง NPC เดินโดยใช้ปุ่มคลิกซ้าย
+                        if (_selectedNPC != null)
+                        {
+                            int groundMask = LayerMask.GetMask("Ground", "Structure");
+                            if (UnityEngine.Physics.Raycast(ray, out RaycastHit groundHit, 200f, groundMask))
+                            {
+                                // ส่งคำสั่งเดินไปยัง NPC
+                                _selectedNPC.MoveTo(groundHit.point);
 
-                        // VFX ที่จุดกดพื้น (waypoint marker)
-                        SpawnMoveVFX(hit.point);
+                                // VFX ที่จุดกดพื้น (waypoint marker)
+                                SpawnMoveVFX(groundHit.point);
+                            }
+                        }
                     }
                 }
             }

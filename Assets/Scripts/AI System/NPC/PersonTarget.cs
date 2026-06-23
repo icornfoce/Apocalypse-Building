@@ -16,17 +16,57 @@ namespace Simulation.Character
         [Tooltip("ถ้านับเป็นคนในภารกิจ จะถูกนำไปคำนวณจำนวนคนรอดและดาว")]
         public bool countsTowardsPopulation = true;
 
+        [Header("Bobbing & Rotation Settings")]
+        [SerializeField] private float floatSpeed = 2.0f;
+        [SerializeField] private float floatAmplitude = 0.15f;
+        [SerializeField] private float rotationSpeed = 45.0f; // degrees per second
+
+        private float _localStartRawY;
+        private bool _isInitialized = false;
+
         private void Start()
         {
             InitializeMaterials();
+            _localStartRawY = transform.localPosition.y;
+            _isInitialized = true;
+        }
+
+        private void OnEnable()
+        {
+            if (_isInitialized)
+            {
+                // Reset local Y position when re-enabled to prevent offsets stacking
+                transform.localPosition = new Vector3(transform.localPosition.x, _localStartRawY, transform.localPosition.z);
+            }
+        }
+
+        private void Update()
+        {
+            // Bobbing (floating up and down locally)
+            float newLocalY = _localStartRawY + Mathf.Sin(Time.time * floatSpeed) * floatAmplitude;
+            transform.localPosition = new Vector3(transform.localPosition.x, newLocalY, transform.localPosition.z);
+
+            // Rotating
+            transform.Rotate(Vector3.up, rotationSpeed * Time.deltaTime, Space.Self);
         }
 
         public void StartFadeOut(PersonAI person)
         {
-            // ปิดการแสดงผลทันที (เหมือนระบบสิ่งก่อสร้างอื่นที่โดนทำลาย)
+            // ปิดการแสดงผลทั้ง Parent (StructureUnit)
             // ระบบ Snapshot ของ SimulationManager จะเปิดกลับมาเองตอน Stop (RestoreSnapshots)
-            gameObject.SetActive(false);
-            Debug.Log($"<color=cyan>[PersonTarget]</color> {gameObject.name} occupied by {person.name} and disabled.");
+            StructureUnit unit = GetComponent<StructureUnit>();
+            if (unit == null) unit = GetComponentInParent<StructureUnit>();
+
+            if (unit != null)
+            {
+                unit.gameObject.SetActive(false);
+                Debug.Log($"<color=cyan>[PersonTarget]</color> Parent StructureUnit {unit.gameObject.name} occupied by {person.name} and disabled.");
+            }
+            else
+            {
+                gameObject.SetActive(false);
+                Debug.Log($"<color=cyan>[PersonTarget]</color> {gameObject.name} occupied by {person.name} and disabled (No parent StructureUnit found).");
+            }
         }
 
         public void ResetTarget()

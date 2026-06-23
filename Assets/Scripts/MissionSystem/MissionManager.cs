@@ -188,6 +188,50 @@ namespace Simulation.Mission
         }
 
         /// <summary>
+        /// สั่งให้เกิดภัยพิบัติทันทีแบบกำหนดเอง (เช่น จากปุ่ม Debug UI)
+        /// </summary>
+        public void TriggerDisasterDirectly(DisasterData data)
+        {
+            if (data == null) return;
+
+            // ตรวจสอบว่ามีการจำลอง (Simulation) ทำงานอยู่หรือไม่
+            // ถ้าไม่ทำงาน ให้เริ่มการจำลองเพื่อให้ฟิสิกส์ทำงานด้วย
+            if (Simulation.Physics.SimulationManager.Instance != null && !Simulation.Physics.SimulationManager.Instance.IsSimulating)
+            {
+                Simulation.Physics.SimulationManager.Instance.StartSimulation();
+            }
+
+            // ถ้าไม่มีการเปิดด่าน (isMissionActive = false) ให้ตั้งเป็น true ชั่วคราวเพื่อให้ภัยพิบัติทำงานสมบูรณ์
+            if (!isMissionActive)
+            {
+                isMissionActive = true;
+                _initialPeopleCount = CountPlacedPeople();
+                _initialStructureCount = CountIntactStructures();
+                _budgetBeforeSimulation = BuildingSystem.Instance != null ? BuildingSystem.Instance.CurrentBudget : 0f;
+                _zombieSpawned = false;
+            }
+
+            DisasterBase disaster = CreateDisaster(data);
+            if (disaster != null)
+            {
+                _activeDisasters.Add(disaster);
+                OnDisasterStarted?.Invoke(data);
+                Debug.Log($"<color=orange>⚠ Manual Triggered Disaster: {data.disasterName}</color>");
+                disaster.Start();
+            }
+        }
+
+        /// <summary>
+        /// หยุดภัยพิบัติทั้งหมดที่กำลังทำงานอยู่แบบกำหนดเอง
+        /// </summary>
+        public void StopAllDisastersPublic()
+        {
+            StopAllDisasters();
+            Debug.Log("<color=yellow>■ Stopped all disasters manually.</color>");
+        }
+
+
+        /// <summary>
         /// กำหนด Mission ที่จะเล่น
         /// </summary>
         public void SetMission(MissionData mission)

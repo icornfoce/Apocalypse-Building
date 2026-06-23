@@ -19,6 +19,8 @@ namespace Simulation.Physics
         [SerializeField] private Material gridMaterial;
 
         private GameObject _proceduralGrid;
+        public GameObject ProceduralGrid => _proceduralGrid;
+        public bool IsGridVisible => _isGridVisible;
         private MeshFilter _gridMeshFilter;
         private MeshRenderer _gridMeshRenderer;
 
@@ -219,11 +221,14 @@ namespace Simulation.Physics
             Debug.Log("<color=red>■ Stop Simulation</color> - Rewound to pre-simulation state.");
         }
 
+        private bool _isGridVisible = true;
+
         /// <summary>
         /// สั่งเปิด/ปิด Grid ได้จากภายนอก (เช่น จาก UI)
         /// </summary>
         public void SetGridVisibility(bool visible)
         {
+            _isGridVisible = visible;
             if (_proceduralGrid != null)
             {
                 _proceduralGrid.SetActive(visible);
@@ -267,6 +272,8 @@ namespace Simulation.Physics
                     _gridMeshRenderer.sharedMaterial = mat;
                 }
             }
+
+            _proceduralGrid.SetActive(_isGridVisible);
 
             // Create Grid Line Mesh
             Mesh mesh = new Mesh();

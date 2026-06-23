@@ -14,11 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.Data.StructureData
   structureName: NPC Alpha
   structureType: 0
+  isGadget: 0
   basePrice: 0
   baseMass: 0
   baseHP: 0
   size: {x: 1, y: 1, z: 1}
-  pivotAtCenter: 0
+  pivotAtCenter: 1
   allowOverlap: 0
   placementSinkThrough: 0
   requiresSupport: 0

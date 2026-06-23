@@ -345,28 +345,31 @@ namespace Simulation.UI
             ResetTimeSpeed();
         }
 
+        private bool _isGridVisible = true; // Default state of grid visualizer in scene
+        private bool _isStressVisible = true; // Default state of stress visuals
+
         /// <summary>
-        /// เปิด/ปิด การแสดงผล Grid
+        /// ฟังก์ชันหลักสำหรับปุ่ม UI GridShow (กดสลับ เปิด/ปิด Grid)
         /// </summary>
-        public void ToggleGrid(bool show)
+        public void ToggleGrid()
         {
+            PlayClickSound();
             if (Simulation.Physics.SimulationManager.Instance != null)
-                Simulation.Physics.SimulationManager.Instance.SetGridVisibility(show);
+            {
+                _isGridVisible = !Simulation.Physics.SimulationManager.Instance.IsGridVisible;
+                Simulation.Physics.SimulationManager.Instance.SetGridVisibility(_isGridVisible);
+            }
         }
 
         /// <summary>
-        /// เปิด/ปิด การแสดงผลสีเลือด (HP Stress) บนชิ้นส่วนโครงสร้าง
+        /// ฟังก์ชันหลักสำหรับปุ่ม UI WeightShow (กดสลับ เปิด/ปิด สีแสดงแรงกดทับ)
         /// </summary>
-        public void ToggleStressVisuals(bool show)
+        public void ToggleStressVisuals()
         {
-            Simulation.Physics.StructuralStress.SetVisualStatus(show);
+            PlayClickSound();
+            _isStressVisible = !Simulation.Physics.StructuralStress.ShowHPVisualsGlobal;
+            Simulation.Physics.StructuralStress.SetVisualStatus(_isStressVisible);
         }
-
-        // --- Convenience Wrappers for UI Buttons ---
-        public void OpenGrid() => ToggleGrid(true);
-        public void CloseGrid() => ToggleGrid(false);
-        public void OpenStressVisuals() => ToggleStressVisuals(true);
-        public void CloseStressVisuals() => ToggleStressVisuals(false);
 
         // --- Undo / Redo Wrappers ---
         public void UndoAction()

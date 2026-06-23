@@ -5,6 +5,7 @@ using Simulation.Building;
 using Simulation.Character;
 using Simulation.Physics;
 using Simulation.NPC;
+using Simulation.Data;
 
 namespace Simulation.Mission
 {
@@ -39,6 +40,10 @@ namespace Simulation.Mission
         private float _budgetBeforeSimulation;
         private bool _hasZombieDisaster;
         private bool _zombieSpawned;
+
+        // ── สกิล Engineer: VFX สรุปจุดที่พังตอนจบด่าน ──
+        private const float EngineerReportVFXScale = 0.6f;     // ย่อขนาด VFX ให้เล็กลง (1 = ขนาดเต็มของ prefab)
+        private const float EngineerReportVFXLifetime = 5f;    // เวลาที่ VFX อยู่ก่อนหายไป (วินาที)
 
         // ── Events ──
         /// <summary>เรียกเมื่อ Mission เริ่ม</summary>
@@ -209,6 +214,7 @@ namespace Simulation.Mission
                 _initialStructureCount = CountIntactStructures();
                 _budgetBeforeSimulation = BuildingSystem.Instance != null ? BuildingSystem.Instance.CurrentBudget : 0f;
                 _zombieSpawned = false;
+                StructuralStress.ClearBreakHistory(); // เริ่มเก็บจุดพังของรอบนี้ใหม่
             }
 
             DisasterBase disaster = CreateDisaster(data);
@@ -296,6 +302,9 @@ namespace Simulation.Mission
                 }
             }
 
+            // ล้างประวัติจุดพังของด่านก่อนหน้า เพื่อให้สกิล Engineer สรุปเฉพาะความเสียหายของด่านนี้
+            StructuralStress.ClearBreakHistory();
+
             // เริ่ม Simulation (ฟิสิกส์ + NavMesh + NPC)
             if (SimulationManager.Instance != null && !SimulationManager.Instance.IsSimulating)
             {
@@ -344,6 +353,10 @@ namespace Simulation.Mission
                 Debug.Log($"<color=yellow>★ Mission Complete: {currentMission.missionName} — {lastStarRating} Star(s)!</color>");
 
                 OnMissionCompleted?.Invoke(lastStarRating);
+
+                // ★ สกิล Engineer (passive): ถ้ามี Engineer วางอยู่ในด่าน
+                // โชว์ VFX เล็กๆ ตรงจุดที่โครงสร้างพัง (สรุปความเสียหาย) — ต้องทำก่อน StopSimulation รีเซ็ตของที่พัง
+                ShowEngineerDamageReport();
             }
             else
             {
@@ -380,6 +393,115 @@ namespace Simulation.Mission
             {
                 if (t != null) t.ResetTarget();
             }
+        }
+
+        // ────────────────────────────────────────────────────────────────
+        // สกิล Engineer — Damage Report (VFX จุดที่พัง ตอนจบด่าน)
+        // ────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// ★ สกิล Engineer (passive): ถ้ามี NPC Engineer วางอยู่ในด่าน
+        /// พอจบด่านจะโชว์ VFX เล็กๆ ตรงทุกจุดที่โครงสร้างพังระหว่างด่าน (สรุปความเสียหาย)
+        /// ใช้ช่อง skillEffectVFX ของ Engineer เป็นตัว VFX (ถ้าไม่ได้ใส่จะสร้างเอฟเฟกต์ฝุ่นเล็กๆ ในโค้ดแทน)
+        /// </summary>
+        private void ShowEngineerDamageReport()
+        {
+            // 1. หา Engineer ที่วางอยู่ในด่าน (ไม่ต้องกดใช้สกิล — แค่มีตัวอยู่ก็พอ)
+            NPCController engineer = null;
+            var npcs = FindObjectsByType<NPCController>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            foreach (var npc in npcs)
+            {
+                if (npc == null || npc.Data == null) continue;
+                if (npc.Data.skillType == NPCSkillType.Engineer)
+                {
+                    engineer = npc;
+                    break;
+                }
+            }
+            if (engineer == null) return; // ไม่มี Engineer → ไม่ต้องโชว์
+
+            // 2. ดึงจุดที่พังระหว่างด่าน
+            var positions = StructuralStress.RecentBreakPositions;
+            if (positions == null || positions.Count == 0) return; // ไม่มีอะไรพัง
+
+            GameObject vfxPrefab = engineer.Data.skillEffectVFX; // ตัว VFX จากช่อง skillEffectVFX ของ Engineer
+            GameObject container = new GameObject("EngineerDamageReportVFX");
+
+            int spawned = 0;
+            foreach (var pos in positions)
+            {
+                if (vfxPrefab != null)
+                {
+                    GameObject vfx = Instantiate(vfxPrefab, pos, Quaternion.identity, container.transform);
+                    vfx.transform.localScale *= EngineerReportVFXScale; // ย่อให้เล็ก
+                    Destroy(vfx, EngineerReportVFXLifetime);
+                }
+                else
+                {
+                    SpawnFallbackBreakVFX(pos, container.transform); // ไม่ได้ใส่ prefab → สร้างฝุ่นเล็กๆ เอง
+                }
+                spawned++;
+            }
+
+            Destroy(container, EngineerReportVFXLifetime + 1f);
+            Debug.Log($"<color=cyan>[Engineer]</color> Damage report: marked {spawned} broken spot(s).");
+
+            // เก็บกวาดประวัติ เพื่อไม่ให้ค้างไปด่านถัดไป
+            StructuralStress.ClearBreakHistory();
+        }
+
+        /// <summary>
+        /// เอฟเฟกต์ฝุ่นเล็กๆ แบบสร้างในโค้ด (ใช้เมื่อ Engineer ไม่ได้ใส่ skillEffectVFX)
+        /// </summary>
+        private void SpawnFallbackBreakVFX(Vector3 position, Transform parent)
+        {
+            GameObject go = new GameObject("BreakSpotVFX");
+            go.transform.SetParent(parent, false);
+            go.transform.position = position;
+
+            var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+            var main = ps.main;
+            main.duration = 0.8f;
+            main.loop = false;
+            main.startLifetime = 0.6f;
+            main.startSpeed = 1.2f;
+            main.startSize = 0.18f;                                   // เล็กๆ
+            main.startColor = new Color(0.85f, 0.8f, 0.7f, 0.9f);     // สีฝุ่น
+            main.gravityModifier = 0.3f;
+            main.playOnAwake = false;
+            main.maxParticles = 24;
+            main.stopAction = ParticleSystemStopAction.Destroy;
+
+            var emission = ps.emission;
+            emission.rateOverTime = 0f;
+            emission.SetBursts(new ParticleSystem.Burst[] { new ParticleSystem.Burst(0f, (short)12) }); // พ่นทีเดียว
+
+            var shape = ps.shape;
+            shape.shapeType = ParticleSystemShapeType.Sphere;
+            shape.radius = 0.15f;
+
+            var col = ps.colorOverLifetime;
+            col.enabled = true;
+            Gradient grad = new Gradient();
+            grad.SetKeys(
+                new GradientColorKey[] { new GradientColorKey(new Color(0.85f, 0.8f, 0.7f), 0f), new GradientColorKey(new Color(0.6f, 0.55f, 0.5f), 1f) },
+                new GradientAlphaKey[] { new GradientAlphaKey(0.9f, 0f), new GradientAlphaKey(0f, 1f) }
+            );
+            col.color = grad;
+
+            // กันขึ้นเป็นสีชมพู (material หาย): ใช้ shader พื้นฐานของ particle
+            var renderer = go.GetComponent<ParticleSystemRenderer>();
+            if (renderer != null)
+            {
+                Shader sh = Shader.Find("Particles/Standard Unlit");
+                if (sh == null) sh = Shader.Find("Sprites/Default");
+                if (sh != null) renderer.material = new Material(sh);
+            }
+
+            ps.Play();
+            Destroy(go, 2f);
         }
 
         // ────────────────────────────────────────────────────────────────

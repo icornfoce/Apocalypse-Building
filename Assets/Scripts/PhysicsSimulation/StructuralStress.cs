@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 using Simulation.Building;
 using Simulation.Data;
 
@@ -75,6 +76,13 @@ namespace Simulation.Physics
         [Header("Global Settings")]
         public static bool ShowHPVisualsGlobal = true;
 
+        // ── ตำแหน่งจุดที่โครงสร้าง "พัง" ระหว่างด่านนี้ ──
+        // ใช้โดยสกิล Engineer เพื่อโชว์ VFX สรุปความเสียหายตรงจุดที่พังตอนจบด่าน
+        public static readonly List<Vector3> RecentBreakPositions = new List<Vector3>();
+
+        /// <summary>ล้างประวัติจุดพัง (เรียกตอนเริ่มด่าน/เริ่มจำลองใหม่)</summary>
+        public static void ClearBreakHistory() => RecentBreakPositions.Clear();
+
         [Header("Debug")]
         [SerializeField] private bool showDebugLogs = false;
 
@@ -97,6 +105,16 @@ namespace Simulation.Physics
 
         // Recovery cooldown timer — counts how long stress has been below thresholds
         private float _lowStressTimer;
+
+        // ── กันตัวละครเดินชนแล้วทำให้โครงสร้าง "พัง" ──
+        // ตัวละคร (NPC/คน/ซอมบี้) เป็น Rigidbody แบบ Kinematic ที่ขับด้วย NavMeshAgent
+        // เวลาเดินเบียดกำแพง/ประตู มันจะ "ดัน" Rigidbody ของโครงสร้าง → Joint รับแรงพุ่งสูงผิดปกติ
+        // แล้ว FixedUpdate ด้านล่างจะตีความว่ารับแรงเกินขีดจำกัด → Break() ทันที
+        // OnCollisionEnter เดิมกันเฉพาะ "อิมพัลส์" จากตัวละครไว้แล้ว แต่เส้นทาง "แรงที่ Joint" ยังรั่วอยู่
+        // จึงจับเวลาไว้ว่าเพิ่งมีตัวละครมาสัมผัส แล้ว "งด" คิดดาเมจจากแรง/ทอร์กในช่วงสั้นๆ นั้น
+        // (ของที่ "ตกหล่น/ปลิว" มาทับไม่ใช่ NavMeshAgent จึงยังสร้างความเสียหาย/ทับคนได้ตามปกติ)
+        private float _characterContactTimer;
+        private const float CHARACTER_CONTACT_GRACE = 0.3f;
 
         // Settlement timer — skip damage for a short time after init to let physics settle
         private float _settlementTimer;
@@ -225,6 +243,9 @@ namespace Simulation.Physics
                 return;
             }
 
+            // นับถอยหลังช่วง "ตัวละครเพิ่งมาเบียด" (ตั้งค่าจาก OnCollisionEnter/Stay)
+            if (_characterContactTimer > 0f) _characterContactTimer -= Time.fixedDeltaTime;
+
             // จับครั้งเดียวหลัง settle (ก่อนมีอะไรถูกทำลาย): ชิ้นนี้เป็น ground anchor หรือไม่
             if (!_anchorChecked) CaptureAnchorState();
 
@@ -308,10 +329,14 @@ namespace Simulation.Physics
             // If we have a joint, we could check axial force, but for now we use the magnitude
             // and compare against tension (common for most bridge materials).
             
-            if (forceMag > forceThreshold)
+            // ถ้าตัวละครเพิ่งมาเดินเบียด/ดัน ให้ "งด" คิดดาเมจจากแรงและทอร์กในเฟรมนี้
+            // (กันกำแพง/ประตูพังเพราะโดน NPC เดินชน — แรงที่เห็นมาจากการดันของตัวละคร ไม่ใช่ภาระโครงสร้างจริง)
+            bool characterPushing = _characterContactTimer > 0f;
+
+            if (!characterPushing && forceMag > forceThreshold)
             {
                 forceDamage = (forceMag - forceThreshold) * forceDamageMultiplier * dt;
-                
+
                 // ถ้าแรงกระทำเกินขีดจำกัดสูงสุดของวัสดุ (maxTension) ให้ข้อต่อหักทันที (Instant Snap)
                 if (forceMag > currentLimit)
                 {
@@ -321,7 +346,7 @@ namespace Simulation.Physics
                 }
             }
 
-            if (torqueMag > torqueThreshold)
+            if (!characterPushing && torqueMag > torqueThreshold)
             {
                 torqueDamage = (torqueMag - torqueThreshold) * torqueDamageMultiplier * dt;
             }
@@ -375,7 +400,11 @@ namespace Simulation.Physics
             // เดินชนประตู/กำแพงต้องไม่ทำให้ Joint หลุดหรือพัง (ตัวละครทุกตัวมี NavMeshAgent, โครงสร้างไม่มี)
             if (collision.collider != null &&
                 collision.collider.GetComponentInParent<UnityEngine.AI.NavMeshAgent>() != null)
+            {
+                // กันแรง "ดัน" จากการเดินชนไปทำให้ Joint พังใน FixedUpdate ด้วย
+                _characterContactTimer = CHARACTER_CONTACT_GRACE;
                 return;
+            }
 
             float impact = collision.impulse.magnitude;
 
@@ -444,6 +473,20 @@ namespace Simulation.Physics
             if (impact > 100f)
             {
                 Building.BuildingSystem.Instance?.TriggerCameraShake(Mathf.Clamp(impact * 0.005f, 0.2f, 1.5f));
+            }
+        }
+
+        /// <summary>
+        /// ตัวละครยัง "เบียด/ดัน" โครงสร้างค้างอยู่ → ต่ออายุช่วงงดคิดดาเมจจากแรงเรื่อยๆ
+        /// (เช่น NPC ยืนจ่อประตูที่กำลังเปิด หรือเดินดันกำแพงต่อเนื่อง)
+        /// </summary>
+        private void OnCollisionStay(Collision collision)
+        {
+            if (_isBroken) return;
+            if (collision.collider != null &&
+                collision.collider.GetComponentInParent<UnityEngine.AI.NavMeshAgent>() != null)
+            {
+                _characterContactTimer = CHARACTER_CONTACT_GRACE;
             }
         }
 
@@ -544,6 +587,9 @@ namespace Simulation.Physics
             if (_isBroken) return;
             _isBroken = true;
             _currentHP = 0f;
+
+            // บันทึกตำแหน่งจุดพัง เพื่อให้สกิล Engineer โชว์ VFX สรุปความเสียหายตอนจบด่าน
+            RecentBreakPositions.Add(transform.position);
 
             // ทำลาย Joint ทั้งหมดเพื่อให้โครงสร้างด้านบนตรวจเจอว่าตัวค้ำหายไป (Cascading Failure)
             Joint[] allJoints = GetComponents<Joint>();

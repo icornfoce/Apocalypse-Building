@@ -41,6 +41,10 @@ namespace Simulation.Character
         private Rigidbody _rb;
         private NavMeshAgent _agent;
         private bool _isDead = false;
+
+        // รัศมีลำตัวให้ตรงกับที่ NavMesh ถูก Bake (agentRadius = 0.2)
+        // กันไม่ให้ Collider จริง (เดิม 0.5) โผล่ทะลุ/ดันกำแพงจนพังตอนเดิน
+        private const float NavBodyRadius = 0.2f;
         private GameObject _activePanicVFX;
         private float _panicTimer;
         private Vector3 _fleeDirection;
@@ -76,6 +80,11 @@ namespace Simulation.Character
             _agent = GetComponent<NavMeshAgent>();
             if (_agent == null) _agent = gameObject.AddComponent<NavMeshAgent>();
 
+            // ย่อรัศมี Collider + เปิด Continuous ให้ตรงกับ NavMesh เพื่อกันลำตัวทะลุ/ดันกำแพงจนพัง
+            CapsuleCollider capsule = GetComponent<CapsuleCollider>();
+            if (capsule != null) capsule.radius = NavBodyRadius;
+            if (_rb != null) _rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
+
             // ตั้งค่า Agent
             if (_agent != null)
             {
@@ -86,7 +95,8 @@ namespace Simulation.Character
                     _agent.stoppingDistance = arrivalDistance;
                     _agent.updateRotation = true;
 
-                    _agent.radius = 0.3f;
+                    // รัศมีต้องตรงกับ NavMesh bake (0.2) ไม่งั้น Agent จะเดินจ่อกำแพงในระยะที่ Collider จริงทะลุเข้าไป
+                    _agent.radius = NavBodyRadius;
                     _agent.height = 1.8f;
                     _agent.obstacleAvoidanceType = ObstacleAvoidanceType.LowQualityObstacleAvoidance;
 

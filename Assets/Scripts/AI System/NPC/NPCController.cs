@@ -57,6 +57,10 @@ namespace Simulation.NPC
         private AudioSource _audioSource;
         private Rigidbody _rb;
 
+        // รัศมีลำตัวให้ตรงกับที่ NavMesh ถูก Bake (agentRadius = 0.2)
+        // กันไม่ให้ Collider จริง (เดิม 0.5) โผล่ทะลุ/ดันกำแพงจนพังตอนเดิน
+        private const float NavBodyRadius = 0.2f;
+
         // Skill Runtime
         private float _skillCooldownTimer = 0f;
         private bool _isRepairing = false;
@@ -102,13 +106,22 @@ namespace Simulation.NPC
             if (_agent == null) _agent = gameObject.AddComponent<NavMeshAgent>();
             _agent.speed = data.moveSpeed;
             _agent.stoppingDistance = 0.5f;
-            _agent.radius = 0.35f;
+            // รัศมีต้องตรงกับ NavMesh bake (0.2) ไม่งั้น Agent จะเดินจ่อกำแพงในระยะที่ตัว Collider จริงทะลุเข้าไป
+            _agent.radius = NavBodyRadius;
             _agent.height = 1.8f;
             _agent.obstacleAvoidanceType = ObstacleAvoidanceType.LowQualityObstacleAvoidance;
 
             // ตรวจสอบ Collider ให้ไม่เป็น Trigger (ซอมบี้ต้องตรวจระยะได้)
+            // และย่อรัศมีให้พอดีกับ NavMesh เพื่อไม่ให้ลำตัวโผล่ทะลุ/ดันกำแพง
             CapsuleCollider capsule = GetComponent<CapsuleCollider>();
-            if (capsule != null) capsule.isTrigger = false;
+            if (capsule != null)
+            {
+                capsule.isTrigger = false;
+                capsule.radius = NavBodyRadius;
+            }
+
+            // ContinuousSpeculative กันการ "พุ่งทะลุ" กำแพง/บานประตูบางๆ (Discrete เดิมทำให้ลอดผ่านได้)
+            if (_rb != null) _rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
 
             _animator = GetComponentInChildren<Animator>();
             _audioSource = GetComponent<AudioSource>();
@@ -480,14 +493,15 @@ namespace Simulation.NPC
                 _skillCooldownTimer = _data.skillCooldown;
         }
 
-        // ── 1. วิศวกร: (สกิลว่าง — ยังไม่กำหนดผล) ──
-        // เดิมเคย Toggle Stress Visualization แต่ถอดออกแล้วตามที่ร้องขอ
-        // (การแสดงค่า Stress ยังเปิด/ปิดได้จากปุ่ม UI ของ BuildUIController ตามเดิม)
+        // ── 1. วิศวกร: รายงานความเสียหาย (Passive) ──
+        // ผลของสกิลเป็นแบบ Passive: ถ้ามี Engineer "วางอยู่" ในด่าน พอจบด่านจะมี VFX เล็กๆ
+        // ขึ้นตรงทุกจุดที่โครงสร้างพัง (สรุปความเสียหาย) — จัดการจริงที่ MissionManager.ShowEngineerDamageReport()
+        // (การแสดงค่า Stress ระหว่างเล่นยังเปิด/ปิดได้จากปุ่ม UI ของ BuildUIController ตามเดิม)
         private void SkillEngineer()
         {
-            // สกิลเปล่า: ไม่มีผลใดๆ — เว้นไว้ให้กำหนดผลภายหลัง
+            // Passive: ไม่มีผลตอนกด — แค่เล่นอนิเมชัน ส่วนผลจริงไปโชว์ตอนจบด่าน
             if (_animator != null) _animator.SetTrigger("UseSkill");
-            Debug.Log("<color=green>[Engineer]</color> (placeholder skill — no effect)");
+            Debug.Log("<color=green>[Engineer]</color> Passive: broken-spot damage report will appear at mission end.");
         }
 
         // ── 2. ช่างก่อสร้าง: เลือกซ่อมโครงสร้าง ──

@@ -54,6 +54,16 @@ namespace Simulation.Mission
         [Tooltip("ลาก GameObject ของหน้าจอที่ต้องปลดล็อกก่อน (UIManager.IsUnlocked)")]
         [SerializeField] private GameObject missionUnlockScreen;
 
+        [Header("Progression / Save (ถาวร)")]
+        [Tooltip("ด่านนี้ปลดล็อกตั้งแต่เริ่มเกม (ติ๊กเฉพาะด่านแรก)")]
+        [SerializeField] private bool unlockedByDefault = false;
+
+        [Tooltip("Object ที่จะ 'ซ่อน' เมื่อด่านนี้ถูกปลดล็อกแล้ว (เช่น ไอคอนแม่กุญแจ)")]
+        [SerializeField] private GameObject lockObject;
+
+        [Tooltip("ไอคอนดาว (ใส่ได้สูงสุด 3 อัน เรียงซ้าย→ขวา) จะเปิดตามจำนวนดาวที่เคยได้")]
+        [SerializeField] private GameObject[] starIcons;
+
         // ── runtime ──
         private Transform _player;
         private bool _isOpen;
@@ -71,6 +81,12 @@ namespace Simulation.Mission
                 worldCanvas.transform.localScale = Vector3.zero;
                 worldCanvas.SetActive(false);
             }
+        }
+
+        private void Start()
+        {
+            // อ่านข้อมูลเซฟมาแสดงดาว + สถานะล็อก ตอนเข้าหน้าเลือกด่าน
+            RefreshProgressUI();
         }
 
         private void Update()
@@ -178,6 +194,9 @@ namespace Simulation.Mission
 
             _isOpen = true;
 
+            // อัปเดตดาว/สถานะล็อกล่าสุดทุกครั้งที่เปิดป้าย
+            RefreshProgressUI();
+
             // เลือกด่านนี้เป็นภารกิจปัจจุบัน
             if (MissionManager.Instance != null)
                 MissionManager.Instance.SetMission(missionData);
@@ -219,9 +238,45 @@ namespace Simulation.Mission
                 return;
             }
 
+            // กันไม่ให้เริ่มด่านที่ยังถูกล็อก
+            if (!IsLevelUnlocked())
+            {
+                Debug.Log($"[LevelNode] ด่าน {missionData.missionName} ยังถูกล็อกอยู่ (ต้องได้อย่างน้อย 1 ดาวจากด่านก่อนหน้า)");
+                return;
+            }
+
             string targetSceneName = missionData.missionName;
             Debug.Log($"[LevelNode] เริ่มต้นด่าน: {targetSceneName}");
             GameSceneManager.Instance.LoadScene(targetSceneName);
+        }
+
+        /// <summary>ด่านนี้ปลดล็อกแล้วหรือยัง (ด่านแรกให้ติ๊ก unlockedByDefault)</summary>
+        public bool IsLevelUnlocked()
+        {
+            if (missionData == null) return false;
+            return unlockedByDefault || ProgressSave.IsUnlocked(missionData.missionName);
+        }
+
+        /// <summary>
+        /// อ่านข้อมูลเซฟมาอัปเดต UI: โชว์ดาวที่เคยได้ และซ่อน lockObject เมื่อปลดล็อกแล้ว
+        /// </summary>
+        private void RefreshProgressUI()
+        {
+            if (missionData == null) return;
+            string id = missionData.missionName;
+
+            bool unlocked = unlockedByDefault || ProgressSave.IsUnlocked(id);
+
+            // lockObject = แสดงเมื่อ "ล็อก", ซ่อนเมื่อ "ปลดล็อก"
+            if (lockObject != null) lockObject.SetActive(!unlocked);
+
+            // เปิดไอคอนดาวตามจำนวนที่เคยได้ (เก็บค่าดีที่สุด)
+            int stars = ProgressSave.GetStars(id);
+            if (starIcons != null)
+            {
+                for (int i = 0; i < starIcons.Length; i++)
+                    if (starIcons[i] != null) starIcons[i].SetActive(i < stars);
+            }
         }
 
 #if UNITY_EDITOR

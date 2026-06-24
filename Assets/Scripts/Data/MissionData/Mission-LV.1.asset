@@ -26,4 +26,4 @@ MonoBehaviour:
   simulationDuration: 125
   enableTax: 0
   taxRate: 0
-  nextMission: {fileID: 11400000}
+  nextMission: {fileID: 11400000, guid: 15ae0dbb79e09994782450e9cabdadd5, type: 2}

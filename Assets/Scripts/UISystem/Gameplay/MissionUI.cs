@@ -88,8 +88,14 @@ namespace Simulation.UI
         private float _lastStatsCheckTime;
         private const float StatsUpdateInterval = 0.2f;
 
+        // โหมด sandbox: แสดง "เงินที่ใช้ไป" (บวก) แทนงบคงเหลือที่อาจติดลบ
+        private bool _isSandbox;
+
         private void Start()
         {
+            // ตรวจว่าเป็นโหมด sandbox จากชื่อซีน (sandbox ใช้ MissionData ร่วมกับ Lv.5 จึงแยกด้วยชื่อซีน)
+            _isSandbox = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.ToLower().Contains("sandbox");
+
             // สร้าง AudioSource สำหรับเสียง SFX
             _sfxSource = gameObject.AddComponent<AudioSource>();
             _sfxSource.playOnAwake = false;
@@ -147,8 +153,18 @@ namespace Simulation.UI
             // อัปเดตเงินทุกเฟรม
             if (budgetText != null && BuildingSystem.Instance != null)
             {
-                budgetText.text = $"${BuildingSystem.Instance.CurrentBudget:F0}";
-                budgetText.color = BuildingSystem.Instance.CurrentBudget >= 0 ? Color.white : Color.red;
+                if (_isSandbox)
+                {
+                    // โหมด sandbox: แสดง "เงินที่ใช้ไป" เป็นค่าบวก (ไม่ติดลบ)
+                    float spent = Mathf.Max(0f, BuildingSystem.Instance.AmountSpent);
+                    budgetText.text = $"${spent:F0}";
+                    budgetText.color = Color.white;
+                }
+                else
+                {
+                    budgetText.text = $"${BuildingSystem.Instance.CurrentBudget:F0}";
+                    budgetText.color = BuildingSystem.Instance.CurrentBudget >= 0 ? Color.white : Color.red;
+                }
             }
 
             // อัปเดตเวลาและสถานะด่าน

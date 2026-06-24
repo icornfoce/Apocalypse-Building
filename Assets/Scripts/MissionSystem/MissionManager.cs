@@ -9,6 +9,9 @@ using Simulation.Data;
 
 namespace Simulation.Mission
 {
+    /// <summary>ชนิดซอมบี้สำหรับเสกเองจากปุ่ม (โหมด sandbox)</summary>
+    public enum ZombieKind { Normal, Digger, Balloon }
+
     /// <summary>
     /// Mission Manager — ควบคุมระบบด่าน
     /// 1. ตรวจสอบเงื่อนไขก่อนเริ่ม (จำนวนชั้น, พื้นที่, คน)
@@ -193,6 +196,90 @@ namespace Simulation.Mission
         }
 
         /// <summary>
+        /// เสกซอมบี้ 1 ตัวตามชนิดที่เลือก (ใช้จากปุ่มในโหมด sandbox)
+        /// จะเริ่ม Simulation ให้อัตโนมัติถ้ายังไม่เริ่ม (เพื่อให้มี NavMesh) แล้วหาจุดเกิดนอกเขตก่อสร้าง
+        /// </summary>
+        public void SpawnZombieDirectly(GameObject prefab, ZombieKind kind)
+        {
+            if (prefab == null)
+            {
+                Debug.LogWarning("[MissionManager] SpawnZombieDirectly: prefab is null.");
+                return;
+            }
+
+            // ให้แน่ใจว่ามีการจำลองทำงานอยู่ (มี NavMesh) — เหมือน TriggerDisasterDirectly
+            if (Simulation.Physics.SimulationManager.Instance != null && !Simulation.Physics.SimulationManager.Instance.IsSimulating)
+            {
+                Simulation.Physics.SimulationManager.Instance.StartSimulation();
+            }
+            if (!isMissionActive)
+            {
+                isMissionActive = true;
+                _initialPeopleCount = CountPlacedPeople();
+                _initialStructureCount = CountIntactStructures();
+                _budgetBeforeSimulation = BuildingSystem.Instance != null ? BuildingSystem.Instance.CurrentBudget : 0f;
+                _zombieSpawned = false;
+                StructuralStress.ClearBreakHistory();
+            }
+
+            System.Type aiType = kind == ZombieKind.Digger ? typeof(DiggerZombieAI)
+                               : kind == ZombieKind.Balloon ? typeof(BalloonZombieAI)
+                               : typeof(ZombieAI);
+
+            Vector3 pos = GetManualZombieSpawnPosition(kind == ZombieKind.Normal);
+            GameObject zombie = Instantiate(prefab, pos, Quaternion.identity);
+            zombie.name = prefab.name + "_Sandbox";
+
+            // เผื่อ prefab ไม่ได้ติด AI มา ให้เพิ่มให้
+            if (zombie.GetComponent(aiType) == null) zombie.AddComponent(aiType);
+
+            Debug.Log($"<color=red>[Sandbox]</color> Spawned {kind} zombie at {pos}");
+        }
+
+        /// <summary>
+        /// หาจุดเกิดซอมบี้นอกเขต Grid ก่อสร้าง บนพื้น Ground (และ Snap NavMesh สำหรับซอมบี้เดินดิน)
+        /// </summary>
+        private Vector3 GetManualZombieSpawnPosition(bool sampleNavMesh)
+        {
+            int groundMask = LayerMask.GetMask("Ground");
+            if (groundMask == 0) groundMask = LayerMask.GetMask("Default");
+            int structureMask = LayerMask.GetMask("Structure");
+
+            float gridSize = BuildingSystem.Instance != null ? BuildingSystem.Instance.GetGridSize : 1f;
+            float limitX = BuildingSystem.Instance != null ? BuildingSystem.Instance.GridColumns * gridSize * 0.5f : 10f;
+            float limitZ = BuildingSystem.Instance != null ? BuildingSystem.Instance.GridRows * gridSize * 0.5f : 10f;
+            float ring = Mathf.Max(limitX, limitZ);
+
+            Vector3 found = new Vector3(limitX + 3f, 0f, limitZ + 3f); // fallback เริ่มต้น (มุมนอก Grid)
+
+            for (int i = 0; i < 40; i++)
+            {
+                Vector2 dir = Random.insideUnitCircle.normalized;
+                if (dir == Vector2.zero) dir = Vector2.right;
+                Vector2 c = dir * Random.Range(ring + 2f, ring + 18f);
+                Vector3 probe = new Vector3(c.x, 50f, c.y);
+
+                if (UnityEngine.Physics.Raycast(probe, Vector3.down, out RaycastHit hit, 100f, groundMask))
+                {
+                    Vector3 p = hit.point;
+                    // ข้ามถ้าตกในเขต Grid (พื้นที่ก่อสร้าง)
+                    if (p.x > -limitX && p.x < limitX && p.z > -limitZ && p.z < limitZ) continue;
+                    // ข้ามถ้าทับโครงสร้าง
+                    if (UnityEngine.Physics.CheckBox(p + Vector3.up, new Vector3(0.5f, 1f, 0.5f), Quaternion.identity, structureMask)) continue;
+                    found = p;
+                    break;
+                }
+            }
+
+            if (sampleNavMesh &&
+                UnityEngine.AI.NavMesh.SamplePosition(found, out UnityEngine.AI.NavMeshHit nav, 10f, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                found = nav.position;
+            }
+            return found;
+        }
+
+        /// <summary>
         /// สั่งให้เกิดภัยพิบัติทันทีแบบกำหนดเอง (เช่น จากปุ่ม Debug UI)
         /// </summary>
         public void TriggerDisasterDirectly(DisasterData data)
@@ -348,6 +435,16 @@ namespace Simulation.Mission
             {
                 // ประเมินผล
                 lastStarRating = EvaluateResult();
+
+                // ── เซฟดาว + ปลดล็อกด่านถัดไป (ถาวรด้วย PlayerPrefs) ──
+                // ข้ามโหมด sandbox เพราะใช้ MissionData ร่วมกับ Lv.5 (กันดาว sandbox ไปปนกับด่านจริง)
+                bool isSandboxScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.ToLower().Contains("sandbox");
+                if (!isSandboxScene && currentMission != null)
+                {
+                    Simulation.Core.ProgressSave.SetStars(currentMission.missionName, lastStarRating);
+                    if (lastStarRating >= 1 && currentMission.nextMission != null)
+                        Simulation.Core.ProgressSave.SetUnlocked(currentMission.nextMission.missionName, true);
+                }
 
                 // แสดงผล
                 Debug.Log($"<color=yellow>★ Mission Complete: {currentMission.missionName} — {lastStarRating} Star(s)!</color>");

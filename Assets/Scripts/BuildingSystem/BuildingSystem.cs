@@ -47,6 +47,8 @@ namespace Simulation.Building
 
         [Header("Budget")]
         private float _currentBudget;
+        // งบประมาณตั้งต้น (บันทึกตอน SetBudget) ใช้คำนวณ "เงินที่ใช้ไป" ในโหมด sandbox
+        private float _startingBudget;
 
         [Header("General SFX / VFX")]
         [SerializeField] private AudioClip generalPlaceSound;
@@ -118,6 +120,10 @@ namespace Simulation.Building
         private Collider _moveOriginalTargetCol;
 
         public float CurrentBudget => _currentBudget;
+        /// <summary>งบประมาณตั้งต้นของด่าน/รอบนี้</summary>
+        public float StartingBudget => _startingBudget;
+        /// <summary>เงินที่ใช้ไปทั้งหมด (งบตั้งต้น − งบคงเหลือ) — ใช้แสดงในโหมด sandbox</summary>
+        public float AmountSpent => _startingBudget - _currentBudget;
         public BuildMode CurrentMode => _currentMode;
         public bool IsPlacing => _currentMode == BuildMode.Placing;
         public bool IsMoving => _currentMode == BuildMode.Moving;
@@ -143,6 +149,7 @@ namespace Simulation.Building
         public void SetBudget(float amount)
         {
             _currentBudget = amount;
+            _startingBudget = amount; // จำงบตั้งต้นไว้คำนวณเงินที่ใช้ไป
         }
 
         public void SetGridDimensions(int cols, int rows)

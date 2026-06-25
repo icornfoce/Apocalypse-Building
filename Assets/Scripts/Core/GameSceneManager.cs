@@ -87,6 +87,7 @@ namespace Simulation.Core
         private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
         {
             IsLoading = false;
+            Time.timeScale = 1f; // รีเซ็ตเวลาให้กลับมาเป็นปกติ (1x) ทุกครั้งที่เปลี่ยนซีน
             if (logTransitions) Debug.Log($"[GameSceneManager] โหลดซีนเสร็จ: {scene.name}");
             OnAfterSceneLoad?.Invoke(scene.name);
         }

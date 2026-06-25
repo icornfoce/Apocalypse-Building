@@ -660,7 +660,14 @@ namespace Simulation.Building
                 {
                     ClearHover();
                     _hoveredUnit = unit;
-                    if (_hoveredUnit != null) _hoveredUnit.SetHighlight(true);
+                    if (_hoveredUnit != null)
+                    {
+                        // โหมดลบ = ไฮไลต์ + outline สีแดง, โหมดอื่น (ย้าย/ทาสี) = สีปกติ
+                        if (_currentMode == BuildMode.Deleting)
+                            _hoveredUnit.SetHighlight(true, Color.red);
+                        else
+                            _hoveredUnit.SetHighlight(true);
+                    }
                 }
             }
             else

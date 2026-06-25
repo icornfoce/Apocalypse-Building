@@ -13,6 +13,13 @@ namespace Simulation.Building
         [SerializeField] private Color validColor = new Color(0f, 1f, 0f, 0.5f);
         [SerializeField] private Color invalidColor = new Color(1f, 0f, 0f, 0.5f);
 
+        [Header("Outline (Toon) — ขณะลาก/วาง/ย้าย")]
+        [Tooltip("เปิด Outline รอบ ghost ที่กำลังลาก/ย้าย")]
+        [SerializeField] private bool useOutline = true;
+        [SerializeField] private Color outlineValidColor = Color.white;
+        [SerializeField] private Color outlineInvalidColor = new Color(1f, 0.35f, 0.35f, 1f);
+        [SerializeField] private float outlineWidth = 5f;
+
         private List<GameObject> _ghostTemplates = new List<GameObject>();
         private List<Vector3> _templateOffsets = new List<Vector3>();
         private List<float> _templateRotations = new List<float>();
@@ -95,6 +102,9 @@ namespace Simulation.Building
                     _ghostMaterials.Add(mat);
                 }
             }
+
+            // Outline (toon) รอบ ghost ที่กำลังลาก/ย้าย
+            if (useOutline) OutlineHelper.Apply(inst, _isValid ? outlineValidColor : outlineInvalidColor, outlineWidth);
         }
 
         private void SetupTransparentMaterial(Material mat)
@@ -230,6 +240,14 @@ namespace Simulation.Building
             {
                 if (_ghostMaterials[i] == null) { _ghostMaterials.RemoveAt(i); continue; }
                 _ghostMaterials[i].color = targetColor;
+            }
+
+            // อัปเดตสี Outline ตามสถานะวาง (valid/invalid)
+            if (useOutline)
+            {
+                Color oc = isValid ? outlineValidColor : outlineInvalidColor;
+                foreach (var inst in _ghostInstances)
+                    if (inst != null) OutlineHelper.Apply(inst, oc, outlineWidth);
             }
         }
 

@@ -21,6 +21,10 @@ namespace Simulation.Building
         [Header("Highlight")]
         [SerializeField] private Color highlightColor = new Color(1f, 1f, 0.5f, 1f);
 
+        [Tooltip("เปิด Outline (toon) ตอนถูกไฮไลต์ (hover ตอนย้าย/ลบ หรือเลือกหลายชิ้น)")]
+        [SerializeField] private bool useOutline = true;
+        [SerializeField] private float outlineWidth = 5f;
+
         public StructureData Data => data;
         public MaterialData CurrentMaterial => currentMaterial;
         public float CurrentHP => _currentHP;
@@ -179,6 +183,13 @@ namespace Simulation.Building
         {
             if (_isHighlighted == highlighted && color == null) return;
             _isHighlighted = highlighted;
+
+            // Outline (toon) ตอนถูกไฮไลต์ — ใช้ตอน hover เพื่อย้าย/ลบ หรือเลือกหลายชิ้น
+            if (useOutline)
+            {
+                if (highlighted) OutlineHelper.Apply(gameObject, color ?? highlightColor, outlineWidth);
+                else OutlineHelper.Disable(gameObject);
+            }
 
             if (_renderers.Count == 0) CacheRenderers();
 

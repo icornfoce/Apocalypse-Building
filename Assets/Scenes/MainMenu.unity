@@ -1445,56 +1445,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1.0000005}
   m_Center: {x: 0.00000023841858, y: 0.0000009536743, z: 0.000030517578}
---- !u!1 &693218836
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 693218838}
-  - component: {fileID: 693218837}
-  m_Layer: 0
-  m_Name: MenuBuildingBackground
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &693218837
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 693218836}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5a02787c2f23f764d9f6fd2ba3019209, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Simulation.UI.MainMenuBuildingBackground
-  backgroundSceneName: sandbox
-  menuCamera: {fileID: 1069816839}
-  orbitPivot: {x: 0, y: 5, z: 0}
-  orbitDistance: 24
-  orbitHeight: 10
-  orbitSpeed: 8
---- !u!4 &693218838
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 693218836}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &719876957
 GameObject:
   m_ObjectHideFlags: 0
@@ -2180,6 +2130,75 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 775905427}
   m_CullTransparentMesh: 1
+--- !u!1 &788145409
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 788145411}
+  - component: {fileID: 788145410}
+  m_Layer: 0
+  m_Name: MainMenuAutoBuilder
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &788145410
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 788145409}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 25b96d0896300664ea46253a26c55930, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Simulation.UI.MainMenuAutoBuilder
+  buildingSystem: {fileID: 0}
+  pillarData: {fileID: 11400000, guid: 8d1ff23b2954fd647acab440b9b3a416, type: 2}
+  floorData: {fileID: 11400000, guid: 84aee6cf8e1e9ff4ea9bb0a754c40a30, type: 2}
+  materials:
+  - {fileID: 11400000, guid: 829f48f1ccaf61443afdeda45981932d, type: 2}
+  - {fileID: 11400000, guid: 24f50ab1c493b004587d89deb647c4bf, type: 2}
+  - {fileID: 11400000, guid: 3bf865eadbe107d42802bd40ca801f84, type: 2}
+  disasters:
+  - {fileID: 11400000, guid: c68c3bc1489cefe46b5da972520d356e, type: 2}
+  - {fileID: 11400000, guid: 5f25a7f7856cf4b4aa5ff5f081ad48de, type: 2}
+  - {fileID: 11400000, guid: 48f7c7d3298968b48adaebc85312cc2e, type: 2}
+  - {fileID: 11400000, guid: a6bdbd91f8127a040b6b32277e8cce5a, type: 2}
+  minBudget: 5000
+  maxBudget: 50000
+  minFloors: 1
+  maxFloors: 10
+  minFootprint: 2
+  maxFootprint: 4
+  minDisasters: 1
+  maxDisasters: 3
+  firstDisasterDelay: 4
+  disasterGap: {x: 5, y: 9}
+  startDelay: 0.5
+  placeStepDelay: 0.04
+  startSimDelay: 1
+--- !u!4 &788145411
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 788145409}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &821994087
 GameObject:
   m_ObjectHideFlags: 0
@@ -2561,6 +2580,7 @@ GameObject:
   - component: {fileID: 1069816838}
   - component: {fileID: 1069816841}
   - component: {fileID: 1069816842}
+  - component: {fileID: 1069816843}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -2711,6 +2731,27 @@ MonoBehaviour:
   useStagger: 1
   delayBetweenButtons: 0.15
   baseDelay: 0.1
+--- !u!114 &1069816843
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1069816837}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e2b995de17f95a4da9f34ec70965fa5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Simulation.UI.MenuOrbitCamera
+  pivot: {x: 0, y: 5, z: 0}
+  distance: 24
+  height: 10
+  rotateSpeed: 8
+  startYaw: 45
+  autoFrame: 1
+  reframeInterval: 0.5
+  framePadding: 1.7
+  followLerp: 2
 --- !u!1 &1071929027
 GameObject:
   m_ObjectHideFlags: 0
@@ -4486,6 +4527,92 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1921662603
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1921662606}
+  - component: {fileID: 1921662605}
+  - component: {fileID: 1921662604}
+  m_Layer: 0
+  m_Name: BuildingSystem
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1921662604
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1921662603}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7f1af6dadddec0942b0f4d68827087b8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Simulation.Building.GhostBuilder
+  validColor: {r: 0, g: 1, b: 0, a: 0.27450982}
+  invalidColor: {r: 1, g: 0, b: 0, a: 0.27450982}
+  useOutline: 1
+  outlineValidColor: {r: 1, g: 1, b: 1, a: 1}
+  outlineInvalidColor: {r: 1, g: 0.35, b: 0.35, a: 1}
+  outlineWidth: 5
+--- !u!114 &1921662605
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1921662603}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a81db5a346a70474ab76f0bc5a670dae, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Simulation.Building.BuildingSystem
+  useGridSnap: 1
+  gridSize: 1
+  gridColumns: 10
+  gridRows: 10
+  snapYToGrid: 1
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 8
+  structureLayer:
+    serializedVersion: 2
+    m_Bits: 64
+  jointHitboxExpand: 0.15
+  heightStep: 2
+  pillarReference: {fileID: 11400000, guid: 8d1ff23b2954fd647acab440b9b3a416, type: 2}
+  generalPlaceSound: {fileID: 0}
+  generalSellSound: {fileID: 8300000, guid: cb1bec34052912f4dadc6979b3f28ba5, type: 3}
+  generalPaintSound: {fileID: 0}
+  generalUndoSound: {fileID: 8300000, guid: 07c84a0d919106845950593639ff886d, type: 3}
+  generalRedoSound: {fileID: 8300000, guid: 07c84a0d919106845950593639ff886d, type: 3}
+  generalErrorSound: {fileID: 8300000, guid: b3a8b08a192266044b0da722ea3813d3, type: 3}
+  generalSellVFX: {fileID: 0}
+  mainCamera: {fileID: 0}
+  ghostBuilder: {fileID: 1921662604}
+--- !u!4 &1921662606
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1921662603}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 1, z: 0}
+  m_LocalScale: {x: 1.5, y: 1, z: 1.5}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1951017003
 GameObject:
   m_ObjectHideFlags: 0
@@ -4676,4 +4803,5 @@ SceneRoots:
   - {fileID: 1237417415}
   - {fileID: 138424948}
   - {fileID: 236874432}
-  - {fileID: 693218838}
+  - {fileID: 1921662606}
+  - {fileID: 788145411}

@@ -35,8 +35,8 @@ namespace Simulation.UI
 
         private Renderer _renderer;
         private Material _material;
-        private Vector3 _originalPosition;
-        private Quaternion _originalRotation;
+        private Vector3 _originalLocalPosition;
+        private Quaternion _originalLocalRotation;
         private Vector3 _originalScale;
         private UnityEngine.Camera _mainCamera;
 
@@ -50,8 +50,8 @@ namespace Simulation.UI
                 _material.color = normalColor;
             }
 
-            _originalPosition = transform.position;
-            _originalRotation = transform.rotation;
+            _originalLocalPosition = transform.localPosition;
+            _originalLocalRotation = transform.localRotation;
             _originalScale = transform.localScale;
             _mainCamera = UnityEngine.Camera.main;
         }
@@ -70,8 +70,8 @@ namespace Simulation.UI
                 _material.DOKill();
                 _material.color = normalColor;
             }
-            transform.position = _originalPosition;
-            transform.rotation = _originalRotation;
+            transform.localPosition = _originalLocalPosition;
+            transform.localRotation = _originalLocalRotation;
             transform.localScale = _originalScale;
         }
 
@@ -90,13 +90,13 @@ namespace Simulation.UI
         {
             transform.DOKill();
             
-            // Set starting position to the left of the original position
-            Vector3 startPos = _originalPosition - new Vector3(slideDistance, 0f, 0f);
-            transform.position = startPos;
+            // Set starting position to the left of the original local position
+            Vector3 startPos = _originalLocalPosition - new Vector3(slideDistance, 0f, 0f);
+            transform.localPosition = startPos;
             transform.localScale = _originalScale; // Reset scale during entrance
             
-            // Slide to the original position
-            transform.DOMove(_originalPosition, slideDuration)
+            // Slide to the original local position
+            transform.DOLocalMove(_originalLocalPosition, slideDuration)
                 .SetDelay(delay)
                 .SetEase(slideEase);
         }
@@ -162,8 +162,12 @@ namespace Simulation.UI
                     // Calculate the look rotation facing the mouse point
                     Quaternion targetRotation = Quaternion.LookRotation(direction, Vector3.up);
 
-                    // Calculate relative rotation to original rotation
-                    Quaternion relativeRot = Quaternion.Inverse(_originalRotation) * targetRotation;
+                    // Calculate relative rotation to original rotation (use world rotation of base)
+                    Quaternion baseWorldRotation = transform.parent != null 
+                        ? transform.parent.rotation * _originalLocalRotation 
+                        : _originalLocalRotation;
+                    
+                    Quaternion relativeRot = Quaternion.Inverse(baseWorldRotation) * targetRotation;
                     Vector3 relativeEuler = relativeRot.eulerAngles;
 
                     // Normalize Euler angles to -180 to 180 range
@@ -174,8 +178,8 @@ namespace Simulation.UI
                     relX = Mathf.Clamp(relX, -maxTiltAngle, maxTiltAngle);
                     relY = Mathf.Clamp(relY, -maxTiltAngle, 0f);
 
-                    // Reconstruct target rotation relative to the original rotation
-                    targetRotation = _originalRotation * Quaternion.Euler(relX, relY, 0f);
+                    // Reconstruct target rotation relative to the base world rotation
+                    targetRotation = baseWorldRotation * Quaternion.Euler(relX, relY, 0f);
 
                     transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSmoothSpeed);
                 }

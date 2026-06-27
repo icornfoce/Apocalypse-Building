@@ -91,6 +91,16 @@ namespace Simulation.UI
         // โหมด sandbox: แสดง "เงินที่ใช้ไป" (บวก) แทนงบคงเหลือที่อาจติดลบ
         private bool _isSandbox;
 
+        // แคชค่าที่แสดงผล เพื่อไม่ให้ Update() สร้าง string ใหม่ทุกเฟรม (ลด GC)
+        private float _lastBudgetValue = float.NaN;
+        private int _lastTimerQuant = int.MinValue;
+
+        // ข้อความคงที่ (รวม magic string ไว้ที่เดียว)
+        private const string LevelSelectSceneName = "LevelSelect";
+        private const string MissionCompleteTitle = "MISSION COMPLETE!";
+        private const string StartLabel = "START";
+        private const string StopLabel = "STOP";
+
         private void Start()
         {
             // ตรวจว่าเป็นโหมด sandbox จากชื่อซีน (sandbox ใช้ MissionData ร่วมกับ Lv.5 จึงแยกด้วยชื่อซีน)
@@ -110,33 +120,14 @@ namespace Simulation.UI
                 MissionManager.Instance.OnValidationFailed += HandleValidationFailed;
             }
 
-            if (startSimButton != null)
-            {
-                startSimButton.onClick.AddListener(OnStartButtonClick);
-            }
-
-            if (stopSimButton != null)
-            {
-                stopSimButton.onClick.AddListener(OnStopButtonClick);
-            }
-
-            if (restartButton != null)
-            {
-                restartButton.onClick.AddListener(OnRestartClick);
-            }
-
-            if (nextLevelButton != null)
-            {
-                nextLevelButton.onClick.AddListener(OnNextLevelClick);
-            }
-
-            if (levelSelectButton != null)
-            {
-                levelSelectButton.onClick.AddListener(OnBackToLevelSelectClick);
-            }
+            if (startSimButton != null) startSimButton.onClick.AddListener(OnStartButtonClick);
+            if (stopSimButton != null) stopSimButton.onClick.AddListener(OnStopButtonClick);
+            if (restartButton != null) restartButton.onClick.AddListener(OnRestartClick);
+            if (nextLevelButton != null) nextLevelButton.onClick.AddListener(OnNextLevelClick);
+            if (levelSelectButton != null) levelSelectButton.onClick.AddListener(OnBackToLevelSelectClick);
 
             if (errorText != null) errorText.gameObject.SetActive(false);
-            
+
             // เก็บสีเริ่มต้น
             if (floorsStatusText != null) _originalFloorsColor = floorsStatusText.color;
             if (areaStatusText != null) _originalAreaColor = areaStatusText.color;
@@ -150,43 +141,8 @@ namespace Simulation.UI
 
         private void Update()
         {
-            // อัปเดตเงินทุกเฟรม
-            if (budgetText != null && BuildingSystem.Instance != null)
-            {
-                if (_isSandbox)
-                {
-                    // โหมด sandbox: แสดง "เงินที่ใช้ไป" เป็นค่าบวก (ไม่ติดลบ)
-                    float spent = Mathf.Max(0f, BuildingSystem.Instance.AmountSpent);
-                    budgetText.text = $"${spent:F0}";
-                    budgetText.color = Color.white;
-                }
-                else
-                {
-                    budgetText.text = $"${BuildingSystem.Instance.CurrentBudget:F0}";
-                    budgetText.color = BuildingSystem.Instance.CurrentBudget >= 0 ? Color.white : Color.red;
-                }
-            }
-
-            // อัปเดตเวลาและสถานะด่าน
-            if (MissionManager.Instance != null)
-            {
-                if (MissionManager.Instance.IsMissionActive)
-                {
-                    if (timerText != null)
-                    {
-                        timerText.text = $"Time: {MissionManager.Instance.SimulationTimeRemaining:F1}s";
-                    }
-                }
-                else
-                {
-                    // อัปเดตสถานะเงื่อนไข (แบบ Realtime ก่อนเริ่ม) โดยเช็คเป็นระยะแทนทุกเฟรม
-                    if (Time.time - _lastStatsCheckTime >= StatsUpdateInterval)
-                    {
-                        _lastStatsCheckTime = Time.time;
-                        UpdateRequirementStatus();
-                    }
-                }
-            }
+            UpdateBudgetText();
+            UpdateTimerAndRequirements();
         }
 
         private void OnEnable()
@@ -205,6 +161,56 @@ namespace Simulation.UI
             }
         }
 
+        // ────────────────────────────────────────────────────────────────
+        // Per-frame display (อัปเดตข้อความเฉพาะตอนค่าจริงเปลี่ยน เพื่อเลี่ยง GC)
+        // ────────────────────────────────────────────────────────────────
+
+        private void UpdateBudgetText()
+        {
+            if (budgetText == null || BuildingSystem.Instance == null) return;
+
+            // sandbox: แสดง "เงินที่ใช้ไป" เป็นค่าบวก (ไม่ติดลบ), ปกติ: แสดงงบคงเหลือ
+            float value = _isSandbox
+                ? Mathf.Max(0f, BuildingSystem.Instance.AmountSpent)
+                : BuildingSystem.Instance.CurrentBudget;
+
+            if (value == _lastBudgetValue) return; // ค่าไม่เปลี่ยน ไม่ต้องสร้าง string ใหม่
+
+            _lastBudgetValue = value;
+            budgetText.text = $"${value:F0}";
+            budgetText.color = (_isSandbox || value >= 0) ? Color.white : Color.red;
+        }
+
+        private void UpdateTimerAndRequirements()
+        {
+            if (MissionManager.Instance == null) return;
+
+            if (MissionManager.Instance.IsMissionActive)
+            {
+                if (timerText == null) return;
+
+                // อัปเดตเวลาเฉพาะตอนค่าที่แสดง (ทศนิยม 1 ตำแหน่ง) เปลี่ยนจริง
+                float remaining = MissionManager.Instance.SimulationTimeRemaining;
+                int quant = Mathf.RoundToInt(remaining * 10f);
+                if (quant != _lastTimerQuant)
+                {
+                    _lastTimerQuant = quant;
+                    timerText.text = $"Time: {remaining:F1}s";
+                }
+            }
+            else
+            {
+                _lastTimerQuant = int.MinValue; // รีเซ็ตให้รอบจำลองถัดไปอัปเดตเวลาแน่นอน
+
+                // อัปเดตสถานะเงื่อนไข (แบบ Realtime ก่อนเริ่ม) โดยเช็คเป็นระยะแทนทุกเฟรม
+                if (Time.time - _lastStatsCheckTime >= StatsUpdateInterval)
+                {
+                    _lastStatsCheckTime = Time.time;
+                    UpdateRequirementStatus();
+                }
+            }
+        }
+
         public void UpdateMissionInfo()
         {
             if (MissionManager.Instance == null || MissionManager.Instance.CurrentMission == null) return;
@@ -212,7 +218,7 @@ namespace Simulation.UI
             var mission = MissionManager.Instance.CurrentMission;
             if (missionNameText != null) missionNameText.text = mission.missionName;
             if (missionDescText != null) missionDescText.text = mission.description;
-            
+
             // รีเซ็ตสถานะข้อความเงื่อนไขให้เป็นปัจจุบันทันที
             UpdateRequirementStatus();
         }
@@ -230,39 +236,11 @@ namespace Simulation.UI
             var mission = MissionManager.Instance.CurrentMission;
             var stats = MissionManager.Instance.GetCurrentStats();
 
-            // แสดงสถานะ ชั้น (ซ่อนถ้า 0 = ไม่บังคับ)
-            if (floorsStatusText != null)
-            {
-                if (mission.requiredFloors > 0)
-                {
-                    bool ok = stats.floors >= mission.requiredFloors;
-                    floorsStatusText.text = $"Floors: {stats.floors}/{mission.requiredFloors}";
-                    floorsStatusText.color = ok ? completedColor : _originalFloorsColor;
-                    if (!floorsStatusText.gameObject.activeSelf) floorsStatusText.gameObject.SetActive(true);
-                }
-                else
-                {
-                    if (floorsStatusText.gameObject.activeSelf) floorsStatusText.gameObject.SetActive(false);
-                }
-            }
+            // ชั้น และ พื้นที่ ใช้รูปแบบเดียวกัน (x/y, ซ่อนถ้าไม่บังคับ)
+            UpdateRequirementLine(floorsStatusText, stats.floors, mission.requiredFloors, "Floors", _originalFloorsColor, "");
+            UpdateRequirementLine(areaStatusText, stats.area, mission.requiredAreaPerFloor, "Area", _originalAreaColor, " m²");
 
-            // แสดงสถานะ พื้นที่
-            if (areaStatusText != null)
-            {
-                if (mission.requiredAreaPerFloor > 0)
-                {
-                    bool ok = stats.area >= mission.requiredAreaPerFloor;
-                    areaStatusText.text = $"Area: {stats.area}/{mission.requiredAreaPerFloor} m²";
-                    areaStatusText.color = ok ? completedColor : _originalAreaColor;
-                    if (!areaStatusText.gameObject.activeSelf) areaStatusText.gameObject.SetActive(true);
-                }
-                else
-                {
-                    if (areaStatusText.gameObject.activeSelf) areaStatusText.gameObject.SetActive(false);
-                }
-            }
-
-            // แสดงสถานะ คน
+            // คน: ไม่ซ่อนแม้ไม่บังคับ — บังคับ → "Need N person/people", ไม่บังคับ → จำนวนคนปัจจุบัน
             if (populationStatusText != null)
             {
                 if (mission.requiredPopulation > 0)
@@ -274,11 +252,31 @@ namespace Simulation.UI
                 }
                 else
                 {
-                    // ถ้าไม่ต้องบังคับจำนวนคนขั้นต่ำ ให้ขึ้นแค่จำนวนคนปัจจุบัน
                     populationStatusText.text = $"People: {stats.people}";
                     populationStatusText.color = _originalPopulationColor;
                 }
                 if (!populationStatusText.gameObject.activeSelf) populationStatusText.gameObject.SetActive(true);
+            }
+        }
+
+        /// <summary>
+        /// อัปเดตข้อความเงื่อนไขแบบ "x/y" (เช่น ชั้น, พื้นที่): ซ่อนถ้าไม่บังคับ (required == 0);
+        /// ถ้าบังคับให้แสดงพร้อมสี — ครบเงื่อนไขเป็นสีเขียว ยังไม่ครบใช้สีเดิม
+        /// </summary>
+        private void UpdateRequirementLine(TextMeshProUGUI text, int current, int required, string label, Color originalColor, string suffix)
+        {
+            if (text == null) return;
+
+            if (required > 0)
+            {
+                bool ok = current >= required;
+                text.text = $"{label}: {current}/{required}{suffix}";
+                text.color = ok ? completedColor : originalColor;
+                if (!text.gameObject.activeSelf) text.gameObject.SetActive(true);
+            }
+            else if (text.gameObject.activeSelf)
+            {
+                text.gameObject.SetActive(false);
             }
         }
 
@@ -307,19 +305,10 @@ namespace Simulation.UI
         private void HandleMissionStarted()
         {
             UpdateButtonStates(true);
-            
-            if (UIManager.Instance != null)
-            {
-                if (missionPanel != null) UIManager.Instance.CloseScreen(missionPanel);
-                if (gameplayHUD != null) UIManager.Instance.OpenScreen(gameplayHUD);
-                if (resultsPanel != null) UIManager.Instance.CloseScreen(resultsPanel);
-            }
-            else
-            {
-                if (missionPanel != null) missionPanel.SetActive(false);
-                if (gameplayHUD != null) gameplayHUD.SetActive(true);
-                if (resultsPanel != null) resultsPanel.SetActive(false);
-            }
+
+            SetScreen(missionPanel, false);
+            SetScreen(gameplayHUD, true);
+            SetScreen(resultsPanel, false);
 
             if (errorText != null) errorText.gameObject.SetActive(false);
 
@@ -332,38 +321,20 @@ namespace Simulation.UI
         {
             UpdateButtonStates(false);
 
-            if (UIManager.Instance != null)
-            {
-                if (resultsPanel != null) UIManager.Instance.CloseScreen(resultsPanel);
-                if (gameplayHUD != null) UIManager.Instance.OpenScreen(gameplayHUD);
-                if (missionPanel != null) UIManager.Instance.OpenScreen(missionPanel);
-            }
-            else
-            {
-                if (resultsPanel != null) resultsPanel.SetActive(false);
-                if (gameplayHUD != null) gameplayHUD.SetActive(true);
-                if (missionPanel != null) missionPanel.SetActive(true);
-            }
+            SetScreen(resultsPanel, false);
+            SetScreen(gameplayHUD, true);
+            SetScreen(missionPanel, true);
         }
 
         private void HandleMissionCompleted(int stars)
         {
             UpdateButtonStates(false);
-            
-            if (UIManager.Instance != null)
-            {
-                if (resultsPanel != null) UIManager.Instance.OpenScreen(resultsPanel);
-                if (gameplayHUD != null) UIManager.Instance.CloseScreen(gameplayHUD);
-                if (missionPanel != null) UIManager.Instance.CloseScreen(missionPanel);
-            }
-            else
-            {
-                if (resultsPanel != null) resultsPanel.SetActive(true);
-                if (gameplayHUD != null) gameplayHUD.SetActive(false);
-                if (missionPanel != null) missionPanel.SetActive(false);
-            }
 
-            if (resultTitleText != null) resultTitleText.text = "MISSION COMPLETE!";
+            SetScreen(resultsPanel, true);
+            SetScreen(gameplayHUD, false);
+            SetScreen(missionPanel, false);
+
+            if (resultTitleText != null) resultTitleText.text = MissionCompleteTitle;
 
             // ซ่อนดาวทั้งหมดก่อน แล้วค่อยๆ ขึ้นทีละดวงพร้อมเสียง
             if (starEntries != null)
@@ -431,24 +402,15 @@ namespace Simulation.UI
         }
 
         /// <summary>
-        /// เรียกใช้งานโดยปุ่ม Restart บน Results Panel หรือปุ่มอื่นๆ
+        /// เรียกใช้งานโดยปุ่ม Restart บน Results Panel หรือปุ่มอื่นๆ
         /// ทำหน้าที่แค่ปิดหน้าต่างสรุปผล เพื่อให้ผู้เล่นแก้สิ่งก่อสร้างต่อได้
         /// </summary>
         public void OnRestartClick()
         {
-            if (UIManager.Instance != null)
-            {
-                if (resultsPanel != null) UIManager.Instance.CloseScreen(resultsPanel);
-                if (gameplayHUD != null) UIManager.Instance.OpenScreen(gameplayHUD);
-                if (missionPanel != null) UIManager.Instance.OpenScreen(missionPanel);
-            }
-            else
-            {
-                if (resultsPanel != null) resultsPanel.SetActive(false);
-                if (gameplayHUD != null) gameplayHUD.SetActive(true);
-                if (missionPanel != null) missionPanel.SetActive(true);
-            }
-            
+            SetScreen(resultsPanel, false);
+            SetScreen(gameplayHUD, true);
+            SetScreen(missionPanel, true);
+
             UpdateButtonStates(false);
 
             // รีเซ็ต PersonTarget ทั้งหมดให้กลับมาแสดงผล (Marker) ผ่าน MissionManager
@@ -469,19 +431,11 @@ namespace Simulation.UI
             if (nextMission != null)
             {
                 MissionManager.Instance.SetMission(nextMission);
-                
+
                 // ปิดหน้าสรุปผล และเปิดหน้าข้อมูลด่านใหม่
-                if (UIManager.Instance != null)
-                {
-                    if (resultsPanel != null) UIManager.Instance.CloseScreen(resultsPanel);
-                    if (missionPanel != null) UIManager.Instance.OpenScreen(missionPanel);
-                }
-                else
-                {
-                    if (resultsPanel != null) resultsPanel.SetActive(false);
-                    if (missionPanel != null) missionPanel.SetActive(true);
-                }
-                
+                SetScreen(resultsPanel, false);
+                SetScreen(missionPanel, true);
+
                 UpdateMissionInfo();
                 Debug.Log($"[MissionUI] Transition to next level: {nextMission.missionName}");
             }
@@ -499,11 +453,30 @@ namespace Simulation.UI
         {
             if (GameSceneManager.Instance != null)
             {
-                GameSceneManager.Instance.LoadScene("LevelSelect");
+                GameSceneManager.Instance.LoadScene(LevelSelectSceneName);
             }
             else
             {
-                UnityEngine.SceneManagement.SceneManager.LoadScene("LevelSelect");
+                UnityEngine.SceneManagement.SceneManager.LoadScene(LevelSelectSceneName);
+            }
+        }
+
+        /// <summary>
+        /// เปิด/ปิดหน้าจอ UI — ใช้ UIManager ถ้ามี (เพื่อให้จัดการ transition กลาง),
+        /// ถ้าไม่มีค่อย fallback ไป SetActive ตรง ๆ
+        /// </summary>
+        private void SetScreen(GameObject panel, bool open)
+        {
+            if (panel == null) return;
+
+            if (UIManager.Instance != null)
+            {
+                if (open) UIManager.Instance.OpenScreen(panel);
+                else UIManager.Instance.CloseScreen(panel);
+            }
+            else
+            {
+                panel.SetActive(open);
             }
         }
 
@@ -522,7 +495,7 @@ namespace Simulation.UI
                 startSimButton.gameObject.SetActive(true);
                 if (startButtonText != null)
                 {
-                    startButtonText.text = isSimulating ? "STOP" : "START";
+                    startButtonText.text = isSimulating ? StopLabel : StartLabel;
                 }
             }
         }

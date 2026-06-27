@@ -207,10 +207,11 @@ namespace Simulation.Mission
                 return;
             }
 
-            // ให้แน่ใจว่ามีการจำลองทำงานอยู่ (มี NavMesh) — เหมือน TriggerDisasterDirectly
-            if (Simulation.Physics.SimulationManager.Instance != null && !Simulation.Physics.SimulationManager.Instance.IsSimulating)
+            // ปุ่ม spawn zombie จะทำงานได้เฉพาะเมื่อ "เริ่มเล่น" (เริ่มการจำลอง) ไปแล้วเท่านั้น
+            // ถ้ายังไม่เริ่มเล่น: จะไม่เริ่ม Simulation ให้เอง และไม่เสกซอมบี้ (เพราะยังไม่มี NavMesh)
+            if (Simulation.Physics.SimulationManager.Instance == null || !Simulation.Physics.SimulationManager.Instance.IsSimulating)
             {
-                Simulation.Physics.SimulationManager.Instance.StartSimulation();
+                return;
             }
             if (!isMissionActive)
             {
@@ -286,11 +287,11 @@ namespace Simulation.Mission
         {
             if (data == null) return;
 
-            // ตรวจสอบว่ามีการจำลอง (Simulation) ทำงานอยู่หรือไม่
-            // ถ้าไม่ทำงาน ให้เริ่มการจำลองเพื่อให้ฟิสิกส์ทำงานด้วย
-            if (Simulation.Physics.SimulationManager.Instance != null && !Simulation.Physics.SimulationManager.Instance.IsSimulating)
+            // ปุ่ม trigger จะเรียกภัยพิบัติได้เฉพาะเมื่อ "เริ่มเล่น" (เริ่มการจำลอง) ไปแล้วเท่านั้น
+            // ถ้ายังไม่เริ่มเล่น: จะไม่เริ่ม Simulation ให้เอง และไม่ทำอะไร (จะกลับมาทำงานได้เมื่อกด Start เริ่มเล่นแล้ว)
+            if (Simulation.Physics.SimulationManager.Instance == null || !Simulation.Physics.SimulationManager.Instance.IsSimulating)
             {
-                Simulation.Physics.SimulationManager.Instance.StartSimulation();
+                return;
             }
 
             // ถ้าไม่มีการเปิดด่าน (isMissionActive = false) ให้ตั้งเป็น true ชั่วคราวเพื่อให้ภัยพิบัติทำงานสมบูรณ์

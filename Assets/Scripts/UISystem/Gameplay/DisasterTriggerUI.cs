@@ -46,6 +46,9 @@ namespace Simulation.UI
         }
         private readonly List<ZombieOption> _zombieOptions = new List<ZombieOption>();
 
+        // CanvasGroup ของแผง — ใช้ซ่อน/แสดงแบบไม่ปิด GameObject (เพื่อให้ Update ยังทำงานตรวจเฟสได้)
+        private CanvasGroup _panelGroup;
+
         private void Start()
         {
             // ── แสดงเฉพาะโหมด sandbox ──
@@ -57,12 +60,40 @@ namespace Simulation.UI
                 return;
             }
 
+            // เตรียม CanvasGroup ไว้ซ่อน/แสดงแผง โดยไม่ปิด GameObject (Update จะได้ทำงานตรวจเฟสต่อได้)
+            _panelGroup = root.GetComponent<CanvasGroup>();
+            if (_panelGroup == null) _panelGroup = root.AddComponent<CanvasGroup>();
+
             InitializeDisasterDropdown();
             InitializeZombieDropdown();
 
             if (triggerButton != null) triggerButton.onClick.AddListener(OnTriggerClick);
             if (stopAllButton != null) stopAllButton.onClick.AddListener(OnStopAllClick);
             if (spawnZombieButton != null) spawnZombieButton.onClick.AddListener(OnSpawnZombieClick);
+
+            // ซ่อนแผงไว้ก่อน จะแสดงเฉพาะตอนกดเริ่ม (เริ่มการจำลอง) เท่านั้น
+            SetPanelVisible(false);
+        }
+
+        private void Update()
+        {
+            // ── แผง Disaster Trigger จะแสดงเฉพาะตอนกดเริ่ม (เริ่มการจำลอง) เท่านั้น ──
+            // ก่อนกดเริ่ม (เฟสสร้าง) แผงจะถูกซ่อนไว้ และจะกลับมาซ่อนเมื่อหยุดจำลอง
+            bool isSimulating = Simulation.Physics.SimulationManager.Instance != null
+                                && Simulation.Physics.SimulationManager.Instance.IsSimulating;
+
+            SetPanelVisible(isSimulating);
+        }
+
+        /// <summary>
+        /// ซ่อน/แสดงแผงด้วย CanvasGroup (ไม่ปิด GameObject เพื่อให้ Update ยังทำงาน)
+        /// </summary>
+        private void SetPanelVisible(bool visible)
+        {
+            if (_panelGroup == null) return;
+            _panelGroup.alpha = visible ? 1f : 0f;
+            _panelGroup.interactable = visible;
+            _panelGroup.blocksRaycasts = visible;
         }
 
         // ────────────────────────────────────────────────────────────────

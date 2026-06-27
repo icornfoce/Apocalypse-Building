@@ -1271,11 +1271,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: aef49a7b0c1d8a24f95d79e26616852f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.UI.MainMenu3DButton
+  hoverScaleMultiplier: 1.2
+  scaleDuration: 0.2
   normalColor: {r: 1, g: 1, b: 1, a: 1}
   hoverColor: {r: 0, g: 1, b: 1, a: 1}
   colorTransitionDuration: 0.2
+  useColorTransition: 1
   maxTiltAngle: 15
   rotationSmoothSpeed: 10
+  invertRotation: 1
   slideDistance: 5
   slideDuration: 0.8
   slideDelay: 0
@@ -1295,7 +1299,6 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
-  targetSceneName: 
 --- !u!1 &645100369
 GameObject:
   m_ObjectHideFlags: 0
@@ -1307,6 +1310,8 @@ GameObject:
   - component: {fileID: 645100370}
   - component: {fileID: 645100373}
   - component: {fileID: 645100372}
+  - component: {fileID: 645100375}
+  - component: {fileID: 645100374}
   m_Layer: 0
   m_Name: Mainmenu
   m_TagString: Untagged
@@ -1391,6 +1396,55 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 645100369}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &645100374
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 645100369}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aef49a7b0c1d8a24f95d79e26616852f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Simulation.UI.MainMenu3DButton
+  hoverScaleMultiplier: 1
+  scaleDuration: 1
+  normalColor: {r: 1, g: 1, b: 1, a: 1}
+  hoverColor: {r: 0, g: 1, b: 1, a: 1}
+  colorTransitionDuration: 0.2
+  useColorTransition: 0
+  maxTiltAngle: 15
+  rotationSmoothSpeed: 10
+  invertRotation: 1
+  slideDistance: 5
+  slideDuration: 0.8
+  slideDelay: 0
+  slideEase: 27
+  onClick:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!65 &645100375
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 645100369}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1.0000005}
+  m_Center: {x: 0.00000023841858, y: 0.0000009536743, z: 0.000030517578}
 --- !u!1 &719876957
 GameObject:
   m_ObjectHideFlags: 0
@@ -1623,11 +1677,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: aef49a7b0c1d8a24f95d79e26616852f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.UI.MainMenu3DButton
+  hoverScaleMultiplier: 1.2
+  scaleDuration: 0.2
   normalColor: {r: 1, g: 1, b: 1, a: 1}
   hoverColor: {r: 0, g: 1, b: 1, a: 1}
   colorTransitionDuration: 0.2
+  useColorTransition: 1
   maxTiltAngle: 15
   rotationSmoothSpeed: 10
+  invertRotation: 1
   slideDistance: 5
   slideDuration: 0.8
   slideDelay: 0
@@ -1647,7 +1705,6 @@ MonoBehaviour:
           m_StringArgument: LevelSelect
           m_BoolArgument: 0
         m_CallState: 2
-  targetSceneName: 
 --- !u!1 &738130109
 GameObject:
   m_ObjectHideFlags: 0
@@ -2598,9 +2655,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.UI.MainMenu3DController
   menuButtons:
   - {fileID: 724603558}
-  - {fileID: 1315626361}
+  - {fileID: 0}
   - {fileID: 418895099}
-  - {fileID: 1190817087}
+  - {fileID: 0}
   useStagger: 1
   delayBetweenButtons: 0.15
   baseDelay: 0.1
@@ -3150,11 +3207,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: aef49a7b0c1d8a24f95d79e26616852f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.UI.MainMenu3DButton
+  hoverScaleMultiplier: 1.2
+  scaleDuration: 0.2
   normalColor: {r: 1, g: 1, b: 1, a: 1}
   hoverColor: {r: 0, g: 1, b: 1, a: 1}
   colorTransitionDuration: 0.2
+  useColorTransition: 1
   maxTiltAngle: 15
   rotationSmoothSpeed: 10
+  invertRotation: 1
   slideDistance: 5
   slideDuration: 0.8
   slideDelay: 0
@@ -3174,7 +3235,6 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
-  targetSceneName: 
 --- !u!1 &1205314615
 GameObject:
   m_ObjectHideFlags: 0
@@ -3854,11 +3914,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: aef49a7b0c1d8a24f95d79e26616852f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.UI.MainMenu3DButton
+  hoverScaleMultiplier: 1.2
+  scaleDuration: 0.2
   normalColor: {r: 1, g: 1, b: 1, a: 1}
   hoverColor: {r: 0, g: 1, b: 1, a: 1}
   colorTransitionDuration: 0.2
+  useColorTransition: 1
   maxTiltAngle: 15
   rotationSmoothSpeed: 10
+  invertRotation: 1
   slideDistance: 5
   slideDuration: 0.8
   slideDelay: 0
@@ -3878,7 +3942,6 @@ MonoBehaviour:
           m_StringArgument: sandbox
           m_BoolArgument: 0
         m_CallState: 2
-  targetSceneName: 
 --- !u!1 &1317913862
 GameObject:
   m_ObjectHideFlags: 0

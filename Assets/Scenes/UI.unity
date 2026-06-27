@@ -29964,7 +29964,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 1300}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &1046589163
 MonoBehaviour:
@@ -29978,7 +29978,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3245ec927659c4140ac4f8d17403cc18, type: 3}
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.ContentSizeFitter
-  m_HorizontalFit: 0
+  m_HorizontalFit: 2
   m_VerticalFit: 0
 --- !u!1 &1048259984
 GameObject:
@@ -45101,7 +45101,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -65.74433}
+  m_AnchoredPosition: {x: 0, y: -50}
   m_SizeDelta: {x: 1232.968, y: 871.69604}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1568648480
@@ -49933,8 +49933,8 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 264764858}
   m_HandleRect: {fileID: 264764855}
   m_Direction: 2
-  m_Value: 0
-  m_Size: 1
+  m_Value: 1
+  m_Size: 0.6705354
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:

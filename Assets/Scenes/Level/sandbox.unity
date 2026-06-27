@@ -4325,6 +4325,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.Building.GhostBuilder
   validColor: {r: 0, g: 1, b: 0, a: 0.27450982}
   invalidColor: {r: 1, g: 0, b: 0, a: 0.27450982}
+  useOutline: 1
+  outlineValidColor: {r: 1, g: 1, b: 1, a: 1}
+  outlineInvalidColor: {r: 1, g: 0.35, b: 0.35, a: 1}
+  outlineWidth: 5
 --- !u!114 &1662335993
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4471,6 +4475,75 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1686907483}
   m_CullTransparentMesh: 1
+--- !u!1 &1689583060
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1689583062}
+  - component: {fileID: 1689583061}
+  m_Layer: 0
+  m_Name: MainMenuAutoBuilder
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!114 &1689583061
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1689583060}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 25b96d0896300664ea46253a26c55930, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Simulation.UI.MainMenuAutoBuilder
+  buildingSystem: {fileID: 0}
+  pillarData: {fileID: 11400000, guid: 8d1ff23b2954fd647acab440b9b3a416, type: 2}
+  floorData: {fileID: 11400000, guid: 84aee6cf8e1e9ff4ea9bb0a754c40a30, type: 2}
+  materials:
+  - {fileID: 11400000, guid: 829f48f1ccaf61443afdeda45981932d, type: 2}
+  - {fileID: 11400000, guid: 24f50ab1c493b004587d89deb647c4bf, type: 2}
+  - {fileID: 11400000, guid: 3bf865eadbe107d42802bd40ca801f84, type: 2}
+  disasters:
+  - {fileID: 11400000, guid: c68c3bc1489cefe46b5da972520d356e, type: 2}
+  - {fileID: 11400000, guid: 5f25a7f7856cf4b4aa5ff5f081ad48de, type: 2}
+  - {fileID: 11400000, guid: 48f7c7d3298968b48adaebc85312cc2e, type: 2}
+  - {fileID: 11400000, guid: a6bdbd91f8127a040b6b32277e8cce5a, type: 2}
+  minBudget: 5000
+  maxBudget: 50000
+  minFloors: 1
+  maxFloors: 10
+  minFootprint: 2
+  maxFootprint: 4
+  minDisasters: 1
+  maxDisasters: 3
+  firstDisasterDelay: 4
+  disasterGap: {x: 5, y: 9}
+  startDelay: 0.5
+  placeStepDelay: 0.04
+  startSimDelay: 1
+--- !u!4 &1689583062
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1689583060}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1707664767
 GameObject:
   m_ObjectHideFlags: 0
@@ -5686,3 +5759,4 @@ SceneRoots:
   - {fileID: 959914830}
   - {fileID: 576654973}
   - {fileID: 276231961}
+  - {fileID: 1689583062}

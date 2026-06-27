@@ -507,6 +507,59 @@ namespace Simulation.Building
             return Mathf.Max(0, floor - 1) * step;
         }
 
+        // ────────────────────────────────────────────────────────────────
+        // Auto-build API (ใช้โดยสคริปต์สร้างตึกอัตโนมัติ เช่น MainMenuAutoBuilder)
+        // ────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// แปลง grid cell (column,row แบบ 0..gridColumns-1 / 0..gridRows-1) + ชั้น → ตำแหน่งโลก
+        /// (กึ่งกลางช่อง, ฐานอยู่ที่ระดับของชั้นนั้น) ใช้คอนเวนชัน grid เดียวกับระบบ (grid อยู่กึ่งกลาง world origin)
+        /// </summary>
+        public Vector3 GridCellToWorld(int column, int row, int floor, StructureData data = null)
+        {
+            float x = (-gridColumns * 0.5f + column + 0.5f) * gridSize;
+            float z = (-gridRows * 0.5f + row + 0.5f) * gridSize;
+            float y = GetFloorY(floor);
+            if (data != null) y += GetPivotToBottomOffset(data);
+            return new Vector3(x, y, z);
+        }
+
+        /// <summary>
+        /// วางโครงสร้างแบบเป็นโปรแกรม (auto-build) ที่ตำแหน่งโลกที่กำหนด:
+        /// ตรวจงบก่อน (วางไม่ได้ถ้างบไม่พอ → คืน false), หา collider ตัวรองรับด้านล่างให้อัตโนมัติ
+        /// เพื่อต่อ joint (กันลอย) แล้วหักงบผ่านระบบเดิม
+        /// ควรเรียกตอนยังไม่เริ่ม simulation (เฟสสร้าง) และวางจากชั้นล่างขึ้นบนเพื่อให้มีตัวรองรับเสมอ
+        /// </summary>
+        public bool TryAutoPlace(StructureData data, MaterialData material, Vector3 worldPos, float rotationY)
+        {
+            if (data == null || data.prefab == null) return false;
+
+            MaterialData mat = data.isGadget
+                ? data.defaultMaterial
+                : (material != null ? material : data.defaultMaterial);
+
+            float matPrice = mat != null ? mat.priceModifier : 0f;
+            float cost = GetEffectivePrice(data.basePrice + matPrice);
+            if (cost > _currentBudget) return false; // งบไม่พอ → ไม่วาง
+
+            // หา collider ตัวรองรับด้านล่าง (ground หรือชิ้นที่อยู่ใต้) — ไม่เจอ = ไม่วาง (กันลอยฟ้า 100%)
+            UnityEngine.Physics.SyncTransforms();
+            float pivotToBottom = GetPivotToBottomOffset(data);
+            Vector3 origin = new Vector3(worldPos.x, worldPos.y - pivotToBottom + 0.25f, worldPos.z);
+            if (!UnityEngine.Physics.Raycast(origin, Vector3.down, out RaycastHit hit, 0.6f, groundLayer | structureLayer))
+                return false; // ไม่มีตัวรองรับด้านล่าง → ไม่วาง
+            Collider support = hit.collider;
+
+            StructureData prevData = _selectedData;
+            MaterialData prevMat = _selectedMaterial;
+            _selectedData = data;
+            _selectedMaterial = material;
+            PlaceStructure(worldPos, rotationY, support);
+            _selectedData = prevData;
+            _selectedMaterial = prevMat;
+            return true;
+        }
+
         private void NotifyCameraFloorChanged()
         {
             float floorY = GetFloorY(_currentFloor);

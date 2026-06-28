@@ -56,6 +56,10 @@ namespace Simulation.UI
         [Tooltip("ลาก Panel อุปกรณ์ (Gadget) มาใส่ที่นี่")]
         [SerializeField] private GameObject gadgetPanel;
 
+        [Tooltip("ปุ่ม/Panel ที่จะ 'ซ่อน' อัตโนมัติตอนเริ่มจำลอง (กด Start) แล้วโชว์กลับตอนหยุด — ลากปุ่ม build/debug ทั้งหมดมาใส่ที่นี่")]
+        [SerializeField] private GameObject[] hideDuringSimulation;
+        private bool _wasSimulating = false;
+
         private void Start()
         {
             SetupStructureMaterialSlots();
@@ -292,6 +296,19 @@ namespace Simulation.UI
 
         private void Update()
         {
+            // ── ซ่อนปุ่ม build ตอนเริ่มจำลอง (Play) แล้วโชว์กลับตอนหยุด ──
+            bool sim = Simulation.Physics.SimulationManager.Instance != null
+                       && Simulation.Physics.SimulationManager.Instance.IsSimulating;
+            if (sim != _wasSimulating)
+            {
+                _wasSimulating = sim;
+                if (hideDuringSimulation != null)
+                {
+                    foreach (var go in hideDuringSimulation)
+                        if (go != null) go.SetActive(!sim);
+                }
+            }
+
             // นับเวลากดค้างปุ่ม Delete
             if (_isHoldingDeleteButton && !_deleteAllTriggered)
             {

@@ -43,7 +43,7 @@ namespace Simulation.Building
         [SerializeField] private float heightStep = 3.0f;
 
         [Tooltip("ยกความสูง ghost ตอนวาง 'คน' ขึ้นอีก (กันคนจมผิวพื้น) — ปรับได้ (ตัวรองรับยังเช็คที่ผิวพื้นจริง จึงวางได้เสมอ)")]
-        [SerializeField] private float personPlaceHeightOffset = 0.3f;
+        [SerializeField] private float personPlaceHeightOffset = 0f;
 
         [Tooltip("Optional: Assign your Pillar/Column structure here. Its height will automatically define the Height Step for the whole building.")]
         [SerializeField] private StructureData pillarReference;

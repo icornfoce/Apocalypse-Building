@@ -99,8 +99,8 @@ namespace Simulation.Building
                         break;
                     }
                 }
-                if (nearbyPerson) _shouldBeOpen = true;
-                else if (_occupants.Count == 0) _shouldBeOpen = false;
+                // ปิดเมื่อไม่มีคนอยู่ใกล้ (อิง scan ที่เชื่อถือได้ ไม่พึ่ง _occupants จาก trigger ที่อาจค้าง → กันบั๊กประตูเปิดค้างไม่ปิด)
+                _shouldBeOpen = nearbyPerson;
             }
 
             // กันประตูพังตอนคนเดินชน: ระหว่างมีคนใกล้ (ประตูควรเปิด) ต่ออายุช่วงงดคิดดาเมจจากแรงของโครงสร้าง

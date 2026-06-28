@@ -10,7 +10,8 @@ namespace Simulation.Character
     public class PersonTarget : MonoBehaviour
     {
         [Header("Transparency")]
-        [SerializeField] private float alpha = 0.15f;
+        [Tooltip("ความทึบของ NPC ที่วาง (1 = ทึบเต็ม, ต่ำ = โปร่งจนกลืนสีพื้น) — ปรับได้")]
+        [SerializeField] private float alpha = 0.85f;
 
         [Header("Mission Settings")]
         [Tooltip("ถ้านับเป็นคนในภารกิจ จะถูกนำไปคำนวณจำนวนคนรอดและดาว")]
@@ -18,7 +19,8 @@ namespace Simulation.Character
 
         [Header("Bobbing & Rotation Settings")]
         [SerializeField] private float floatSpeed = 2.0f;
-        [SerializeField] private float floatAmplitude = 0.15f;
+        [Tooltip("ระยะลอยขึ้นลง (มากไป = ดูลอย/จมพื้น) — ปรับได้")]
+        [SerializeField] private float floatAmplitude = 0.06f;
         [SerializeField] private float rotationSpeed = 45.0f; // degrees per second
 
         private float _localStartRawY;

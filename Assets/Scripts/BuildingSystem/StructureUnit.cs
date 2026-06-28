@@ -47,7 +47,8 @@ namespace Simulation.Building
 
             _rotation = rotation;
             CacheRenderers();
-            if (!isGadget)
+            bool isPersonTarget = GetComponentInChildren<Simulation.Character.PersonTarget>() != null;
+            if (!isGadget && !isPersonTarget)
             {
                 ApplyMaterial();
             }

@@ -18,7 +18,9 @@ namespace Simulation.Data
         /// <summary>นักการเมือง — ยกเลิกภาษี (Auto)</summary>
         Politician,
         /// <summary>ทหาร — เรียกทหารมายิงซอมบี้</summary>
-        Commander
+        Commander,
+        /// <summary>ไม่มีสกิล</summary>
+        None
     }
 
     /// <summary>

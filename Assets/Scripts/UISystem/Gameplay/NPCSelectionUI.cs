@@ -247,6 +247,7 @@ namespace Simulation.NPC
                 case NPCSkillType.Architect: return new Color(0.7f, 0.3f, 0.9f);
                 case NPCSkillType.Politician: return new Color(0.2f, 0.2f, 0.8f);
                 case NPCSkillType.Commander: return new Color(0.9f, 0.2f, 0.2f);
+                case NPCSkillType.None: return Color.gray;
                 default: return Color.white;
             }
         }
@@ -261,6 +262,7 @@ namespace Simulation.NPC
                 case NPCSkillType.Architect: return "20% Reflect Damage";
                 case NPCSkillType.Politician: return "No Tax (Auto)";
                 case NPCSkillType.Commander: return "Call Soldier Support";
+                case NPCSkillType.None: return "No Skill";
                 default: return "Unknown";
             }
         }

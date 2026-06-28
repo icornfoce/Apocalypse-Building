@@ -18,7 +18,7 @@ MonoBehaviour:
   placementPrice: 0
   maxHealth: 100
   moveSpeed: 3
-  skillType: 3
+  skillType: 6
   skillCooldown: 0
   skillDuration: 0
   repairPerSecond: 20

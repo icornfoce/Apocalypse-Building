@@ -474,6 +474,7 @@ namespace Simulation.UI
         /// <summary>
         /// เปิด/ปิดหน้าจอ UI — ใช้ UIManager ถ้ามี (เพื่อให้จัดการ transition กลาง),
         /// ถ้าไม่มีค่อย fallback ไป SetActive ตรง ๆ
+        /// ใช้ ShowOverlay แทน OpenScreen เพื่อไม่ให้ปิด panel อื่นพร้อมกัน
         /// </summary>
         private void SetScreen(GameObject panel, bool open)
         {
@@ -481,7 +482,7 @@ namespace Simulation.UI
 
             if (UIManager.Instance != null)
             {
-                if (open) UIManager.Instance.OpenScreen(panel);
+                if (open) UIManager.Instance.ShowOverlay(panel);
                 else UIManager.Instance.CloseScreen(panel);
             }
             else

@@ -35,9 +35,7 @@ namespace Simulation.NPC
         [SerializeField] private Button skillNPCUseButton;
         [SerializeField] private RawImage skillNPCHealthBar;
 
-        [Header("World Space Skill Panel Settings")]
-        [SerializeField] private float worldScale = 0.0005f;
-        [SerializeField] private float yOffset = 2.5f;
+
 
         private System.Action<NPCSkillData> _onSelected;
         private NPCController _currentNPC;
@@ -79,12 +77,6 @@ namespace Simulation.NPC
         private void Update()
         {
             if (_currentNPC == null || skillPanel == null || !skillPanel.activeSelf) return;
-
-            skillPanel.transform.position = _currentNPC.transform.position + Vector3.up * yOffset;
-            if (UnityEngine.Camera.main != null)
-            {
-                skillPanel.transform.rotation = UnityEngine.Camera.main.transform.rotation;
-            }
 
             if (skillNPCHealthText != null)
             {
@@ -193,15 +185,6 @@ namespace Simulation.NPC
             if (skillPanel != null)
             {
                 skillPanel.SetActive(true);
-
-                Canvas canvas = skillPanel.GetComponent<Canvas>();
-                if (canvas == null) canvas = skillPanel.AddComponent<Canvas>();
-                canvas.renderMode = RenderMode.WorldSpace;
-
-                GraphicRaycaster raycaster = skillPanel.GetComponent<GraphicRaycaster>();
-                if (raycaster == null) skillPanel.AddComponent<GraphicRaycaster>();
-
-                skillPanel.transform.localScale = new Vector3(worldScale, worldScale, worldScale);
             }
             if (npc == null || npc.Data == null) return;
 

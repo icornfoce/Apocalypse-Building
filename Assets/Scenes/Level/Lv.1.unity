@@ -16103,7 +16103,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2996480259779407533, guid: f4820e8180ffdac4286363bf67667b88, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 700.00006
+      value: 700.1354
       objectReference: {fileID: 0}
     - target: {fileID: 3284119281188001169, guid: f4820e8180ffdac4286363bf67667b88, type: 3}
       propertyPath: m_AnchorMax.y
@@ -16224,6 +16224,22 @@ PrefabInstance:
     - target: {fileID: 3638740425947540052, guid: f4820e8180ffdac4286363bf67667b88, type: 3}
       propertyPath: m_AnchoredPosition.y
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3658399770303056783, guid: f4820e8180ffdac4286363bf67667b88, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
+      value: 
+      objectReference: {fileID: 1171902557}
+    - target: {fileID: 3658399770303056783, guid: f4820e8180ffdac4286363bf67667b88, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
+      value: DecreaseTimeSpeed
+      objectReference: {fileID: 0}
+    - target: {fileID: 3658399770303056783, guid: f4820e8180ffdac4286363bf67667b88, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
+      value: Simulation.UI.BuildUIController, Assembly-CSharp
+      objectReference: {fileID: 0}
+    - target: {fileID: 3658399770303056783, guid: f4820e8180ffdac4286363bf67667b88, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgumentAssemblyTypeName
+      value: UnityEngine.Object, UnityEngine
       objectReference: {fileID: 0}
     - target: {fileID: 4226739208643561586, guid: f4820e8180ffdac4286363bf67667b88, type: 3}
       propertyPath: m_AnchorMax.y
@@ -17920,6 +17936,18 @@ PrefabInstance:
     - target: {fileID: 7496692778100543026, guid: f4820e8180ffdac4286363bf67667b88, type: 3}
       propertyPath: m_AnchoredPosition.y
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7707954855184644552, guid: f4820e8180ffdac4286363bf67667b88, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 107.248
+      objectReference: {fileID: 0}
+    - target: {fileID: 7707954855184644552, guid: f4820e8180ffdac4286363bf67667b88, type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 88.6641
+      objectReference: {fileID: 0}
+    - target: {fileID: 7707954855184644552, guid: f4820e8180ffdac4286363bf67667b88, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0.299
       objectReference: {fileID: 0}
     - target: {fileID: 7897351524242350391, guid: f4820e8180ffdac4286363bf67667b88, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.size

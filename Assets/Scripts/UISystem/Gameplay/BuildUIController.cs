@@ -3,6 +3,7 @@ using Simulation.Data;
 using Simulation.Building;
 using UnityEngine.UI;
 using System.Collections.Generic;
+using UnityEngine.EventSystems;
 
 namespace Simulation.UI
 {
@@ -56,13 +57,61 @@ namespace Simulation.UI
         [Tooltip("ลาก Panel อุปกรณ์ (Gadget) มาใส่ที่นี่")]
         [SerializeField] private GameObject gadgetPanel;
 
+        [Header("Delete Button Setup")]
+        [Tooltip("ลากปุ่ม Delete มาใส่ที่นี่ เพื่อให้ระบบกดค้างทำงานได้โดยอัตโนมัติ (หากปล่อยว่างระบบจะพยายามค้นหาในซีนเอง)")]
+        [SerializeField] private Button deleteButton;
+
         [Tooltip("ปุ่ม/Panel ที่จะ 'ซ่อน' อัตโนมัติตอนเริ่มจำลอง (กด Start) แล้วโชว์กลับตอนหยุด — ลากปุ่ม build/debug ทั้งหมดมาใส่ที่นี่")]
         [SerializeField] private GameObject[] hideDuringSimulation;
+
         private bool _wasSimulating = false;
 
         private void Start()
         {
             SetupStructureMaterialSlots();
+
+            // ค้นหาและตั้งค่า EventTrigger สำหรับปุ่ม Delete อัตโนมัติที่ Runtime
+            if (deleteButton == null)
+            {
+                Button[] allButtons = FindObjectsByType<Button>(FindObjectsSortMode.None);
+                foreach (var btn in allButtons)
+                {
+                    if (btn.name.ToLower().Contains("delete") || btn.name.ToLower().Contains("remove"))
+                    {
+                        deleteButton = btn;
+                        break;
+                    }
+                }
+            }
+
+            if (deleteButton != null)
+            {
+                SetupDeleteButtonTriggers(deleteButton);
+            }
+        }
+
+        private void SetupDeleteButtonTriggers(Button btn)
+        {
+            EventTrigger trigger = btn.gameObject.GetComponent<EventTrigger>();
+            if (trigger == null) trigger = btn.gameObject.AddComponent<EventTrigger>();
+
+            // ลบ onClick เดิมออกเพื่อไม่ให้ซ้ำซ้อน เพราะเราคุมทั้งคลิกสั้นและกดค้างผ่าน PointerDown/Up แล้ว
+            btn.onClick.RemoveAllListeners();
+
+            // ล้าง triggers เก่าที่อาจจะซ้ำ
+            trigger.triggers.Clear();
+
+            // สร้าง PointerDown
+            EventTrigger.Entry pointerDownEntry = new EventTrigger.Entry();
+            pointerDownEntry.eventID = EventTriggerType.PointerDown;
+            pointerDownEntry.callback.AddListener((data) => { OnDeleteButtonDown(); });
+            trigger.triggers.Add(pointerDownEntry);
+
+            // สร้าง PointerUp
+            EventTrigger.Entry pointerUpEntry = new EventTrigger.Entry();
+            pointerUpEntry.eventID = EventTriggerType.PointerUp;
+            pointerUpEntry.callback.AddListener((data) => { OnDeleteButtonUp(); });
+            trigger.triggers.Add(pointerUpEntry);
         }
 
         private void PlayClickSound()
@@ -312,7 +361,7 @@ namespace Simulation.UI
             // นับเวลากดค้างปุ่ม Delete
             if (_isHoldingDeleteButton && !_deleteAllTriggered)
             {
-                _deleteHoldTimer += Time.deltaTime;
+                _deleteHoldTimer += Time.unscaledDeltaTime;
 
                 if (_deleteHoldTimer >= deleteHoldDuration)
                 {

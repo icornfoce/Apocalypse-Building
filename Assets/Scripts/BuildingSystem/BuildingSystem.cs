@@ -1553,7 +1553,7 @@ namespace Simulation.Building
             _dragPositions.Clear();
             _dragSelectedUnits.Clear();
             EndBatch();
-            ghostBuilder.DestroyGhost();
+            if (ghostBuilder != null) ghostBuilder.DestroyGhost();
             ClearHover();
         }
 
@@ -1578,8 +1578,9 @@ namespace Simulation.Building
                 StructureUnit unit = _placedStructures[i];
                 if (unit == null) continue;
 
+                float basePrice = unit.Data != null ? unit.Data.basePrice : 0f;
                 float materialPrice = unit.CurrentMaterial != null ? unit.CurrentMaterial.priceModifier : 0f;
-                float sellPrice = unit.Data.basePrice + materialPrice + unit.AdditionalRefundValue;
+                float sellPrice = basePrice + materialPrice + unit.AdditionalRefundValue;
                 _currentBudget += sellPrice;
 
                 // ทำความสะอาด Joint ที่อ้างอิงถึงตัวนี้

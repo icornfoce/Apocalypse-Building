@@ -15112,6 +15112,18 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 594831028}
     m_Modifications:
+    - target: {fileID: 3213989334696583385, guid: f4820e8180ffdac4286363bf67667b88, type: 3}
+      propertyPath: m_text
+      value: Mission Lv.-
+      objectReference: {fileID: 0}
+    - target: {fileID: 3455785345973548174, guid: f4820e8180ffdac4286363bf67667b88, type: 3}
+      propertyPath: missionNameText
+      value: 
+      objectReference: {fileID: 1598143979}
+    - target: {fileID: 3455785345973548174, guid: f4820e8180ffdac4286363bf67667b88, type: 3}
+      propertyPath: resultTitleText
+      value: 
+      objectReference: {fileID: 1532780456}
     - target: {fileID: 4487675004430830942, guid: f4820e8180ffdac4286363bf67667b88, type: 3}
       propertyPath: m_LocalPosition.x
       value: 827.2638
@@ -15151,6 +15163,10 @@ PrefabInstance:
     - target: {fileID: 4487675004430830942, guid: f4820e8180ffdac4286363bf67667b88, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4664004204677246374, guid: f4820e8180ffdac4286363bf67667b88, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5973709580957366137, guid: f4820e8180ffdac4286363bf67667b88, type: 3}
       propertyPath: m_Name
@@ -23775,6 +23791,17 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1531411087}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &1532780456 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 8092083851046662740, guid: f4820e8180ffdac4286363bf67667b88, type: 3}
+  m_PrefabInstance: {fileID: 1097854403}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
 --- !u!4 &1539333243 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4607489187838822, guid: 00e2e59cbc04eab4a982218df54ce70b, type: 3}
@@ -24077,6 +24104,17 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4383882971595202, guid: e1154cf6ac27b2f45b4ae35582e7e363, type: 3}
   m_PrefabInstance: {fileID: 1136827957}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1598143979 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 3213989334696583385, guid: f4820e8180ffdac4286363bf67667b88, type: 3}
+  m_PrefabInstance: {fileID: 1097854403}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
 --- !u!1001 &1621632137
 PrefabInstance:
   m_ObjectHideFlags: 0

@@ -56,7 +56,7 @@ MonoBehaviour:
   missionPanel: {fileID: 9182742329358132921}
   resultsPanel: {fileID: 4664004204677246374}
   gameplayHUD: {fileID: 1147920614200897048}
-  missionNameText: {fileID: 8092083851046662740}
+  missionNameText: {fileID: 3213989334696583385}
   missionDescText: {fileID: 0}
   timerText: {fileID: 0}
   floorsStatusText: {fileID: 3322090545266452591}
@@ -66,7 +66,7 @@ MonoBehaviour:
   stopSimButton: {fileID: 4424553869645258250}
   startButtonText: {fileID: 0}
   restartButton: {fileID: 8765017318988039732}
-  resultTitleText: {fileID: 1292965465619634995}
+  resultTitleText: {fileID: 8092083851046662740}
   starEntries:
   - starTexture: {fileID: 2800000, guid: 32d053745a2d6394f93a90ef6ad3fb3c, type: 3}
     displayImage: {fileID: 1898666934522906662}
@@ -388,6 +388,10 @@ PrefabInstance:
     - target: {fileID: 5449051129651800493, guid: f5cedaa6557b5b5449804f662dee4335, type: 3}
       propertyPath: m_Name
       value: Results
+      objectReference: {fileID: 0}
+    - target: {fileID: 5449051129651800493, guid: f5cedaa6557b5b5449804f662dee4335, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents:
     - {fileID: 1352098985357378031, guid: f5cedaa6557b5b5449804f662dee4335, type: 3}
@@ -1776,6 +1780,10 @@ PrefabInstance:
       propertyPath: m_RaycastTarget
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 5055968855623008000, guid: 1170bdba4ba6872418f4826468385367, type: 3}
+      propertyPath: m_text
+      value: Mission Lv.-
+      objectReference: {fileID: 0}
     - target: {fileID: 5126085599787993672, guid: 1170bdba4ba6872418f4826468385367, type: 3}
       propertyPath: m_AnchorMax.y
       value: 1
@@ -3122,6 +3130,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
+--- !u!114 &3213989334696583385 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 5055968855623008000, guid: 1170bdba4ba6872418f4826468385367, type: 3}
+  m_PrefabInstance: {fileID: 7687656278656753625}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
 --- !u!224 &3234841275117623972 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 5067813640007796093, guid: 1170bdba4ba6872418f4826468385367, type: 3}

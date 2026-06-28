@@ -102,6 +102,7 @@ namespace Simulation.UI
         // ข้อความคงที่ (รวม magic string ไว้ที่เดียว)
         private const string LevelSelectSceneName = "LevelSelect";
         private const string MissionCompleteTitle = "MISSION COMPLETE!";
+        private const string MissionFailedTitle = "MISSION FAILED";
         private const string StartLabel = "START";
         private const string StopLabel = "STOP";
 
@@ -344,7 +345,8 @@ namespace Simulation.UI
             SetScreen(gameplayHUD, false);
             SetScreen(missionPanel, false);
 
-            if (resultTitleText != null) resultTitleText.text = MissionCompleteTitle;
+            if (resultTitleText != null)
+                resultTitleText.text = stars >= 1 ? MissionCompleteTitle : MissionFailedTitle;
 
             // ซ่อนดาวทั้งหมดก่อน แล้วค่อยๆ ขึ้นทีละดวงพร้อมเสียง
             if (starEntries != null)

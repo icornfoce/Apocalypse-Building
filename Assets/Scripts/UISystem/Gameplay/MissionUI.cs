@@ -30,6 +30,10 @@ namespace Simulation.UI
         [Header("Budget UI")]
         [SerializeField] private TextMeshProUGUI budgetText;
 
+        [Header("NPC Info")]
+        [Tooltip("Text แสดงจำนวน NPC ทั้งหมดที่วางในฉาก")]
+        [SerializeField] private TextMeshProUGUI npcText;
+
         [Header("Panels")]
         [SerializeField] private GameObject missionPanel;
         [SerializeField] private GameObject resultsPanel;
@@ -256,6 +260,12 @@ namespace Simulation.UI
                     populationStatusText.color = _originalPopulationColor;
                 }
                 if (!populationStatusText.gameObject.activeSelf) populationStatusText.gameObject.SetActive(true);
+            }
+
+            // อัปเดตจำนวน NPC ทั้งหมด
+            if (npcText != null)
+            {
+                npcText.text = $"NPC: {stats.people}";
             }
         }
 

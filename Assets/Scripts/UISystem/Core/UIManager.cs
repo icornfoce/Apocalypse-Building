@@ -39,6 +39,8 @@ namespace Simulation.UI
         private Dictionary<GameObject, ScreenEntry> _screenDict = new Dictionary<GameObject, ScreenEntry>();
         private Dictionary<GameObject, CanvasGroup> _canvasGroupCache = new Dictionary<GameObject, CanvasGroup>();
         private GameObject _currentMainScreen;
+        private float _prePauseTimeScale = 1f;
+        private GameObject _pausedUIScreen;
 
         private void Awake()
         {
@@ -185,8 +187,22 @@ namespace Simulation.UI
             if (screen == null) return;
             if (!RegisterScreenIfMissing(screen)) return;
 
-            AnimateClose(screen);
             if (screen == _currentMainScreen) _currentMainScreen = null;
+
+            // ถ้า UI ที่ปิดเป็นตัวที่เคยใช้สั่งหยุดเวลา ให้คืนค่าเวลาเดิมหลังอนิเมชันจบ
+            if (screen == _pausedUIScreen)
+            {
+                float savedTimeScale = _prePauseTimeScale;
+                _pausedUIScreen = null;
+                AnimateClose(screen, () =>
+                {
+                    Time.timeScale = savedTimeScale;
+                });
+            }
+            else
+            {
+                AnimateClose(screen);
+            }
         }
 
         /// <summary>
@@ -204,20 +220,39 @@ namespace Simulation.UI
         }
 
         /// <summary>
-        /// ปิดทุกหน้าจอ
+        /// หยุดเวลาการจำลองในเกม และเปิดหน้าจอ UI ที่ระบุไว้ โดยยังตอบสนองกับ UI ได้ปกติ
         /// </summary>
-        public void CloseAll()
+        public void PauseGameTime(GameObject screen)
         {
-            CloseAllImmediate();
+            if (screen == null) return;
+
+            // เก็บค่า TimeScale ปัจจุบันไว้ (ถ้ายังไม่มีการหยุดเวลาค้างอยู่)
+            if (_pausedUIScreen == null)
+            {
+                _prePauseTimeScale = Time.timeScale > 0f ? Time.timeScale : 1f;
+            }
+
+            _pausedUIScreen = screen;
+            Time.timeScale = 0f;
+
+            // เปิด UI ที่กำหนดแบบซ้อนทับ (Overlay)
+            ShowOverlay(screen);
         }
 
-        public bool IsScreenOpen(GameObject screen)
+        /// <summary>
+        /// เล่นเวลาการจำลองในเกมต่อ (กลับเป็นความเร็วปกติ 1x)
+        /// </summary>
+        public void ResumeGameTime()
         {
-            if (screen != null)
-            {
-                return screen.activeSelf;
-            }
-            return false;
+            Time.timeScale = 1f;
+        }
+
+        /// <summary>
+        /// ปิด UI หน้าจอที่ระบุ/เลือก
+        /// </summary>
+        public void CloseSelectedUI(GameObject screen)
+        {
+            CloseScreen(screen);
         }
 
         // ─────────────────────────────────────────────
@@ -278,15 +313,15 @@ namespace Simulation.UI
             // เปิด GameObject
             screen.SetActive(true);
 
-            // เล่นอนิเมชัน Fade + Scale พร้อมกัน
-            cg.DOFade(1f, fadeDuration).SetEase(Ease.OutQuad);
-            screen.transform.DOScale(Vector3.one, scaleDuration).SetEase(Ease.OutBack);
+            // เล่นอนิเมชัน Fade + Scale พร้อมกัน (ใช้ SetUpdate(true) เพื่อให้เล่นตอน Time.timeScale = 0 ได้)
+            cg.DOFade(1f, fadeDuration).SetEase(Ease.OutQuad).SetUpdate(true);
+            screen.transform.DOScale(Vector3.one, scaleDuration).SetEase(Ease.OutBack).SetUpdate(true);
         }
 
         /// <summary>
         /// อนิเมชันปิด: Fade Out + Scale จากใหญ่ไปเล็ก แล้วปิด GameObject
         /// </summary>
-        private void AnimateClose(GameObject screen)
+        private void AnimateClose(GameObject screen, System.Action onCloseComplete = null)
         {
             if (screen == null || !screen.activeSelf) return;
 
@@ -300,14 +335,16 @@ namespace Simulation.UI
             cg.blocksRaycasts = false;
             cg.interactable = false;
 
-            // เล่นอนิเมชัน Fade Out + Scale Down
-            cg.DOFade(0f, fadeDuration).SetEase(Ease.InQuad);
+            // เล่นอนิเมชัน Fade Out + Scale Down (ใช้ SetUpdate(true) เพื่อให้เล่นตอน Time.timeScale = 0 ได้)
+            cg.DOFade(0f, fadeDuration).SetEase(Ease.InQuad).SetUpdate(true);
             screen.transform.DOScale(Vector3.one * scaleFrom, scaleDuration)
                 .SetEase(Ease.InBack)
+                .SetUpdate(true)
                 .OnComplete(() =>
                 {
                     screen.SetActive(false);
                     screen.transform.localScale = Vector3.one; // รีเซ็ตสเกลกลับ
+                    onCloseComplete?.Invoke(); // เรียก callback คืนค่าเวลา (ถ้ามี)
                 });
         }
 

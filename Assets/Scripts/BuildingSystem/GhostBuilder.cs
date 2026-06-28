@@ -83,6 +83,7 @@ namespace Simulation.Building
             foreach (var comp in obj.GetComponentsInChildren<Simulation.Character.PersonSpawner>(true)) DestroyImmediate(comp);
             foreach (var comp in obj.GetComponentsInChildren<Simulation.Character.PersonAI>(true)) DestroyImmediate(comp);
             foreach (var comp in obj.GetComponentsInChildren<UnityEngine.AI.NavMeshAgent>(true)) DestroyImmediate(comp);
+            foreach (var comp in obj.GetComponentsInChildren<Outline>(true)) DestroyImmediate(comp);
             foreach (var j in obj.GetComponentsInChildren<Joint>(true)) DestroyImmediate(j);
         }
 

@@ -74,7 +74,7 @@ namespace Simulation.Physics
         [SerializeField] [Range(0f, 1f)] private float stressVisualIntensity = 1.0f;
 
         [Header("Global Settings")]
-        public static bool ShowHPVisualsGlobal = true;
+        public static bool ShowHPVisualsGlobal = false;
 
         // ── ตำแหน่งจุดที่โครงสร้าง "พัง" ระหว่างด่านนี้ ──
         // ใช้โดยสกิล Engineer เพื่อโชว์ VFX สรุปความเสียหายตรงจุดที่พังตอนจบด่าน

@@ -2,9 +2,18 @@ using UnityEngine;
 using Simulation.Data;
 using Simulation.Building;
 using UnityEngine.UI;
+using System.Collections.Generic;
 
 namespace Simulation.UI
 {
+    [System.Serializable]
+    public class StructureMaterialSlot
+    {
+        public Button button;
+        public StructureData structureData;
+        public MaterialData materialData;
+    }
+
     /// <summary>
     /// UI Controller สำหรับระบบ Building
     /// ลากสคริปต์นี้ใส่ปุ่ม แล้วเลือกฟังก์ชันที่ต้องการใน OnClick()
@@ -32,11 +41,25 @@ namespace Simulation.UI
         [Tooltip("ลากไฟล์ MaterialData มาใส่ที่นี่ (ใช้กับ SelectMaterial)")]
         public MaterialData materialToSelect;
 
+        [Header("สำหรับปุ่มรวม Structure + Material")]
+        [Tooltip("ลาก StructureData มาใส่ (ใช้เฉพาะตอนกด StartBuildingWithMaterial)")]
+        public StructureData structureWithMaterial;
+        [Tooltip("ลาก MaterialData มาใส่ (ใช้เฉพาะตอนกด StartBuildingWithMaterial)")]
+        public MaterialData materialForStructure;
+
+        [Header("Structure + Material Slots")]
+        [SerializeField] private List<StructureMaterialSlot> structureMaterialSlots = new List<StructureMaterialSlot>();
+
         [Header("Panels")]
         [Tooltip("ลาก Panel สิ่งก่อสร้าง (Structure) มาใส่ที่นี่")]
         [SerializeField] private GameObject structurePanel;
         [Tooltip("ลาก Panel อุปกรณ์ (Gadget) มาใส่ที่นี่")]
         [SerializeField] private GameObject gadgetPanel;
+
+        private void Start()
+        {
+            SetupStructureMaterialSlots();
+        }
 
         private void PlayClickSound()
         {
@@ -55,6 +78,64 @@ namespace Simulation.UI
             PlayClickSound();
             if (BuildingSystem.Instance == null || structureToBuild == null) return;
             BuildingSystem.Instance.SelectStructure(structureToBuild);
+        }
+
+        /// <summary>
+        /// เริ่มโหมดสร้างพร้อมระบุโครงสร้างและวัสดุพร้อมกันจากตัวแปรใน Inspector (ปุ่มเดียวจบ)
+        /// </summary>
+        public void StartBuildingWithMaterial()
+        {
+            PlayClickSound();
+            if (BuildingSystem.Instance == null || structureWithMaterial == null) return;
+
+            if (materialForStructure != null) BuildingSystem.Instance.SelectMaterial(materialForStructure);
+            else BuildingSystem.Instance.ClearMaterial();
+
+            BuildingSystem.Instance.SelectStructure(structureWithMaterial);
+        }
+
+        /// <summary>
+        /// เริ่มโหมดสร้างพร้อมระบุโครงสร้างและวัสดุผ่าน Parameter
+        /// </summary>
+        public void StartBuildingWithMaterialData(StructureData structure, MaterialData material)
+        {
+            PlayClickSound();
+            if (BuildingSystem.Instance == null || structure == null) return;
+
+            if (material != null) BuildingSystem.Instance.SelectMaterial(material);
+            else BuildingSystem.Instance.ClearMaterial();
+
+            BuildingSystem.Instance.SelectStructure(structure);
+        }
+
+        private void SetupStructureMaterialSlots()
+        {
+            foreach (var slot in structureMaterialSlots)
+            {
+                if (slot == null || slot.button == null || slot.structureData == null) continue;
+
+                StructureData structure = slot.structureData;
+                MaterialData material = slot.materialData;
+                slot.button.onClick.AddListener(() => StartBuildingWithMaterialData(structure, material));
+            }
+        }
+
+        public void StartBuildingWithMaterialSlot(int slotIndex)
+        {
+            if (slotIndex < 0 || slotIndex >= structureMaterialSlots.Count)
+            {
+                Debug.LogWarning($"[BuildUIController] Structure/material slot index out of range: {slotIndex}");
+                return;
+            }
+
+            StructureMaterialSlot slot = structureMaterialSlots[slotIndex];
+            if (slot == null || slot.structureData == null)
+            {
+                Debug.LogWarning($"[BuildUIController] Structure/material slot {slotIndex} is missing structure data.");
+                return;
+            }
+
+            StartBuildingWithMaterialData(slot.structureData, slot.materialData);
         }
 
         /// <summary>
@@ -346,7 +427,7 @@ namespace Simulation.UI
         }
 
         private bool _isGridVisible = true; // Default state of grid visualizer in scene
-        private bool _isStressVisible = true; // Default state of stress visuals
+        private bool _isStressVisible = false; // Default state of stress visuals
 
         /// <summary>
         /// ฟังก์ชันหลักสำหรับปุ่ม UI GridShow (กดสลับ เปิด/ปิด Grid)

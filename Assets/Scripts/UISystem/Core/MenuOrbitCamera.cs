@@ -66,7 +66,7 @@ namespace Simulation.UI
 
         private void ComputeFrame()
         {
-            var units = FindObjectsOfType<StructureUnit>();
+            var units = FindObjectsByType<StructureUnit>(FindObjectsSortMode.None);
             if (units == null || units.Length == 0) return;
 
             bool has = false;

@@ -115,17 +115,28 @@ namespace Simulation.Character
         public void SetTarget(Transform targetTransform)
         {
             _target = targetTransform;
+            HasReachedTarget = false; // Reset reached state on new target
+            
             if (_agent != null && _target != null && _agent.enabled && _agent.isOnNavMesh)
             {
-                // หาระยะที่ใกล้ที่สุดบน NavMesh จากตำแหน่งเป้าหมาย
+                Vector3 targetPos = _target.position;
                 if (UnityEngine.AI.NavMesh.SamplePosition(_target.position, out UnityEngine.AI.NavMeshHit hit, 10.0f, UnityEngine.AI.NavMesh.AllAreas))
                 {
-                    _agent.SetDestination(hit.position);
+                    targetPos = hit.position;
                 }
-                else
+
+                // หากเป้าหมายไม่สามารถเข้าถึงได้สมบูรณ์ (PathPartial) ให้เดินไปให้ถึงที่สุดเท่าที่เดินได้
+                NavMeshPath path = new NavMeshPath();
+                if (_agent.CalculatePath(targetPos, path))
                 {
-                    _agent.SetDestination(_target.position);
+                    if (path.status == NavMeshPathStatus.PathPartial && path.corners.Length > 0)
+                    {
+                        targetPos = path.corners[path.corners.Length - 1];
+                    }
                 }
+
+                _agent.isStopped = false;
+                _agent.SetDestination(targetPos);
             }
         }
 
@@ -167,8 +178,22 @@ namespace Simulation.Character
                     // ถ้าเป้าหมายขยับ เราก็อัปเดตเรื่อยๆ (แต่ใช้ SamplePosition เพื่อความแม่นยำ)
                     if (Time.frameCount % 30 == 0) // อัปเดตทุก 30 เฟรมเพื่อลดภาระ
                     {
+                        Vector3 targetPos = _target.position;
                         if (UnityEngine.AI.NavMesh.SamplePosition(_target.position, out UnityEngine.AI.NavMeshHit hit, 10.0f, UnityEngine.AI.NavMesh.AllAreas))
-                            _agent.SetDestination(hit.position);
+                        {
+                            targetPos = hit.position;
+                        }
+
+                        NavMeshPath path = new NavMeshPath();
+                        if (_agent.CalculatePath(targetPos, path))
+                        {
+                            if (path.status == NavMeshPathStatus.PathPartial && path.corners.Length > 0)
+                            {
+                                targetPos = path.corners[path.corners.Length - 1];
+                            }
+                        }
+
+                        _agent.SetDestination(targetPos);
                     }
                     
                     // เช็คว่าถึงเป้าหมายหรือยัง (นับว่าถึงถ้าอยู่ใกล้เป้าหมาย "หรือ" ไปต่อไม่ได้แล้วและอยู่ใกล้ที่สุดเท่าที่จะทำได้)

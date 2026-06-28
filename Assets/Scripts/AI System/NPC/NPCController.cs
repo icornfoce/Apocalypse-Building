@@ -427,10 +427,22 @@ namespace Simulation.NPC
             // หาจุดที่ใกล้ที่สุดบน NavMesh
             if (NavMesh.SamplePosition(worldPosition, out NavMeshHit hit, 10f, NavMesh.AllAreas))
             {
+                Vector3 targetPos = hit.position;
+
+                // ตรวจสอบความสมบูรณ์ของเส้นทาง หากเส้นทางบางส่วนขาด (PathPartial) ให้เดินไปเท่าที่เดินได้ (จุดหักมุมสุดท้าย)
+                NavMeshPath path = new NavMeshPath();
+                if (_agent.isOnNavMesh && _agent.CalculatePath(targetPos, path))
+                {
+                    if (path.status == NavMeshPathStatus.PathPartial && path.corners.Length > 0)
+                    {
+                        targetPos = path.corners[path.corners.Length - 1];
+                    }
+                }
+
                 _agent.isStopped = false;
-                _agent.SetDestination(hit.position);
+                _agent.SetDestination(targetPos);
                 _hasManualDestination = true;
-                _manualDestination = hit.position;
+                _manualDestination = targetPos;
 
                 // SFX เดิน
                 if (_data != null && _data.walkSFX != null)

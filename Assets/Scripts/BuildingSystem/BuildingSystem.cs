@@ -1335,15 +1335,17 @@ namespace Simulation.Building
         private void HandleDeleteMode()
         {
             if (Input.GetMouseButtonUp(1) && Time.time - _rightClickDownTime <= RIGHT_CLICK_CANCEL_HOLD_THRESHOLD) { ExitMode(); return; }
+
+            // Instant single-click deletion if hovering over a unit
+            if (Input.GetMouseButtonDown(0) && _hoveredUnit != null)
+            {
+                TrySellStructure(_hoveredUnit);
+                _hoveredUnit = null; 
+                return; // Done
+            }
+
             if (_hasValidTarget)
             {
-                // Instant single-click deletion if hovering over a unit
-                if (Input.GetMouseButtonDown(0) && _hoveredUnit != null)
-                {
-                    TrySellStructure(_hoveredUnit);
-                    _hoveredUnit = null; 
-                    return; // Done
-                }
 
                 Vector3 currentPos = CalculatePlacementPosition(_currentHitPos, _currentHitNormal, _currentHitCollider);
 
@@ -2405,8 +2407,9 @@ namespace Simulation.Building
 
         private void TrySellStructure(StructureUnit unit)
         {
+            float basePrice = unit.Data != null ? unit.Data.basePrice : 0f;
             float materialPrice = unit.CurrentMaterial != null ? unit.CurrentMaterial.priceModifier : 0f;
-            float sellPrice = unit.Data.basePrice + materialPrice + unit.AdditionalRefundValue;
+            float sellPrice = basePrice + materialPrice + unit.AdditionalRefundValue;
 
             Collider targetCol = null;
             var joint = unit.GetComponent<Joint>();

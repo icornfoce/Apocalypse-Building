@@ -95,9 +95,6 @@ namespace Simulation.UI
             EventTrigger trigger = btn.gameObject.GetComponent<EventTrigger>();
             if (trigger == null) trigger = btn.gameObject.AddComponent<EventTrigger>();
 
-            // ลบ onClick เดิมออกเพื่อไม่ให้ซ้ำซ้อน เพราะเราคุมทั้งคลิกสั้นและกดค้างผ่าน PointerDown/Up แล้ว
-            btn.onClick.RemoveAllListeners();
-
             // ล้าง triggers เก่าที่อาจจะซ้ำ
             trigger.triggers.Clear();
 
@@ -112,6 +109,7 @@ namespace Simulation.UI
             pointerUpEntry.eventID = EventTriggerType.PointerUp;
             pointerUpEntry.callback.AddListener((data) => { OnDeleteButtonUp(); });
             trigger.triggers.Add(pointerUpEntry);
+
         }
 
         private void PlayClickSound()
@@ -394,15 +392,7 @@ namespace Simulation.UI
         public void OnDeleteButtonUp()
         {
             _isHoldingDeleteButton = false;
-
-            // ถ้ากดสั้นๆ (ไม่ถึง 2 วิ) → Toggle โหมด Delete ตามปกติ
-            if (!_deleteAllTriggered)
-            {
-                StartDeleting();
-            }
-
             _deleteHoldTimer = 0f;
-            _deleteAllTriggered = false;
         }
 
         /// <summary>
@@ -410,6 +400,12 @@ namespace Simulation.UI
         /// </summary>
         public void StartDeleting()
         {
+            if (_deleteAllTriggered)
+            {
+                _deleteAllTriggered = false;
+                return;
+            }
+
             PlayClickSound();
             if (BuildingSystem.Instance == null) return;
 

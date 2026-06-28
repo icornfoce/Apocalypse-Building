@@ -390,6 +390,12 @@ namespace Simulation.Building
 
         public void Undo()
         {
+            if (SimulationManager.Instance != null && SimulationManager.Instance.IsSimulating)
+            {
+                Debug.LogWarning("[BuildingSystem] Cannot Undo during simulation!");
+                return;
+            }
+
             if (_undoStack.Count > 0)
             {
                 var action = _undoStack.Pop();
@@ -412,6 +418,12 @@ namespace Simulation.Building
 
         public void Redo()
         {
+            if (SimulationManager.Instance != null && SimulationManager.Instance.IsSimulating)
+            {
+                Debug.LogWarning("[BuildingSystem] Cannot Redo during simulation!");
+                return;
+            }
+
             if (_redoStack.Count > 0)
             {
                 var action = _redoStack.Pop();

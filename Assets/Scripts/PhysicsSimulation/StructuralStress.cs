@@ -331,7 +331,8 @@ namespace Simulation.Physics
             
             // ถ้าตัวละครเพิ่งมาเดินเบียด/ดัน ให้ "งด" คิดดาเมจจากแรงและทอร์กในเฟรมนี้
             // (กันกำแพง/ประตูพังเพราะโดน NPC เดินชน — แรงที่เห็นมาจากการดันของตัวละคร ไม่ใช่ภาระโครงสร้างจริง)
-            bool characterPushing = _characterContactTimer > 0f;
+            // ประตูถือว่า "มีคนดันอยู่" เสมอ → งดคิดดาเมจจากแรง joint (คนเดินชนประตูจะไม่ทำให้พัง)
+            bool characterPushing = _characterContactTimer > 0f || IsDoor();
 
             if (!characterPushing && forceMag > forceThreshold)
             {
@@ -488,6 +489,29 @@ namespace Simulation.Physics
             {
                 _characterContactTimer = CHARACTER_CONTACT_GRACE;
             }
+        }
+
+        /// <summary>
+        /// แจ้งว่ามี "ตัวละคร" (คน/NPC) อยู่/เดินใกล้โครงสร้างนี้ → ต่ออายุช่วงงดคิดดาเมจจากแรง (joint/collision)
+        /// เรียกจากภายนอก (เช่น DoorController) เพื่อกันประตู/กำแพงพังตอนคนเดินชน
+        /// โดยใช้การตรวจจับที่เชื่อถือได้ ไม่ต้องพึ่ง collision event ที่อาจหลุดเฟรม
+        /// </summary>
+        public void NotifyCharacterContact()
+        {
+            _characterContactTimer = CHARACTER_CONTACT_GRACE;
+        }
+
+        // ประตูเป็นองค์ประกอบ "ใช้งาน" (เปิด/ปิด) ไม่ใช่ตัวรับโหลดโครงสร้าง
+        // จึงไม่ควรพังจากแรงที่ joint (เช่น คนเดินดัน) — แต่ยังพังจากภัยพิบัติ/เสียตัวค้ำได้
+        private int _isDoorState = -1; // -1=ยังไม่รู้, 0=ไม่ใช่, 1=ประตู
+        private bool IsDoor()
+        {
+            if (_isDoorState < 0)
+            {
+                var u = GetComponent<Building.StructureUnit>();
+                _isDoorState = (u != null && u.Data != null && u.Data.structureType == StructureType.Door) ? 1 : 0;
+            }
+            return _isDoorState == 1;
         }
 
 

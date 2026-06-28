@@ -24730,6 +24730,7 @@ MonoBehaviour:
     m_Bits: 64
   jointHitboxExpand: 0.15
   heightStep: 2
+  personPlaceHeightOffset: 0.3
   pillarReference: {fileID: 11400000, guid: 8d1ff23b2954fd647acab440b9b3a416, type: 2}
   generalPlaceSound: {fileID: 0}
   generalSellSound: {fileID: 8300000, guid: cb1bec34052912f4dadc6979b3f28ba5, type: 3}
@@ -24754,6 +24755,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.Building.GhostBuilder
   validColor: {r: 0, g: 1, b: 0, a: 0.27450982}
   invalidColor: {r: 1, g: 0, b: 0, a: 0.27450982}
+  useOutline: 1
+  outlineValidColor: {r: 1, g: 1, b: 1, a: 1}
+  outlineInvalidColor: {r: 1, g: 0.35, b: 0.35, a: 1}
+  outlineWidth: 5
 --- !u!4 &1651235275 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4557757265253404, guid: 5c9211eb71cff4f4996a21d92317f601, type: 3}

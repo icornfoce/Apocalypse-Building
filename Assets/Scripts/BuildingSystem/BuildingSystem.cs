@@ -42,6 +42,9 @@ namespace Simulation.Building
         [Tooltip("Vertical distance between floors. If pillarReference is assigned, this will be auto-set in Start.")]
         [SerializeField] private float heightStep = 3.0f;
 
+        [Tooltip("ยกความสูง ghost ตอนวาง 'คน' ขึ้นอีก (กันคนจมผิวพื้น) — ปรับได้ (ตัวรองรับยังเช็คที่ผิวพื้นจริง จึงวางได้เสมอ)")]
+        [SerializeField] private float personPlaceHeightOffset = 0.3f;
+
         [Tooltip("Optional: Assign your Pillar/Column structure here. Its height will automatically define the Height Step for the whole building.")]
         [SerializeField] private StructureData pillarReference;
 
@@ -832,7 +835,11 @@ namespace Simulation.Building
                     bool isClear = isOccupiedBySame || IsAreaClear(pos, ghostBuilder.CurrentRotation, _selectedData);
                     
                     // For dragging, pieces support each other if the group is supported somewhere
-                    bool hasSupport = _isDragging ? groupHasWorldSupport : HasStructuralSupport(pos, ghostBuilder.CurrentRotation, _selectedData);
+                    // คน (PersonTarget): ghost ถูกยกขึ้นด้วย personPlaceHeightOffset เพื่อความสวยงาม
+                    // แต่ต้องเช็ค "ตัวรองรับที่ผิวพื้นจริง" (ลบ offset ออก) ไม่งั้นคนลอยพ้นพื้น support ไม่เจอ → วางไม่ได้
+                    bool placingPersonHere = _selectedData.prefab != null && _selectedData.prefab.GetComponentInChildren<Simulation.Character.PersonTarget>() != null;
+                    Vector3 supportPos = placingPersonHere ? pos - new Vector3(0f, personPlaceHeightOffset, 0f) : pos;
+                    bool hasSupport = _isDragging ? groupHasWorldSupport : HasStructuralSupport(supportPos, ghostBuilder.CurrentRotation, _selectedData);
                     
                     // Relax 'placeOnStructureOnly' during drag if the group is supported
                     StructureUnit hitUnit = _currentHitCollider != null ? _currentHitCollider.GetComponentInParent<StructureUnit>() : null;
@@ -2767,7 +2774,12 @@ namespace Simulation.Building
             // Gadget: ใช้ Y จาก Surface จริง (ไม่ snap ตาม grid) เพื่อให้วางบนโครงสร้างได้พอดี
             bool isGadget = activeData != null && activeData.isGadget;
 
-            if (snapYToGrid && !isGadget)
+            // คน (PersonTarget) ก็ใช้ Y จากผิวจริงเหมือน Gadget — ไม่ snap ตาม grid
+            // กันกรณีพื้นบาง/ไม่ตรงระดับ heightStep ทำให้ฐานคนจมใต้ผิวพื้น แล้ววางไม่ได้ (ghost แดง)
+            bool isPlacingPersonHere = activeData != null && activeData.prefab != null
+                && activeData.prefab.GetComponentInChildren<Simulation.Character.PersonTarget>() != null;
+
+            if (snapYToGrid && !isGadget && !isPlacingPersonHere)
             {
                 float yStep = heightStep > 0f ? heightStep : gridSize;
                 if (yStep > 0f)
@@ -2784,6 +2796,9 @@ namespace Simulation.Building
             }
 
             y += _pivotToBottomOffset;
+
+            // ยกความสูง ghost ของคนขึ้นอีกหน่อย เพื่อให้ยืนบนพื้นพอดี ไม่จมผิว (ปรับค่าได้ใน Inspector)
+            if (isPlacingPersonHere) y += personPlaceHeightOffset;
 
             Vector3 resultPos = new Vector3(x, y, z);
 

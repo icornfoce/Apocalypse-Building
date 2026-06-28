@@ -28,6 +28,8 @@ namespace Simulation.Building
         private HashSet<Collider> _occupants = new HashSet<Collider>();
         private BoxCollider _trigger;
         private float _scanTimer;
+        private Simulation.Physics.StructuralStress _stress; // โครงสร้างของประตู (ใช้กันพังตอนคนเดินชน)
+        private Collider[] _leafColliders; // collider แข็งของบานประตู — สลับเป็น trigger ตอนเปิด ให้คนทะลุได้ (ไม่ชน = ไม่พัง)
 
         private void Start()
         {
@@ -41,6 +43,9 @@ namespace Simulation.Building
             {
                 _closedRotation = doorPivot.localRotation;
                 _openRotation = _closedRotation * Quaternion.Euler(0, openAngle, 0);
+
+                // collider แข็งของบานประตู (ลูกของ Pivot) — เก็บไว้สลับเป็น trigger ตอนเปิด
+                _leafColliders = doorPivot.GetComponentsInChildren<Collider>(true);
             }
 
             // ตรวจสอบและตั้งค่า Trigger
@@ -67,6 +72,9 @@ namespace Simulation.Building
             modifier.overrideArea = true;
             modifier.area = 1; // area index 1 = "Not Walkable" (built-in)
             modifier.ignoreFromBuild = true; // ไม่รวมในการ Bake เลย
+
+            // โครงสร้างของประตู — ใช้ต่ออายุ grace กันประตูพังตอนคนเดินชน (StructuralStress อยู่บนตัวประตู)
+            _stress = GetComponentInParent<Simulation.Physics.StructuralStress>();
         }
 
         private void Update()
@@ -93,6 +101,20 @@ namespace Simulation.Building
                 }
                 if (nearbyPerson) _shouldBeOpen = true;
                 else if (_occupants.Count == 0) _shouldBeOpen = false;
+            }
+
+            // กันประตูพังตอนคนเดินชน: ระหว่างมีคนใกล้ (ประตูควรเปิด) ต่ออายุช่วงงดคิดดาเมจจากแรงของโครงสร้าง
+            if (_shouldBeOpen && _stress != null)
+            {
+                _stress.NotifyCharacterContact();
+            }
+
+            // ── เปิด = ทำบานประตูเป็น trigger ให้คนเดินทะลุได้ (ไม่ชน = ไม่มีแรงดัน = ประตูไม่พัง),
+            //    ปิด = บานแข็งตามเดิม (ยังบล็อกซอมบี้อยู่) ──
+            if (_leafColliders != null)
+            {
+                foreach (var c in _leafColliders)
+                    if (c != null) c.isTrigger = _shouldBeOpen;
             }
 
             // หมุนประตูอย่างนุ่มนวล

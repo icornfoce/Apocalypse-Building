@@ -1715,7 +1715,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 81f100b015f74724fba2d1989c2805d6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.Mission.BalloonZombieAI
-  moveSpeed: 1.5
+  moveSpeed: 4.5
   attackDamage: 10
   attackInterval: 1.5
   attackRange: 0.6

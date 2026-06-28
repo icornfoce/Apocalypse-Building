@@ -16,7 +16,7 @@ namespace Simulation.Mission
     public class ZombieAI : MonoBehaviour
     {
         [Header("Settings")]
-        public float moveSpeed = 3.5f;   // faster so it can actually catch fleeing NPCs (flee speed ~4); tune in Inspector
+        public float moveSpeed = 4.5f;   // ต้องเร็วกว่า PersonAI.fleeSpeed (~4) ไม่งั้นซอมบี้ไล่คนที่หนีไม่ทัน → กัดไม่โดน; ปรับใน Inspector ได้
         public float attackDamage = 10f;
         public float attackInterval = 1.5f;
         public float attackRange = 1.5f;

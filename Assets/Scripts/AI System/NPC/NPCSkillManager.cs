@@ -221,6 +221,38 @@ namespace Simulation.NPC
                     }
                 }
             }
+
+            if (Input.GetMouseButtonDown(1))
+            {
+                // เช็คว่ากดที่ UI หรือไม่
+                if (UnityEngine.EventSystems.EventSystem.current != null &&
+                    UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
+                    return;
+
+                UnityEngine.Camera mainCam = UnityEngine.Camera.main;
+                if (mainCam != null)
+                {
+                    Ray ray = mainCam.ScreenPointToRay(Input.mousePosition);
+                    if (UnityEngine.Physics.Raycast(ray, out RaycastHit hit, 100f))
+                    {
+                        // เช็คว่าคลิกที่ NPC หรือไม่
+                        NPCController clickedNPC = hit.collider.GetComponentInParent<NPCController>();
+                        if (clickedNPC != null && !clickedNPC.IsDead)
+                        {
+                            clickedNPC.TakeDamage(0f, true); // กัดทีเดียวตายและกลายเป็นซอมบี้
+                            return;
+                        }
+
+                        // เช็คว่าคลิกที่คนธรรมดา หรือไม่
+                        PersonAI clickedPerson = hit.collider.GetComponentInParent<PersonAI>();
+                        if (clickedPerson != null && !clickedPerson.IsDead)
+                        {
+                            clickedPerson.TakeDamage(0f, true); // กัดทีเดียวตายและกลายเป็นซอมบี้
+                            return;
+                        }
+                    }
+                }
+            }
         }
 
         public void SelectNPC(NPCController npc)

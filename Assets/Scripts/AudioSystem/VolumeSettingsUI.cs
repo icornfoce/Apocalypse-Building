@@ -1,10 +1,12 @@
 using UnityEngine;
 using UnityEngine.UI;
+using Simulation.UI;
 
 namespace AudioSystem
 {
     /// <summary>
-    /// VolumeSettingsUI - ตัวควบคุม UI Slider สำหรับปรับระดับเสียง BGM และ SFX
+    /// VolumeSettingsUI - ตัวควบคุม UI Slider สำหรับปรับระดับเสียง
+    /// รองรับ Volume channels ทั้งหมด: Master, Music(BGM), Ambience, UI, SFX, Physics, Block
     /// สามารถวางสคริปต์นี้ไว้บน UI Panel ของหน้า Settings แล้วลาก Slider มาใส่อ้างอิงได้เลย
     /// </summary>
     public class VolumeSettingsUI : MonoBehaviour
@@ -15,6 +17,22 @@ namespace AudioSystem
 
         [Tooltip("Slider สำหรับปรับระดับเสียงเอฟเฟกต์ SFX")]
         [SerializeField] private Slider sfxVolumeSlider;
+
+        [Header("Extended Volume Sliders")]
+        [Tooltip("Slider สำหรับปรับ Master Volume")]
+        [SerializeField] private Slider masterVolumeSlider;
+
+        [Tooltip("Slider สำหรับปรับ Ambience Volume")]
+        [SerializeField] private Slider ambienceVolumeSlider;
+
+        [Tooltip("Slider สำหรับปรับ UI Volume")]
+        [SerializeField] private Slider uiVolumeSlider;
+
+        [Tooltip("Slider สำหรับปรับ Physics Volume")]
+        [SerializeField] private Slider physicsVolumeSlider;
+
+        [Tooltip("Slider สำหรับปรับ Block Volume")]
+        [SerializeField] private Slider blockVolumeSlider;
 
         private void OnEnable()
         {
@@ -35,26 +53,54 @@ namespace AudioSystem
             {
                 sfxVolumeSlider.onValueChanged.AddListener(OnSFXVolumeChanged);
             }
+
+            if (masterVolumeSlider != null)
+            {
+                masterVolumeSlider.onValueChanged.AddListener(OnMasterVolumeChanged);
+            }
+
+            if (ambienceVolumeSlider != null)
+            {
+                ambienceVolumeSlider.onValueChanged.AddListener(OnAmbienceVolumeChanged);
+            }
+
+            if (uiVolumeSlider != null)
+            {
+                uiVolumeSlider.onValueChanged.AddListener(OnUIVolumeChanged);
+            }
+
+            if (physicsVolumeSlider != null)
+            {
+                physicsVolumeSlider.onValueChanged.AddListener(OnPhysicsVolumeChanged);
+            }
+
+            if (blockVolumeSlider != null)
+            {
+                blockVolumeSlider.onValueChanged.AddListener(OnBlockVolumeChanged);
+            }
         }
 
         /// <summary>
-        /// โหลดค่าเริ่มต้นจาก PlayerPrefs มาใส่ใน Slider
+        /// โหลดค่าเริ่มต้นจาก GameSettings มาใส่ใน Slider
         /// </summary>
         private void InitializeSliders()
         {
-            // โหลดค่าความดังเสียง (Default เป็น 0.5f หรือ 50%)
-            float savedBGM = PlayerPrefs.GetFloat("BGMVolume", 0.5f);
-            float savedSFX = PlayerPrefs.GetFloat("SFXVolume", 0.5f);
+            // โหลดค่าจาก GameSettings (ซึ่งอ่านจาก PlayerPrefs)
+            float savedBGM = GameSettings.LoadMusicVolume();
+            float savedSFX = GameSettings.LoadSFXVolume();
+            float savedMaster = GameSettings.LoadMasterVolume();
+            float savedAmbience = GameSettings.LoadAmbienceVolume();
+            float savedUI = GameSettings.LoadUIVolume();
+            float savedPhysics = GameSettings.LoadPhysicsVolume();
+            float savedBlock = GameSettings.LoadBlockVolume();
 
-            if (bgmVolumeSlider != null)
-            {
-                bgmVolumeSlider.value = savedBGM;
-            }
-
-            if (sfxVolumeSlider != null)
-            {
-                sfxVolumeSlider.value = savedSFX;
-            }
+            if (bgmVolumeSlider != null) bgmVolumeSlider.value = savedBGM;
+            if (sfxVolumeSlider != null) sfxVolumeSlider.value = savedSFX;
+            if (masterVolumeSlider != null) masterVolumeSlider.value = savedMaster;
+            if (ambienceVolumeSlider != null) ambienceVolumeSlider.value = savedAmbience;
+            if (uiVolumeSlider != null) uiVolumeSlider.value = savedUI;
+            if (physicsVolumeSlider != null) physicsVolumeSlider.value = savedPhysics;
+            if (blockVolumeSlider != null) blockVolumeSlider.value = savedBlock;
 
             // อัปเดตไปยังตัวจัดการเสียงจริง
             ApplyBGMVolume(savedBGM);
@@ -67,8 +113,7 @@ namespace AudioSystem
         private void OnBGMVolumeChanged(float value)
         {
             ApplyBGMVolume(value);
-            PlayerPrefs.SetFloat("BGMVolume", value);
-            PlayerPrefs.Save();
+            GameSettings.SaveMusicVolume(value);
         }
 
         /// <summary>
@@ -77,15 +122,58 @@ namespace AudioSystem
         private void OnSFXVolumeChanged(float value)
         {
             ApplySFXVolume(value);
-            PlayerPrefs.SetFloat("SFXVolume", value);
-            PlayerPrefs.Save();
+            GameSettings.SaveSFXVolume(value);
+        }
+
+        /// <summary>
+        /// เรียกเมื่อเปลี่ยนค่า Master Volume Slider
+        /// </summary>
+        private void OnMasterVolumeChanged(float value)
+        {
+            GameSettings.SaveMasterVolume(value);
+            // Master Volume มีผลต่อทุก channel
+            GameSettings.ApplyMusicVolume();
+            GameSettings.ApplySFXVolume();
+        }
+
+        /// <summary>
+        /// เรียกเมื่อเปลี่ยนค่า Ambience Volume Slider
+        /// </summary>
+        private void OnAmbienceVolumeChanged(float value)
+        {
+            GameSettings.SaveAmbienceVolume(value);
+        }
+
+        /// <summary>
+        /// เรียกเมื่อเปลี่ยนค่า UI Volume Slider
+        /// </summary>
+        private void OnUIVolumeChanged(float value)
+        {
+            GameSettings.SaveUIVolume(value);
+        }
+
+        /// <summary>
+        /// เรียกเมื่อเปลี่ยนค่า Physics Volume Slider
+        /// </summary>
+        private void OnPhysicsVolumeChanged(float value)
+        {
+            GameSettings.SavePhysicsVolume(value);
+        }
+
+        /// <summary>
+        /// เรียกเมื่อเปลี่ยนค่า Block Volume Slider
+        /// </summary>
+        private void OnBlockVolumeChanged(float value)
+        {
+            GameSettings.SaveBlockVolume(value);
         }
 
         private void ApplyBGMVolume(float value)
         {
             if (BGMManager.Instance != null)
             {
-                BGMManager.Instance.BGMVolume = value;
+                float master = GameSettings.LoadMasterVolume();
+                BGMManager.Instance.BGMVolume = value * master;
             }
         }
 
@@ -93,7 +181,8 @@ namespace AudioSystem
         {
             if (ClickSound.Instance != null)
             {
-                ClickSound.Instance.SFXVolume = value;
+                float master = GameSettings.LoadMasterVolume();
+                ClickSound.Instance.SFXVolume = value * master;
             }
         }
 
@@ -101,14 +190,25 @@ namespace AudioSystem
         {
             // ล้าง EventListeners เมื่อ UI โดนทำลาย
             if (bgmVolumeSlider != null)
-            {
                 bgmVolumeSlider.onValueChanged.RemoveListener(OnBGMVolumeChanged);
-            }
 
             if (sfxVolumeSlider != null)
-            {
                 sfxVolumeSlider.onValueChanged.RemoveListener(OnSFXVolumeChanged);
-            }
+
+            if (masterVolumeSlider != null)
+                masterVolumeSlider.onValueChanged.RemoveListener(OnMasterVolumeChanged);
+
+            if (ambienceVolumeSlider != null)
+                ambienceVolumeSlider.onValueChanged.RemoveListener(OnAmbienceVolumeChanged);
+
+            if (uiVolumeSlider != null)
+                uiVolumeSlider.onValueChanged.RemoveListener(OnUIVolumeChanged);
+
+            if (physicsVolumeSlider != null)
+                physicsVolumeSlider.onValueChanged.RemoveListener(OnPhysicsVolumeChanged);
+
+            if (blockVolumeSlider != null)
+                blockVolumeSlider.onValueChanged.RemoveListener(OnBlockVolumeChanged);
         }
     }
 }

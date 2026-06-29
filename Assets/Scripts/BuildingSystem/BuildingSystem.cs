@@ -140,6 +140,7 @@ namespace Simulation.Building
         public int GridRows => gridRows;
         public float GetGridSize => gridSize;
         public float HeightStep => heightStep > 0f ? heightStep : gridSize;
+        public IReadOnlyList<StructureUnit> PlacedStructures => _placedStructures;
 
         // Batch Command System
         private bool _isBatching = false;
@@ -573,6 +574,115 @@ namespace Simulation.Building
             _selectedData = prevData;
             _selectedMaterial = prevMat;
             return true;
+        }
+
+        public List<BuildingSavePieceData> ExportPlacedStructures()
+        {
+            List<BuildingSavePieceData> pieces = new List<BuildingSavePieceData>();
+            foreach (StructureUnit unit in _placedStructures)
+            {
+                if (unit == null || !unit.gameObject.activeInHierarchy || unit.Data == null) continue;
+
+                pieces.Add(new BuildingSavePieceData
+                {
+                    structureName = unit.Data.structureName,
+                    materialName = unit.CurrentMaterial != null ? unit.CurrentMaterial.materialName : "",
+                    isGadget = unit.Data.isGadget,
+                    position = unit.transform.position,
+                    rotationY = unit.Rotation
+                });
+            }
+
+            return pieces;
+        }
+
+        public bool ImportPlacedStructures(
+            List<BuildingSavePieceData> pieces,
+            StructureData[] structures,
+            MaterialData[] materials,
+            GadgetData[] gadgets,
+            bool clearExisting = true)
+        {
+            if (pieces == null) return false;
+
+            int resolvableCount = 0;
+            foreach (BuildingSavePieceData piece in pieces)
+            {
+                if (piece == null) continue;
+
+                StructureData data = piece.isGadget
+                    ? CreateStructureDataFromGadget(FindGadgetData(gadgets, piece.structureName))
+                    : FindStructureData(structures, piece.structureName);
+
+                if (data != null && data.prefab != null)
+                {
+                    resolvableCount++;
+                }
+            }
+
+            if (resolvableCount == 0)
+            {
+                Debug.LogWarning("[BuildingSystem] Save load failed. No matching StructureData or GadgetData was found.");
+                return false;
+            }
+
+            if (clearExisting)
+            {
+                ClearAllStructuresForLoad();
+            }
+
+            int loadedCount = 0;
+            foreach (BuildingSavePieceData piece in pieces)
+            {
+                if (piece == null) continue;
+
+                StructureData data = piece.isGadget
+                    ? CreateStructureDataFromGadget(FindGadgetData(gadgets, piece.structureName))
+                    : FindStructureData(structures, piece.structureName);
+
+                if (data == null || data.prefab == null)
+                {
+                    Debug.LogWarning($"[BuildingSystem] Save piece skipped. Missing data for '{piece.structureName}'.");
+                    continue;
+                }
+
+                MaterialData material = piece.isGadget
+                    ? data.defaultMaterial
+                    : (FindMaterialData(materials, piece.materialName) ?? data.defaultMaterial);
+                PlaceStructureFromSave(data, material, piece.position, piece.rotationY);
+                loadedCount++;
+            }
+
+            UnityEngine.Physics.SyncTransforms();
+            RefreshAllJoints();
+            RecalculateMaxFloor();
+            return loadedCount > 0;
+        }
+
+        public void ClearAllStructuresForLoad()
+        {
+            ExitMode();
+
+            for (int i = _placedStructures.Count - 1; i >= 0; i--)
+            {
+                StructureUnit unit = _placedStructures[i];
+                if (unit == null) continue;
+
+                CleanupJointsReferencingUnit(unit);
+                Joint[] joints = unit.GetComponents<Joint>();
+                foreach (Joint joint in joints)
+                {
+                    Destroy(joint);
+                }
+
+                unit.gameObject.SetActive(false);
+                Destroy(unit.gameObject);
+            }
+
+            _placedStructures.Clear();
+            _undoStack.Clear();
+            _redoStack.Clear();
+            RecalculateMaxFloor();
         }
 
         private void NotifyCameraFloorChanged()
@@ -1505,6 +1615,74 @@ namespace Simulation.Building
             _currentMode = BuildMode.Moving;
         }
 
+        private StructureData CreateStructureDataFromGadget(GadgetData data)
+        {
+            if (data == null) return null;
+
+            StructureData proxy = ScriptableObject.CreateInstance<StructureData>();
+            proxy.structureName = data.GadgetName;
+            proxy.basePrice = data.Price;
+            proxy.baseMass = data.Mass;
+            proxy.baseHP = data.HP;
+            proxy.size = data.size;
+            proxy.prefab = data.prefab;
+            proxy.defaultMaterial = null;
+            proxy.allowOverlap = data.allowOverlap;
+            proxy.isGadget = true;
+            proxy.placeOnStructureOnly = false;
+            proxy.breakVFX = data.breakVFX;
+            proxy.breakSFX = data.breakSound;
+            return proxy;
+        }
+
+        private StructureData FindStructureData(StructureData[] structures, string structureName)
+        {
+            if (structures == null || string.IsNullOrEmpty(structureName)) return null;
+
+            foreach (StructureData data in structures)
+            {
+                if (data == null) continue;
+                if (string.Equals(data.structureName, structureName, System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return data;
+                }
+            }
+
+            return null;
+        }
+
+        private MaterialData FindMaterialData(MaterialData[] materials, string materialName)
+        {
+            if (materials == null || string.IsNullOrEmpty(materialName)) return null;
+
+            foreach (MaterialData data in materials)
+            {
+                if (data == null) continue;
+                if (string.Equals(data.materialName, materialName, System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return data;
+                }
+            }
+
+            return null;
+        }
+
+        private GadgetData FindGadgetData(GadgetData[] gadgets, string gadgetName)
+        {
+            if (gadgets == null || string.IsNullOrEmpty(gadgetName)) return null;
+
+            foreach (GadgetData data in gadgets)
+            {
+                if (data == null) continue;
+                if (string.Equals(data.GadgetName, gadgetName, System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return data;
+                }
+            }
+
+            return null;
+        }
+
         public void EnterDeleteMode()
         {
             if (!CanEnterBuildMode()) return;
@@ -1719,6 +1897,29 @@ namespace Simulation.Building
             );
 
             RecalculateMaxFloor();
+        }
+
+        private void PlaceStructureFromSave(StructureData data, MaterialData material, Vector3 position, float rotation)
+        {
+            float snappedRotation = Mathf.Round(rotation / 90f) * 90f;
+            GameObject obj = Instantiate(data.prefab, position, Quaternion.Euler(0, snappedRotation, 0));
+
+            if (data.structureType == StructureType.Door && data.doorReplacementPrefab != null)
+            {
+                GameObject frame = Instantiate(data.doorReplacementPrefab, position, Quaternion.Euler(0, snappedRotation, 0));
+                frame.transform.SetParent(obj.transform);
+            }
+
+            SetLayerRecursively(obj, structureLayer);
+            obj.name = $"{data.prefab.name} {GetGridPositionString(position)}";
+
+            StructureUnit unit = obj.GetComponent<StructureUnit>() ?? obj.AddComponent<StructureUnit>();
+            unit.Initialize(data, material, snappedRotation);
+            obj.SetActive(true);
+
+            _placedStructures.Add(unit);
+            AttachSideJoints(obj);
+            IgnoreOverlappingCollisions(unit);
         }
 
         private void ConfirmGroupMove(Vector3 anchorPos, float groupRotation)

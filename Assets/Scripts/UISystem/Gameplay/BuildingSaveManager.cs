@@ -23,6 +23,7 @@ namespace Simulation.UI
         [SerializeField] private TMP_InputField nameInput;
         [SerializeField] private Transform slotParent;
         [SerializeField] private BuildingSaveSlotUI slotPrefab;
+        [SerializeField] private Button addSlotButton;
         [SerializeField] private RawImage selectedPreviewImage;
         [SerializeField] private TextMeshProUGUI selectedNameText;
         [SerializeField] private TextMeshProUGUI statusText;
@@ -32,13 +33,25 @@ namespace Simulation.UI
 
         private readonly List<GameObject> _spawnedSlots = new List<GameObject>();
         private string _selectedSaveId;
+        private int _extraEmptySlots;
 
         private void Start()
         {
+            if (addSlotButton != null)
+            {
+                addSlotButton.onClick.RemoveAllListeners();
+                addSlotButton.onClick.AddListener(AddEmptySlot);
+            }
+
             RefreshSaveList();
         }
 
         public void SaveCurrentBuilding()
+        {
+            SaveToSlot(null, null, GetInputName());
+        }
+
+        public void SaveToSlot(BuildingSaveSlotUI sourceSlot, string saveId, string saveName)
         {
             BuildingSystem bs = GetBuildingSystem();
             if (bs == null) return;
@@ -52,13 +65,19 @@ namespace Simulation.UI
 
             BuildingSaveData data = new BuildingSaveData
             {
-                displayName = GetInputName(),
+                id = saveId,
+                displayName = string.IsNullOrWhiteSpace(saveName) ? GetInputName() : saveName.Trim(),
                 pieces = pieces
             };
 
             Texture2D thumbnail = CaptureThumbnail();
             BuildingSaveStore.Save(data, thumbnail);
             if (thumbnail != null) Destroy(thumbnail);
+
+            if (sourceSlot != null && string.IsNullOrEmpty(saveId) && _extraEmptySlots > 0)
+            {
+                _extraEmptySlots--;
+            }
 
             _selectedSaveId = data.id;
             RefreshSaveList();
@@ -113,6 +132,32 @@ namespace Simulation.UI
             SetStatus("Deleted.");
         }
 
+        public void DeleteSlot(BuildingSaveSlotUI sourceSlot, string id)
+        {
+            if (!string.IsNullOrEmpty(id))
+            {
+                BuildingSaveStore.Delete(id);
+                if (_selectedSaveId == id)
+                {
+                    _selectedSaveId = null;
+                }
+            }
+
+            if (sourceSlot != null)
+            {
+                if (string.IsNullOrEmpty(id) && _extraEmptySlots > 0)
+                {
+                    _extraEmptySlots--;
+                }
+
+                _spawnedSlots.Remove(sourceSlot.gameObject);
+                Destroy(sourceSlot.gameObject);
+            }
+
+            RefreshSelectedPreview();
+            SetStatus("Deleted.");
+        }
+
         public void RenameSelectedSave()
         {
             RenameSelectedSave(GetInputName());
@@ -163,9 +208,31 @@ namespace Simulation.UI
                     slot.Bind(this, summary, thumbnail);
                     _spawnedSlots.Add(slot.gameObject);
                 }
+
+                for (int i = 0; i < _extraEmptySlots; i++)
+                {
+                    BuildingSaveSlotUI slot = Instantiate(slotPrefab, slotParent);
+                    slot.BindEmpty(this);
+                    _spawnedSlots.Add(slot.gameObject);
+                }
             }
 
             RefreshSelectedPreview();
+        }
+
+        public void AddEmptySlot()
+        {
+            if (slotParent == null || slotPrefab == null)
+            {
+                SetStatus("Slot UI missing.");
+                return;
+            }
+
+            BuildingSaveSlotUI slot = Instantiate(slotPrefab, slotParent);
+            slot.BindEmpty(this);
+            _spawnedSlots.Add(slot.gameObject);
+            _extraEmptySlots++;
+            SetStatus("Added slot.");
         }
 
         private BuildingSystem GetBuildingSystem()

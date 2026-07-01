@@ -80,6 +80,11 @@ namespace Simulation.Mission
             _personAttackTimer = attackInterval;
             _wallAttackTimer = attackInterval;
 
+            if (audioSource != null)
+            {
+                audioSource.volume = Simulation.UI.GameSettings.LoadSFXVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
+            }
+
             // ตั้งค่า Agent
             if (_agent != null)
             {
@@ -567,7 +572,11 @@ namespace Simulation.Mission
             if (animator != null) animator.SetTrigger("Die");
 
             // เล่นเสียงตายแบบไม่โดนตัดเมื่อตัวละครถูกทำลาย
-            if (deathSFX != null) AudioSource.PlayClipAtPoint(deathSFX, transform.position);
+            if (deathSFX != null)
+            {
+                float vol = Simulation.UI.GameSettings.LoadSFXVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
+                AudioSource.PlayClipAtPoint(deathSFX, transform.position, vol);
+            }
 
             if (deathVFX != null) Instantiate(deathVFX, transform.position, Quaternion.identity);
             Debug.Log($"<color=green>[Zombie]</color> {name} died!");

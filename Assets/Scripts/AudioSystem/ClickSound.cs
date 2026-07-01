@@ -47,7 +47,7 @@ namespace AudioSystem
             audioSource.spatialBlend = 0f; // 2D Sound
 
             // โหลดระดับเสียงของ SFX ที่เซฟไว้
-            sfxVolume = PlayerPrefs.GetFloat("SFXVolume", 0.5f);
+            sfxVolume = Simulation.UI.GameSettings.LoadSFXVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
 
             // ลงทะเบียน Event เมื่อโหลดซีนใหม่ เพื่อผูกปุ่มในซีนใหม่
             UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
@@ -94,7 +94,17 @@ namespace AudioSystem
         /// </summary>
         public void PlayButtonClickSound()
         {
-            PlaySFX(buttonClickSound, buttonClickVolume);
+            PlayUISFX(buttonClickSound, buttonClickVolume);
+        }
+
+        /// <summary>
+        /// เล่นเสียง UI ใดๆ
+        /// </summary>
+        public void PlayUISFX(AudioClip clip, float volume = 1f)
+        {
+            if (clip == null) return;
+            float uiVol = Simulation.UI.GameSettings.LoadUIVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
+            audioSource.PlayOneShot(clip, Mathf.Clamp01(volume * uiVol));
         }
 
         /// <summary>

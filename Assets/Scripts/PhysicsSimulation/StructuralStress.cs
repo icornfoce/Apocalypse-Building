@@ -465,7 +465,10 @@ namespace Simulation.Physics
                         Instantiate(unit.CurrentMaterial.breakVFX, contact.point, Quaternion.identity, GetVFXContainer());
 
                     if (unit.CurrentMaterial.breakSound != null)
-                        AudioSource.PlayClipAtPoint(unit.CurrentMaterial.breakSound, contact.point);
+                    {
+                        float vol = Simulation.UI.GameSettings.LoadPhysicsVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
+                        AudioSource.PlayClipAtPoint(unit.CurrentMaterial.breakSound, contact.point, vol);
+                    }
                 }
                 return;
             }
@@ -644,7 +647,10 @@ namespace Simulation.Physics
             {
                 shakeIntensity = unit.Data.breakShakeIntensity;
                 if (unit.Data.breakSFX != null)
-                    AudioSource.PlayClipAtPoint(unit.Data.breakSFX, transform.position);
+                {
+                    float vol = Simulation.UI.GameSettings.LoadPhysicsVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
+                    AudioSource.PlayClipAtPoint(unit.Data.breakSFX, transform.position, vol);
+                }
             }
             
             Building.BuildingSystem.Instance?.TriggerCameraShake(shakeIntensity);
@@ -655,7 +661,10 @@ namespace Simulation.Physics
                 if (unit.CurrentMaterial != null)
                 {
                     if (unit.CurrentMaterial.breakSound != null)
-                        AudioSource.PlayClipAtPoint(unit.CurrentMaterial.breakSound, transform.position);
+                    {
+                        float vol = Simulation.UI.GameSettings.LoadPhysicsVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
+                        AudioSource.PlayClipAtPoint(unit.CurrentMaterial.breakSound, transform.position, vol);
+                    }
 
                     if (unit.CurrentMaterial.breakVFX != null)
                         Instantiate(unit.CurrentMaterial.breakVFX, transform.position, Quaternion.identity, GetVFXContainer());

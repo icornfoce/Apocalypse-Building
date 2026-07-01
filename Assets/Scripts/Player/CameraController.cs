@@ -116,8 +116,9 @@ namespace Simulation.Camera
                 float mouseX = Input.GetAxis("Mouse X");
                 float mouseY = Input.GetAxis("Mouse Y");
 
-                yaw += mouseX * mouseRotateSensitivity * 100f * Time.unscaledDeltaTime;
-                pitch -= mouseY * mouseRotateSensitivity * 100f * Time.unscaledDeltaTime;
+                float sens = mouseRotateSensitivity * Simulation.UI.GameSettings.LoadCameraSensitivity();
+                yaw += mouseX * sens * 100f * Time.unscaledDeltaTime;
+                pitch -= mouseY * sens * 100f * Time.unscaledDeltaTime;
             }
 
             // ลบการหมุนกล้องด้วยปุ่มลูกศร/WASD ออก เนื่องจากชนกับปุ่มควบคุมการเคลื่อนที่ของตัวละคร
@@ -152,7 +153,10 @@ namespace Simulation.Camera
             Vector3 shakeOffset = Vector3.zero;
             if (_currentShakeIntensity > 0.01f)
             {
-                shakeOffset = Random.insideUnitSphere * _currentShakeIntensity;
+                if (Simulation.UI.GameSettings.LoadCameraShake())
+                {
+                    shakeOffset = Random.insideUnitSphere * _currentShakeIntensity;
+                }
                 _currentShakeIntensity = Mathf.Lerp(_currentShakeIntensity, 0f, shakeDecayRate * Time.unscaledDeltaTime);
             }
 
@@ -244,7 +248,7 @@ namespace Simulation.Camera
                 OccludedEntry e = kvp.Value;
                 if (e.rend == null) { toRemove.Add(kvp.Key); continue; }
 
-                float target = e.isOccluding ? occludedAlpha : 1f;
+                float target = e.isOccluding ? Simulation.UI.GameSettings.LoadOcclusionTransparency() : 1f;
                 e.currentAlpha = Mathf.Lerp(e.currentAlpha, target, dt);
 
                 // อัพเดท alpha ของทุก material

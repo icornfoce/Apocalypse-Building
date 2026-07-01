@@ -260,7 +260,11 @@ namespace Simulation.Building
         {
             if (currentMaterial != null)
             {
-                if (currentMaterial.breakSound != null) AudioSource.PlayClipAtPoint(currentMaterial.breakSound, transform.position);
+                if (currentMaterial.breakSound != null)
+                {
+                    float vol = Simulation.UI.GameSettings.LoadPhysicsVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
+                    AudioSource.PlayClipAtPoint(currentMaterial.breakSound, transform.position, vol);
+                }
                 if (currentMaterial.breakVFX != null) Instantiate(currentMaterial.breakVFX, transform.position, Quaternion.identity);
             }
 

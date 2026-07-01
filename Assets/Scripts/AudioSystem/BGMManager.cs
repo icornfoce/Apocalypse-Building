@@ -73,7 +73,7 @@ namespace AudioSystem
             audioSource.spatialBlend = 0f; // 2D Sound
 
             // โหลดระดับเสียงของ BGM ที่เซฟไว้
-            bgmVolume = PlayerPrefs.GetFloat("BGMVolume", 0.5f);
+            bgmVolume = Simulation.UI.GameSettings.LoadMusicVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
         }
 
         private void Start()

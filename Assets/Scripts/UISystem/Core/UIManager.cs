@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 using System.Collections.Generic;
 using DG.Tweening;
 
@@ -42,11 +43,15 @@ namespace Simulation.UI
         private float _prePauseTimeScale = 1f;
         private GameObject _pausedUIScreen;
 
+        private Dictionary<CanvasScaler, Vector2> _originalRefResolutions = new Dictionary<CanvasScaler, Vector2>();
+
         private void Awake()
         {
             if (Instance == null)
             {
                 Instance = this;
+                GameSettings.ApplyAllSettings();
+                GameSettings.OnSettingsChanged += ApplyUIScale;
             }
             else
             {
@@ -57,7 +62,32 @@ namespace Simulation.UI
 
         private void OnDestroy()
         {
-            if (Instance == this) Instance = null;
+            if (Instance == this)
+            {
+                GameSettings.OnSettingsChanged -= ApplyUIScale;
+                Instance = null;
+            }
+        }
+
+        private void Update()
+        {
+            ApplyUIScale();
+        }
+
+        private void ApplyUIScale()
+        {
+            float uiScale = GameSettings.LoadUIScale();
+            CanvasScaler[] scalers = FindObjectsByType<CanvasScaler>(FindObjectsSortMode.None);
+            foreach (var scaler in scalers)
+            {
+                if (scaler == null) continue;
+                if (!_originalRefResolutions.ContainsKey(scaler))
+                {
+                    _originalRefResolutions[scaler] = scaler.referenceResolution;
+                }
+                Vector2 original = _originalRefResolutions[scaler];
+                scaler.referenceResolution = new Vector2(original.x / uiScale, original.y / uiScale);
+            }
         }
 
         private void Start()

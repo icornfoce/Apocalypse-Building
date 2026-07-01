@@ -34,6 +34,8 @@ namespace AudioSystem
         [Tooltip("Slider สำหรับปรับ Block Volume")]
         [SerializeField] private Slider blockVolumeSlider;
 
+        private bool _isInternalChange = false;
+
         private void OnEnable()
         {
             InitializeSliders();
@@ -78,6 +80,15 @@ namespace AudioSystem
             {
                 blockVolumeSlider.onValueChanged.AddListener(OnBlockVolumeChanged);
             }
+
+            // รับฟัง Event การรีเซ็ตหรือเปลี่ยนแปลงค่าผ่านระบบตั้งค่า
+            Simulation.UI.GameSettings.OnSettingsChanged += OnSettingsChangedUpdate;
+        }
+
+        private void OnSettingsChangedUpdate()
+        {
+            if (_isInternalChange) return;
+            InitializeSliders();
         }
 
         /// <summary>
@@ -85,6 +96,8 @@ namespace AudioSystem
         /// </summary>
         private void InitializeSliders()
         {
+            _isInternalChange = true;
+
             // โหลดค่าจาก GameSettings (ซึ่งอ่านจาก PlayerPrefs)
             float savedBGM = GameSettings.LoadMusicVolume();
             float savedSFX = GameSettings.LoadSFXVolume();
@@ -105,6 +118,8 @@ namespace AudioSystem
             // อัปเดตไปยังตัวจัดการเสียงจริง
             ApplyBGMVolume(savedBGM);
             ApplySFXVolume(savedSFX);
+
+            _isInternalChange = false;
         }
 
         /// <summary>
@@ -112,6 +127,7 @@ namespace AudioSystem
         /// </summary>
         private void OnBGMVolumeChanged(float value)
         {
+            if (_isInternalChange) return;
             ApplyBGMVolume(value);
             GameSettings.SaveMusicVolume(value);
         }
@@ -121,6 +137,7 @@ namespace AudioSystem
         /// </summary>
         private void OnSFXVolumeChanged(float value)
         {
+            if (_isInternalChange) return;
             ApplySFXVolume(value);
             GameSettings.SaveSFXVolume(value);
         }
@@ -130,6 +147,7 @@ namespace AudioSystem
         /// </summary>
         private void OnMasterVolumeChanged(float value)
         {
+            if (_isInternalChange) return;
             GameSettings.SaveMasterVolume(value);
             // Master Volume มีผลต่อทุก channel
             GameSettings.ApplyMusicVolume();
@@ -141,6 +159,7 @@ namespace AudioSystem
         /// </summary>
         private void OnAmbienceVolumeChanged(float value)
         {
+            if (_isInternalChange) return;
             GameSettings.SaveAmbienceVolume(value);
         }
 
@@ -149,6 +168,7 @@ namespace AudioSystem
         /// </summary>
         private void OnUIVolumeChanged(float value)
         {
+            if (_isInternalChange) return;
             GameSettings.SaveUIVolume(value);
         }
 
@@ -157,6 +177,7 @@ namespace AudioSystem
         /// </summary>
         private void OnPhysicsVolumeChanged(float value)
         {
+            if (_isInternalChange) return;
             GameSettings.SavePhysicsVolume(value);
         }
 
@@ -165,6 +186,7 @@ namespace AudioSystem
         /// </summary>
         private void OnBlockVolumeChanged(float value)
         {
+            if (_isInternalChange) return;
             GameSettings.SaveBlockVolume(value);
         }
 
@@ -188,6 +210,9 @@ namespace AudioSystem
 
         private void OnDestroy()
         {
+            // ล้าง Event สำหรับระบบตั้งค่า
+            Simulation.UI.GameSettings.OnSettingsChanged -= OnSettingsChangedUpdate;
+
             // ล้าง EventListeners เมื่อ UI โดนทำลาย
             if (bgmVolumeSlider != null)
                 bgmVolumeSlider.onValueChanged.RemoveListener(OnBGMVolumeChanged);

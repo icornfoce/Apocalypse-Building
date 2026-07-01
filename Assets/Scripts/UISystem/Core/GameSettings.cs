@@ -471,6 +471,134 @@ namespace Simulation.UI
         //  RESET — รีเซ็ตค่ากลับเป็น Default
         // ═════════════════════════════════════════════
 
+        // ── Individual Reset — General ──
+
+        public static void ResetLanguage()
+        {
+            SaveLanguage(DEFAULT_LANGUAGE);
+            OnSettingsChanged?.Invoke();
+        }
+
+        public static void ResetResolution()
+        {
+            SaveResolutionIndex(DEFAULT_RESOLUTION_INDEX);
+            ApplyResolution(DEFAULT_RESOLUTION_INDEX, LoadFullscreen());
+            OnSettingsChanged?.Invoke();
+        }
+
+        public static void ResetVSync()
+        {
+            SaveVSync(DEFAULT_VSYNC);
+            ApplyVSync(DEFAULT_VSYNC);
+            OnSettingsChanged?.Invoke();
+        }
+
+        public static void ResetFramerate()
+        {
+            SaveFramerate(DEFAULT_FRAMERATE);
+            ApplyFramerate(DEFAULT_FRAMERATE);
+            OnSettingsChanged?.Invoke();
+        }
+
+        public static void ResetFullscreen()
+        {
+            SaveFullscreen(DEFAULT_FULLSCREEN);
+            ApplyFullscreen(DEFAULT_FULLSCREEN);
+            OnSettingsChanged?.Invoke();
+        }
+
+        public static void ResetUIScale()
+        {
+            SaveUIScale(DEFAULT_UI_SCALE);
+            OnSettingsChanged?.Invoke();
+        }
+
+        public static void ResetShowTutorials()
+        {
+            SaveShowTutorials(DEFAULT_SHOW_TUTORIALS);
+            OnSettingsChanged?.Invoke();
+        }
+
+        public static void ResetTooltips()
+        {
+            SaveTooltips(DEFAULT_TOOLTIPS);
+            OnSettingsChanged?.Invoke();
+        }
+
+        public static void ResetShowNodeBuildingGrid()
+        {
+            SaveShowNodeBuildingGrid(DEFAULT_SHOW_NODE_BUILDING_GRID);
+            OnSettingsChanged?.Invoke();
+        }
+
+        public static void ResetCameraSensitivity()
+        {
+            SaveCameraSensitivity(DEFAULT_CAMERA_SENSITIVITY);
+            OnSettingsChanged?.Invoke();
+        }
+
+        public static void ResetCameraShake()
+        {
+            SaveCameraShake(DEFAULT_CAMERA_SHAKE);
+            OnSettingsChanged?.Invoke();
+        }
+
+        public static void ResetOcclusionTransparency()
+        {
+            SaveOcclusionTransparency(DEFAULT_OCCLUSION_TRANSPARENCY);
+            OnSettingsChanged?.Invoke();
+        }
+
+        // ── Individual Reset — Sound ──
+
+        public static void ResetMasterVolume()
+        {
+            SaveMasterVolume(DEFAULT_MASTER_VOLUME);
+            ApplyMusicVolume();
+            ApplySFXVolume();
+            OnSettingsChanged?.Invoke();
+        }
+
+        public static void ResetMusicVolume()
+        {
+            SaveMusicVolume(DEFAULT_MUSIC_VOLUME);
+            ApplyMusicVolume();
+            OnSettingsChanged?.Invoke();
+        }
+
+        public static void ResetAmbienceVolume()
+        {
+            SaveAmbienceVolume(DEFAULT_AMBIENCE_VOLUME);
+            OnSettingsChanged?.Invoke();
+        }
+
+        public static void ResetUIVolume()
+        {
+            SaveUIVolume(DEFAULT_UI_VOLUME);
+            OnSettingsChanged?.Invoke();
+        }
+
+        public static void ResetSFXVolume()
+        {
+            SaveSFXVolume(DEFAULT_SFX_VOLUME);
+            ApplySFXVolume();
+            OnSettingsChanged?.Invoke();
+        }
+
+        public static void ResetPhysicsVolume()
+        {
+            SavePhysicsVolume(DEFAULT_PHYSICS_VOLUME);
+            OnSettingsChanged?.Invoke();
+        }
+
+        public static void ResetBlockVolume()
+        {
+            SaveBlockVolume(DEFAULT_BLOCK_VOLUME);
+            OnSettingsChanged?.Invoke();
+        }
+
+        // ── Batch Reset ──
+
         /// <summary>
         /// รีเซ็ตค่า General Settings ทั้งหมดกลับเป็นค่าเริ่มต้น
         /// </summary>

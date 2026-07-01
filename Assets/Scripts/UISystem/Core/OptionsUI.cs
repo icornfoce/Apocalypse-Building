@@ -154,6 +154,27 @@ namespace Simulation.UI
         // ─────────────────────────────────────────────
         private bool _isLoadingValues = false;
 
+        // รายชื่อปุ่ม Reset ที่สร้างอัตโนมัติ (เก็บไว้สำหรับ cleanup)
+        private List<Button> _autoCreatedButtons = new List<Button>();
+
+        // ═════════════════════════════════════════════
+        //  Reset Button Style Settings
+        // ═════════════════════════════════════════════
+
+        [Header("═══ RESET BUTTON STYLE ═══")]
+        [Tooltip("ขนาดของปุ่ม Reset แต่ละรายการ (กว้าง x สูง)")]
+        [SerializeField] private Vector2 resetButtonSize = new Vector2(35f, 35f);
+        [Tooltip("ระยะห่างจากขอบขวาของ Control")]
+        [SerializeField] private float resetButtonOffsetX = 10f;
+        [Tooltip("สีพื้นหลังปุ่ม Reset แต่ละรายการ")]
+        [SerializeField] private Color resetButtonColor = new Color(0.8f, 0.2f, 0.2f, 0.85f);
+        [Tooltip("สีตัวอักษรปุ่ม Reset แต่ละรายการ")]
+        [SerializeField] private Color resetButtonTextColor = Color.white;
+        [Tooltip("สีพื้นหลังปุ่ม Reset All")]
+        [SerializeField] private Color resetAllButtonColor = new Color(0.9f, 0.3f, 0.3f, 1f);
+        [Tooltip("ขนาดตัวอักษรปุ่ม Reset")]
+        [SerializeField] private float resetButtonFontSize = 16f;
+
         // ═════════════════════════════════════════════
         //  Unity Lifecycle
         // ═════════════════════════════════════════════
@@ -162,6 +183,10 @@ namespace Simulation.UI
         {
             SetupGeneralControls();
             SetupSoundControls();
+
+            // สร้างปุ่ม Reset อัตโนมัติทั้งหมด
+            AutoCreateAllResetButtons();
+
             RegisterListeners();
 
             // เปิดหน้าแรก (General) เป็นค่าเริ่มต้น
@@ -177,6 +202,227 @@ namespace Simulation.UI
         private void OnDestroy()
         {
             UnregisterListeners();
+        }
+
+        // ═════════════════════════════════════════════
+        //  AUTO-CREATE RESET BUTTONS
+        // ═════════════════════════════════════════════
+
+        /// <summary>
+        /// สร้างปุ่ม Reset ทั้งหมดอัตโนมัติ (แต่ละรายการ + Reset All)
+        /// </summary>
+        private void AutoCreateAllResetButtons()
+        {
+            // ── General: ปุ่ม Reset แต่ละรายการ ──
+            CreateResetButtonForControl(languageDropdown, "ResetLanguage", OnResetLanguageClicked);
+            CreateResetButtonForControl(resolutionDropdown, "ResetResolution", OnResetResolutionClicked);
+            CreateResetButtonForControl(vsyncToggle, "ResetVSync", OnResetVSyncClicked);
+            CreateResetButtonForControl(framerateDropdown, "ResetFramerate", OnResetFramerateClicked);
+            CreateResetButtonForControl(fullscreenToggle, "ResetFullscreen", OnResetFullscreenClicked);
+            CreateResetButtonForControl(uiScaleSlider, "ResetUIScale", OnResetUIScaleClicked);
+            CreateResetButtonForControl(showTutorialsToggle, "ResetShowTutorials", OnResetShowTutorialsClicked);
+            CreateResetButtonForControl(tooltipsToggle, "ResetTooltips", OnResetTooltipsClicked);
+            CreateResetButtonForControl(showNodeBuildingGridToggle, "ResetGrid", OnResetShowNodeBuildingGridClicked);
+            CreateResetButtonForControl(cameraSensitivitySlider, "ResetCamSens", OnResetCameraSensitivityClicked);
+            CreateResetButtonForControl(cameraShakeToggle, "ResetCamShake", OnResetCameraShakeClicked);
+            CreateResetButtonForControl(occlusionTransparencySlider, "ResetOcclusion", OnResetOcclusionTransparencyClicked);
+
+            // ── General: ปุ่ม Reset All General ──
+            if (generalTab != null && generalTab.panelObject != null)
+            {
+                if (resetGeneralButton == null)
+                {
+                    resetGeneralButton = CreateResetAllButton(generalTab.panelObject, "ResetAllGeneral", "↺ Reset All General", OnResetGeneralClicked);
+                }
+                // ── General: ปุ่ม Reset All Settings (ทุกหมวดรวมกัน) ──
+                CreateResetAllButton(generalTab.panelObject, "ResetEverythingFromGeneral", "⟲ Reset All Settings (ทุกหมวด)", OnResetAllSettingsClicked);
+            }
+
+            // ── Sound: ปุ่ม Reset แต่ละรายการ ──
+            CreateResetButtonForControl(masterVolumeSlider, "ResetMaster", OnResetMasterVolumeClicked);
+            CreateResetButtonForControl(musicVolumeSlider, "ResetMusic", OnResetMusicVolumeClicked);
+            CreateResetButtonForControl(ambienceVolumeSlider, "ResetAmbience", OnResetAmbienceVolumeClicked);
+            CreateResetButtonForControl(uiVolumeSlider, "ResetUIVol", OnResetUIVolumeClicked);
+            CreateResetButtonForControl(sfxVolumeSlider, "ResetSFX", OnResetSFXVolumeClicked);
+            CreateResetButtonForControl(physicsVolumeSlider, "ResetPhysics", OnResetPhysicsVolumeClicked);
+            CreateResetButtonForControl(blockVolumeSlider, "ResetBlock", OnResetBlockVolumeClicked);
+
+            // ── Sound: ปุ่ม Reset All Sound ──
+            if (soundTab != null && soundTab.panelObject != null)
+            {
+                if (resetSoundButton == null)
+                {
+                    resetSoundButton = CreateResetAllButton(soundTab.panelObject, "ResetAllSound", "↺ Reset All Sound", OnResetSoundClicked);
+                }
+                // ── Sound: ปุ่ม Reset All Settings (ทุกหมวดรวมกัน) ──
+                CreateResetAllButton(soundTab.panelObject, "ResetEverythingFromSound", "⟲ Reset All Settings (ทุกหมวด)", OnResetAllSettingsClicked);
+            }
+
+            Debug.Log("[OptionsUI] Auto-created all reset buttons successfully.");
+        }
+
+        /// <summary>
+        /// สร้างปุ่ม Reset เล็กๆ (↺) ข้างตัว Control (Slider / Toggle / Dropdown)
+        /// วางไว้เป็น sibling ถัดจาก control ใน parent เดียวกัน
+        /// </summary>
+        private void CreateResetButtonForControl(Component control, string buttonName, UnityEngine.Events.UnityAction onClick)
+        {
+            if (control == null) return;
+
+            // หา parent ของ control (แถว / row ของ setting)
+            Transform parentRow = control.transform.parent;
+            if (parentRow == null) return;
+
+            // ตรวจสอบว่ามีปุ่ม Reset อยู่แล้วหรือไม่ (กันสร้างซ้ำ)
+            Transform existing = parentRow.Find(buttonName);
+            if (existing != null)
+            {
+                Button existingBtn = existing.GetComponent<Button>();
+                if (existingBtn != null)
+                {
+                    existingBtn.onClick.AddListener(onClick);
+                    _autoCreatedButtons.Add(existingBtn);
+                }
+                return;
+            }
+
+            // สร้าง GameObject ปุ่ม
+            GameObject btnObj = new GameObject(buttonName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+            btnObj.transform.SetParent(parentRow, false);
+
+            // ตั้งค่า RectTransform — วางชิดขวาของ parent row
+            RectTransform btnRect = btnObj.GetComponent<RectTransform>();
+            btnRect.anchorMin = new Vector2(1f, 0.5f);
+            btnRect.anchorMax = new Vector2(1f, 0.5f);
+            btnRect.pivot = new Vector2(1f, 0.5f);
+            btnRect.sizeDelta = resetButtonSize;
+            btnRect.anchoredPosition = new Vector2(-resetButtonOffsetX, 0f);
+
+            // ตั้งค่า Image (พื้นหลัง)
+            Image btnImage = btnObj.GetComponent<Image>();
+            btnImage.color = resetButtonColor;
+
+            // ทำมุมโค้ง — ใช้ sprite default ของ Unity ถ้ามี
+            Sprite uiSprite = Resources.GetBuiltinResource<Sprite>("UI/Skin/UISprite.psd");
+            if (uiSprite != null)
+            {
+                btnImage.sprite = uiSprite;
+                btnImage.type = Image.Type.Sliced;
+            }
+
+            // สร้าง TextMeshProUGUI สำหรับแสดงสัญลักษณ์ ↺
+            GameObject textObj = new GameObject("Text", typeof(RectTransform), typeof(CanvasRenderer));
+            textObj.transform.SetParent(btnObj.transform, false);
+
+            TextMeshProUGUI tmpText = textObj.AddComponent<TextMeshProUGUI>();
+            tmpText.text = "↺";
+            tmpText.fontSize = resetButtonFontSize;
+            tmpText.color = resetButtonTextColor;
+            tmpText.alignment = TextAlignmentOptions.Center;
+            tmpText.enableWordWrapping = false;
+            tmpText.overflowMode = TextOverflowModes.Overflow;
+
+            RectTransform textRect = textObj.GetComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.sizeDelta = Vector2.zero;
+            textRect.offsetMin = Vector2.zero;
+            textRect.offsetMax = Vector2.zero;
+
+            // ผูก OnClick
+            Button btn = btnObj.GetComponent<Button>();
+            btn.onClick.AddListener(onClick);
+
+            // ตั้งค่า Button transition
+            ColorBlock colors = btn.colors;
+            colors.normalColor = resetButtonColor;
+            colors.highlightedColor = new Color(resetButtonColor.r * 1.2f, resetButtonColor.g * 1.2f, resetButtonColor.b * 1.2f, 1f);
+            colors.pressedColor = new Color(resetButtonColor.r * 0.7f, resetButtonColor.g * 0.7f, resetButtonColor.b * 0.7f, 1f);
+            colors.selectedColor = resetButtonColor;
+            btn.colors = colors;
+
+            _autoCreatedButtons.Add(btn);
+        }
+
+        /// <summary>
+        /// สร้างปุ่ม "Reset All" ขนาดใหญ่ที่ด้านล่างสุดของ Panel
+        /// </summary>
+        private Button CreateResetAllButton(GameObject panel, string buttonName, string labelText, UnityEngine.Events.UnityAction onClick)
+        {
+            if (panel == null) return null;
+
+            // ตรวจสอบว่ามีปุ่มอยู่แล้วหรือไม่
+            Transform existing = panel.transform.Find(buttonName);
+            if (existing != null)
+            {
+                Button existingBtn = existing.GetComponent<Button>();
+                if (existingBtn != null)
+                {
+                    existingBtn.onClick.AddListener(onClick);
+                    _autoCreatedButtons.Add(existingBtn);
+                    return existingBtn;
+                }
+            }
+
+            // สร้าง GameObject ปุ่ม
+            GameObject btnObj = new GameObject(buttonName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+            btnObj.transform.SetParent(panel.transform, false);
+
+            // ตั้งค่า RectTransform — วางล่างสุดกลาง
+            RectTransform btnRect = btnObj.GetComponent<RectTransform>();
+            btnRect.anchorMin = new Vector2(0.5f, 0f);
+            btnRect.anchorMax = new Vector2(0.5f, 0f);
+            btnRect.pivot = new Vector2(0.5f, 0f);
+            btnRect.sizeDelta = new Vector2(250f, 45f);
+            btnRect.anchoredPosition = new Vector2(0f, 15f);
+
+            // ตั้งค่า Image (พื้นหลัง)
+            Image btnImage = btnObj.GetComponent<Image>();
+            btnImage.color = resetAllButtonColor;
+
+            Sprite uiSprite = Resources.GetBuiltinResource<Sprite>("UI/Skin/UISprite.psd");
+            if (uiSprite != null)
+            {
+                btnImage.sprite = uiSprite;
+                btnImage.type = Image.Type.Sliced;
+            }
+
+            // สร้าง TextMeshProUGUI
+            GameObject textObj = new GameObject("Text", typeof(RectTransform), typeof(CanvasRenderer));
+            textObj.transform.SetParent(btnObj.transform, false);
+
+            TextMeshProUGUI tmpText = textObj.AddComponent<TextMeshProUGUI>();
+            tmpText.text = labelText;
+            tmpText.fontSize = 18f;
+            tmpText.color = Color.white;
+            tmpText.alignment = TextAlignmentOptions.Center;
+            tmpText.enableWordWrapping = false;
+            tmpText.fontStyle = FontStyles.Bold;
+
+            RectTransform textRect = textObj.GetComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.sizeDelta = Vector2.zero;
+            textRect.offsetMin = Vector2.zero;
+            textRect.offsetMax = Vector2.zero;
+
+            // ผูก OnClick
+            Button btn = btnObj.GetComponent<Button>();
+            btn.onClick.AddListener(onClick);
+
+            // ตั้งค่า Button transition
+            ColorBlock colors = btn.colors;
+            colors.normalColor = resetAllButtonColor;
+            colors.highlightedColor = new Color(1f, 0.4f, 0.4f, 1f);
+            colors.pressedColor = new Color(0.6f, 0.15f, 0.15f, 1f);
+            colors.selectedColor = resetAllButtonColor;
+            btn.colors = colors;
+
+            // ทำให้ปุ่มอยู่ล่างสุดใน sibling order
+            btnObj.transform.SetAsLastSibling();
+
+            _autoCreatedButtons.Add(btn);
+            return btn;
         }
 
         // ═════════════════════════════════════════════
@@ -673,27 +919,197 @@ namespace Simulation.UI
         }
 
         // ═════════════════════════════════════════════
-        //  RESET Callbacks
+        //  RESET Callbacks — Individual (General)
+        // ═════════════════════════════════════════════
+
+        /// <summary>รีเซ็ตค่า Language กลับเป็นค่าเริ่มต้น</summary>
+        public void OnResetLanguageClicked()
+        {
+            GameSettings.ResetLanguage();
+            LoadAllValues();
+            Debug.Log("[OptionsUI] Language → Reset to Default");
+        }
+
+        /// <summary>รีเซ็ตค่า Resolution กลับเป็นค่าเริ่มต้น</summary>
+        public void OnResetResolutionClicked()
+        {
+            GameSettings.ResetResolution();
+            LoadAllValues();
+            Debug.Log("[OptionsUI] Resolution → Reset to Default");
+        }
+
+        /// <summary>รีเซ็ตค่า VSync กลับเป็นค่าเริ่มต้น</summary>
+        public void OnResetVSyncClicked()
+        {
+            GameSettings.ResetVSync();
+            LoadAllValues();
+            Debug.Log("[OptionsUI] VSync → Reset to Default");
+        }
+
+        /// <summary>รีเซ็ตค่า Framerate กลับเป็นค่าเริ่มต้น</summary>
+        public void OnResetFramerateClicked()
+        {
+            GameSettings.ResetFramerate();
+            LoadAllValues();
+            Debug.Log("[OptionsUI] Framerate → Reset to Default");
+        }
+
+        /// <summary>รีเซ็ตค่า Fullscreen กลับเป็นค่าเริ่มต้น</summary>
+        public void OnResetFullscreenClicked()
+        {
+            GameSettings.ResetFullscreen();
+            LoadAllValues();
+            Debug.Log("[OptionsUI] Fullscreen → Reset to Default");
+        }
+
+        /// <summary>รีเซ็ตค่า UI Scale กลับเป็นค่าเริ่มต้น</summary>
+        public void OnResetUIScaleClicked()
+        {
+            GameSettings.ResetUIScale();
+            LoadAllValues();
+            Debug.Log("[OptionsUI] UI Scale → Reset to Default");
+        }
+
+        /// <summary>รีเซ็ตค่า Show Tutorials กลับเป็นค่าเริ่มต้น</summary>
+        public void OnResetShowTutorialsClicked()
+        {
+            GameSettings.ResetShowTutorials();
+            LoadAllValues();
+            Debug.Log("[OptionsUI] Show Tutorials → Reset to Default");
+        }
+
+        /// <summary>รีเซ็ตค่า Tooltips กลับเป็นค่าเริ่มต้น</summary>
+        public void OnResetTooltipsClicked()
+        {
+            GameSettings.ResetTooltips();
+            LoadAllValues();
+            Debug.Log("[OptionsUI] Tooltips → Reset to Default");
+        }
+
+        /// <summary>รีเซ็ตค่า Show Node Building Grid กลับเป็นค่าเริ่มต้น</summary>
+        public void OnResetShowNodeBuildingGridClicked()
+        {
+            GameSettings.ResetShowNodeBuildingGrid();
+            LoadAllValues();
+            Debug.Log("[OptionsUI] Show Node Building Grid → Reset to Default");
+        }
+
+        /// <summary>รีเซ็ตค่า Camera Sensitivity กลับเป็นค่าเริ่มต้น</summary>
+        public void OnResetCameraSensitivityClicked()
+        {
+            GameSettings.ResetCameraSensitivity();
+            LoadAllValues();
+            Debug.Log("[OptionsUI] Camera Sensitivity → Reset to Default");
+        }
+
+        /// <summary>รีเซ็ตค่า Camera Shake กลับเป็นค่าเริ่มต้น</summary>
+        public void OnResetCameraShakeClicked()
+        {
+            GameSettings.ResetCameraShake();
+            LoadAllValues();
+            Debug.Log("[OptionsUI] Camera Shake → Reset to Default");
+        }
+
+        /// <summary>รีเซ็ตค่า Occlusion Transparency กลับเป็นค่าเริ่มต้น</summary>
+        public void OnResetOcclusionTransparencyClicked()
+        {
+            GameSettings.ResetOcclusionTransparency();
+            LoadAllValues();
+            Debug.Log("[OptionsUI] Occlusion Transparency → Reset to Default");
+        }
+
+        // ═════════════════════════════════════════════
+        //  RESET Callbacks — Individual (Sound)
+        // ═════════════════════════════════════════════
+
+        /// <summary>รีเซ็ตค่า Master Volume กลับเป็นค่าเริ่มต้น</summary>
+        public void OnResetMasterVolumeClicked()
+        {
+            GameSettings.ResetMasterVolume();
+            LoadAllValues();
+            Debug.Log("[OptionsUI] Master Volume → Reset to Default");
+        }
+
+        /// <summary>รีเซ็ตค่า Music Volume กลับเป็นค่าเริ่มต้น</summary>
+        public void OnResetMusicVolumeClicked()
+        {
+            GameSettings.ResetMusicVolume();
+            LoadAllValues();
+            Debug.Log("[OptionsUI] Music Volume → Reset to Default");
+        }
+
+        /// <summary>รีเซ็ตค่า Ambience Volume กลับเป็นค่าเริ่มต้น</summary>
+        public void OnResetAmbienceVolumeClicked()
+        {
+            GameSettings.ResetAmbienceVolume();
+            LoadAllValues();
+            Debug.Log("[OptionsUI] Ambience Volume → Reset to Default");
+        }
+
+        /// <summary>รีเซ็ตค่า UI Volume กลับเป็นค่าเริ่มต้น</summary>
+        public void OnResetUIVolumeClicked()
+        {
+            GameSettings.ResetUIVolume();
+            LoadAllValues();
+            Debug.Log("[OptionsUI] UI Volume → Reset to Default");
+        }
+
+        /// <summary>รีเซ็ตค่า SFX Volume กลับเป็นค่าเริ่มต้น</summary>
+        public void OnResetSFXVolumeClicked()
+        {
+            GameSettings.ResetSFXVolume();
+            LoadAllValues();
+            Debug.Log("[OptionsUI] SFX Volume → Reset to Default");
+        }
+
+        /// <summary>รีเซ็ตค่า Physics Volume กลับเป็นค่าเริ่มต้น</summary>
+        public void OnResetPhysicsVolumeClicked()
+        {
+            GameSettings.ResetPhysicsVolume();
+            LoadAllValues();
+            Debug.Log("[OptionsUI] Physics Volume → Reset to Default");
+        }
+
+        /// <summary>รีเซ็ตค่า Block Volume กลับเป็นค่าเริ่มต้น</summary>
+        public void OnResetBlockVolumeClicked()
+        {
+            GameSettings.ResetBlockVolume();
+            LoadAllValues();
+            Debug.Log("[OptionsUI] Block Volume → Reset to Default");
+        }
+
+        // ═════════════════════════════════════════════
+        //  RESET Callbacks — Batch (Reset All)
         // ═════════════════════════════════════════════
 
         /// <summary>
         /// กดปุ่ม Reset General — รีเซ็ตค่า General ทั้งหมดกลับเป็นค่าเริ่มต้น
         /// </summary>
-        private void OnResetGeneralClicked()
+        public void OnResetGeneralClicked()
         {
             GameSettings.ResetGeneralToDefaults();
-            LoadAllValues(); // โหลดค่าใหม่กลับมาแสดงบน UI
-            Debug.Log("[OptionsUI] General Settings → Reset to Defaults");
+            LoadAllValues();
+            Debug.Log("[OptionsUI] General Settings → Reset ALL to Defaults");
         }
 
         /// <summary>
         /// กดปุ่ม Reset Sound — รีเซ็ตค่า Sound ทั้งหมดกลับเป็นค่าเริ่มต้น
         /// </summary>
-        private void OnResetSoundClicked()
+        public void OnResetSoundClicked()
         {
             GameSettings.ResetSoundToDefaults();
-            LoadAllValues(); // โหลดค่าใหม่กลับมาแสดงบน UI
-            Debug.Log("[OptionsUI] Sound Settings → Reset to Defaults");
+            LoadAllValues();
+            Debug.Log("[OptionsUI] Sound Settings → Reset ALL to Defaults");
+        }
+
+        /// <summary>
+        /// กดปุ่ม Reset All Settings — รีเซ็ตค่าทุกหมวด (General + Sound) กลับเป็นค่าเริ่มต้น
+        /// </summary>
+        public void OnResetAllSettingsClicked()
+        {
+            GameSettings.ResetAllToDefaults();
+            LoadAllValues();
+            Debug.Log("[OptionsUI] ALL Settings → Reset to Defaults (General + Sound)");
         }
 
         // ═════════════════════════════════════════════

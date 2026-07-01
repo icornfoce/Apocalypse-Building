@@ -21,6 +21,10 @@ namespace Simulation.Building
         public float openAngle = 90f;
         public float smoothSpeed = 8f;          // open faster so walkers don't jam against the leaf
         public float detectionRadius = 1.5f;
+        [Tooltip("รัศมีที่คน/NPC ต้องเข้ามาใกล้ก่อนประตูจะเปิด (เล็ก = เปิดตอนใกล้ขึ้น)")]
+        public float openRadius = 1.4f;
+        [Tooltip("ถ้ามีซอมบี้อยู่ในรัศมีนี้ ประตูจะไม่เปิด (กันซอมบี้เดินตามคนทะลุ → ต้องกัดพังเอง)")]
+        public float zombieBlockRadius = 2.2f;
 
         private Quaternion _closedRotation;
         private Quaternion _openRotation;
@@ -30,6 +34,7 @@ namespace Simulation.Building
         private float _scanTimer;
         private Simulation.Physics.StructuralStress _stress; // โครงสร้างของประตู (ใช้กันพังตอนคนเดินชน)
         private Collider[] _leafColliders; // collider แข็งของบานประตู — สลับเป็น trigger ตอนเปิด ให้คนทะลุได้ (ไม่ชน = ไม่พัง)
+        private readonly Collider[] _scanBuffer = new Collider[48]; // buffer สำหรับ OverlapSphereNonAlloc (ลด GC)
 
         private void Start()
         {
@@ -88,19 +93,39 @@ namespace Simulation.Building
             _scanTimer -= Time.deltaTime;
             if (_scanTimer <= 0f)
             {
-                _scanTimer = 0.2f;
+                _scanTimer = 0.12f;
                 bool nearbyPerson = false;
-                var cols = UnityEngine.Physics.OverlapSphere(transform.position, detectionRadius + 1.2f);
-                foreach (var c in cols)
+                bool nearbyZombie = false;
+                float scanR = Mathf.Max(openRadius, zombieBlockRadius);
+                int n = UnityEngine.Physics.OverlapSphereNonAlloc(transform.position, scanR, _scanBuffer, ~0, QueryTriggerInteraction.Collide);
+                for (int i = 0; i < n; i++)
                 {
-                    if (c.GetComponentInParent<PersonAI>() != null || c.GetComponentInParent<NPCController>() != null)
+                    var c = _scanBuffer[i];
+                    if (c == null) continue;
+
+                    // ซอมบี้จ่ออยู่ในรัศมีบล็อก → ห้ามเปิด (บังคับให้กัดพังเอง ไม่เดินตามคนทะลุ)
+                    if (!nearbyZombie && c.GetComponentInParent<ZombieAI>() != null)
                     {
-                        nearbyPerson = true;
-                        break;
+                        if (Vector3.Distance(transform.position, c.transform.position) <= zombieBlockRadius)
+                        {
+                            nearbyZombie = true;
+                            continue;
+                        }
+                    }
+
+                    // คน/NPC เข้ามาใกล้พอในรัศมีเปิด
+                    if (!nearbyPerson &&
+                        (c.GetComponentInParent<PersonAI>() != null || c.GetComponentInParent<NPCController>() != null))
+                    {
+                        if (Vector3.Distance(transform.position, c.transform.position) <= openRadius)
+                        {
+                            nearbyPerson = true;
+                        }
                     }
                 }
-                // ปิดเมื่อไม่มีคนอยู่ใกล้ (อิง scan ที่เชื่อถือได้ ไม่พึ่ง _occupants จาก trigger ที่อาจค้าง → กันบั๊กประตูเปิดค้างไม่ปิด)
-                _shouldBeOpen = nearbyPerson;
+
+                // เปิดเฉพาะเมื่อมีคนใกล้ "และไม่มีซอมบี้จ่อ" — ไม่งั้นปิดไว้ (กันซอมบี้ทะลุ + ปิดเองเมื่อไม่มีคน)
+                _shouldBeOpen = nearbyPerson && !nearbyZombie;
             }
 
             // กันประตูพังตอนคนเดินชน: ระหว่างมีคนใกล้ (ประตูควรเปิด) ต่ออายุช่วงงดคิดดาเมจจากแรงของโครงสร้าง
@@ -131,11 +156,11 @@ namespace Simulation.Building
         private void OnTriggerEnter(Collider other)
         {
             // เช็คว่าเป็นคน (PersonAI หรือ NPCController) เท่านั้น (ซอมบี้เปิดไม่ได้)
+            // หมายเหตุ: การเปิด/ปิดจริงตัดสินโดย scan ใน Update (เพื่อบังคับกฎ "ห้ามเปิดถ้ามีซอมบี้จ่อ")
             if (other.GetComponentInParent<PersonAI>() != null ||
                 other.GetComponentInParent<NPCController>() != null)
             {
                 _occupants.Add(other);
-                _shouldBeOpen = true;
             }
         }
 
@@ -144,10 +169,6 @@ namespace Simulation.Building
             if (_occupants.Contains(other))
             {
                 _occupants.Remove(other);
-                if (_occupants.Count == 0)
-                {
-                    _shouldBeOpen = false;
-                }
             }
         }
 

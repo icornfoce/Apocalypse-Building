@@ -61,6 +61,13 @@ namespace Simulation.NPC
         // กันไม่ให้ Collider จริง (เดิม 0.5) โผล่ทะลุ/ดันกำแพงจนพังตอนเดิน
         private const float NavBodyRadius = 0.2f;
 
+        // ── Perf: cache LayerMask + throttle การสแกนหนัก ๆ + reuse buffer (ลด GC/CPU ต่อเฟรม) ──
+        private int _groundStructureMask;
+        private int _structureMask;
+        private float _fleeScanTimer;
+        private float _structNotifyTimer;
+        private readonly Collider[] _overlapBuffer = new Collider[64];
+
         // Skill Runtime
         private float _skillCooldownTimer = 0f;
         private bool _isRepairing = false;
@@ -160,6 +167,10 @@ namespace Simulation.NPC
             {
                 _rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
             }
+
+            // cache LayerMask ครั้งเดียว (เดิมเรียก GetMask ทุกเฟรม)
+            _groundStructureMask = LayerMask.GetMask("Ground", "Structure");
+            _structureMask = LayerMask.GetMask("Structure");
         }
 
         private void Update()
@@ -176,11 +187,10 @@ namespace Simulation.NPC
             }
 
             // ── Floor check: ถ้าไม่มีพื้นรองรับ ให้ตก ──
-            int floorMask = LayerMask.GetMask("Ground", "Structure");
             float rayDist = 0.8f;
             bool hasFloor = UnityEngine.Physics.Raycast(
                 transform.position + Vector3.up * 0.1f, Vector3.down,
-                out RaycastHit floorHit, rayDist, floorMask, QueryTriggerInteraction.Collide
+                out RaycastHit floorHit, rayDist, _groundStructureMask, QueryTriggerInteraction.Collide
             );
 
             if (_agent != null && _agent.enabled && _agent.isOnNavMesh && hasFloor)
@@ -239,16 +249,18 @@ namespace Simulation.NPC
             }
 
             // ป้องกันโครงสร้างข้างๆ พังจากการเบียดชนของตัวละคร
-            var nearbyStructures = UnityEngine.Physics.OverlapSphere(transform.position, 1.2f, LayerMask.GetMask("Structure"));
-            foreach (var hitCol in nearbyStructures)
+            // throttle ทุก 0.2s (grace 0.3s ครอบคลุมพอ) + NonAlloc ลด GC ต่อเฟรม
+            _structNotifyTimer -= Time.deltaTime;
+            if (_structNotifyTimer <= 0f)
             {
-                if (hitCol != null)
+                _structNotifyTimer = 0.2f;
+                int sc = UnityEngine.Physics.OverlapSphereNonAlloc(transform.position, 1.2f, _overlapBuffer, _structureMask);
+                for (int i = 0; i < sc; i++)
                 {
+                    var hitCol = _overlapBuffer[i];
+                    if (hitCol == null) continue;
                     var stress = hitCol.GetComponentInParent<StructuralStress>();
-                    if (stress != null)
-                    {
-                        stress.NotifyCharacterContact();
-                    }
+                    if (stress != null) stress.NotifyCharacterContact();
                 }
             }
 
@@ -273,28 +285,30 @@ namespace Simulation.NPC
 
         private void HandleFleeBehavior()
         {
-            // ค้นหาซอมบี้ใกล้ๆ
-            ZombieAI nearbyZombie = FindVisibleZombie();
-
-            if (nearbyZombie != null)
+            // สแกนหาซอมบี้เป็นช่วง ๆ (ทุก 0.2s) แทนทุกเฟรม — panic กินเวลา 3s อยู่แล้ว จึงไม่ต้องสแกนถี่
+            _fleeScanTimer -= Time.deltaTime;
+            if (_fleeScanTimer <= 0f)
             {
-                // พบซอมบี้! เริ่มตกใจและวิ่งหนี
-                _panicTimer = 3f;
-                _fleeDirection = (transform.position - nearbyZombie.transform.position).normalized;
-                _fleeDirection.y = 0;
-
-                ShowPanicVFX(true);
-            }
-            else
-            {
-                // ไม่พบซอมบี้ ค่อยๆ ลดเวลาตกใจ
-                if (_panicTimer > 0)
+                _fleeScanTimer = 0.2f;
+                ZombieAI nearbyZombie = FindVisibleZombie();
+                if (nearbyZombie != null)
                 {
-                    _panicTimer -= Time.deltaTime;
-                    if (_panicTimer <= 0)
-                    {
-                        StopFleeing();
-                    }
+                    // พบซอมบี้! เริ่มตกใจและวิ่งหนี
+                    _panicTimer = 3f;
+                    _fleeDirection = (transform.position - nearbyZombie.transform.position).normalized;
+                    _fleeDirection.y = 0;
+                    ShowPanicVFX(true);
+                    return;
+                }
+            }
+
+            // ไม่พบซอมบี้ (หรืออยู่ระหว่างรอบสแกน) → ค่อยๆ ลดเวลาตกใจ
+            if (_panicTimer > 0)
+            {
+                _panicTimer -= Time.deltaTime;
+                if (_panicTimer <= 0)
+                {
+                    StopFleeing();
                 }
             }
         }
@@ -303,11 +317,13 @@ namespace Simulation.NPC
         {
             if (detectionRange <= 0) return null;
 
-            // ตรวจสอบในรัศมีรอบตัว
-            Collider[] hits = UnityEngine.Physics.OverlapSphere(transform.position, detectionRange);
+            // ตรวจสอบในรัศมีรอบตัว (NonAlloc ลด GC)
+            int count = UnityEngine.Physics.OverlapSphereNonAlloc(transform.position, detectionRange, _overlapBuffer);
 
-            foreach (var hit in hits)
+            for (int hi = 0; hi < count; hi++)
             {
+                var hit = _overlapBuffer[hi];
+                if (hit == null) continue;
                 // ข้ามถ้าเป็นตัวเอง
                 if (hit.transform.root == transform.root) continue;
 

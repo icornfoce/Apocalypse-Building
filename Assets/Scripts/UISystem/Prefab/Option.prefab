@@ -23192,6 +23192,37 @@ MonoBehaviour:
     buttonText: {fileID: 3765610459068053997}
   activeColor: {r: 1, g: 1, b: 1, a: 1}
   inactiveColor: {r: 0.7, g: 0.7, b: 0.7, a: 1}
+  languageDropdown: {fileID: 6276486301415759438}
+  resolutionDropdown: {fileID: 2274664611116564307}
+  vsyncToggle: {fileID: 1085492845677454454}
+  framerateDropdown: {fileID: 6386638158558098919}
+  fullscreenToggle: {fileID: 1196976022727098020}
+  uiScaleSlider: {fileID: 8162426702820245549}
+  uiScaleValueText: {fileID: 2465330107037600150}
+  showTutorialsToggle: {fileID: 5095194518157000482}
+  tooltipsToggle: {fileID: 683653570665769513}
+  showNodeBuildingGridToggle: {fileID: 5167551625565690787}
+  cameraSensitivitySlider: {fileID: 8001549424411194080}
+  cameraSensitivityValueText: {fileID: 8412343199278384599}
+  cameraShakeToggle: {fileID: 1767944598046769425}
+  occlusionTransparencySlider: {fileID: 0}
+  occlusionTransparencyValueText: {fileID: 1658981939346233797}
+  resetGeneralButton: {fileID: 6336966375487866757}
+  masterVolumeSlider: {fileID: 0}
+  masterVolumeValueText: {fileID: 5896087101141215154}
+  musicVolumeSlider: {fileID: 5537651530370306962}
+  musicVolumeValueText: {fileID: 2886984253155543833}
+  ambienceVolumeSlider: {fileID: 4918624692799313836}
+  ambienceVolumeValueText: {fileID: 9077888272523782688}
+  uiVolumeSlider: {fileID: 8703512660268282753}
+  uiVolumeValueText: {fileID: 3695890356764429866}
+  sfxVolumeSlider: {fileID: 3497416378702944030}
+  sfxVolumeValueText: {fileID: 168581619361872126}
+  physicsVolumeSlider: {fileID: 488834204454771527}
+  physicsVolumeValueText: {fileID: 4548389068265072099}
+  blockVolumeSlider: {fileID: 4622813043607398620}
+  blockVolumeValueText: {fileID: 1079425325859274683}
+  resetSoundButton: {fileID: 6643429504964467468}
 --- !u!1 &8760674830722812863
 GameObject:
   m_ObjectHideFlags: 0

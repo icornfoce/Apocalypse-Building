@@ -28,6 +28,12 @@ namespace Simulation.UI
         [Tooltip("ความลื่นในการเลื่อนเข้าหาเป้า")]
         [SerializeField] private float followLerp = 2f;
 
+        [Header("Framing Offset (เลื่อนตึกในจอ)")]
+        [Tooltip("เลื่อนตึกในเฟรมแนวนอน: + = ไปทางขวา, - = ไปทางซ้าย (หน่วยเป็นระยะโลก)")]
+        [SerializeField] private float framingOffsetX = 0f;
+        [Tooltip("เลื่อนตึกในเฟรมแนวตั้ง: + = ขึ้น, - = ลง")]
+        [SerializeField] private float framingOffsetY = 0f;
+
         private float _yaw;
         private float _nextReframe;
         private Vector3 _targetPivot;
@@ -94,6 +100,15 @@ namespace Simulation.UI
             Vector3 offset = rot * new Vector3(0f, 0f, -distance) + Vector3.up * height;
             transform.position = pivot + offset;
             transform.LookAt(pivot);
+
+            // เลื่อนตึกในจอ: pan กล้อง+เป้าไปด้านตรงข้าม เพื่อดันตึกไปด้านที่ต้องการ
+            // (+X = ตึกไปขวา, +Y = ตึกขึ้น) โดยไม่เปลี่ยนระยะซูมหรือการหมุน
+            if (framingOffsetX != 0f || framingOffsetY != 0f)
+            {
+                Vector3 pan = transform.right * framingOffsetX + transform.up * framingOffsetY;
+                transform.position -= pan;
+                transform.LookAt(pivot - pan);
+            }
         }
     }
 }

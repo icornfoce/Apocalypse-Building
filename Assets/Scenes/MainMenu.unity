@@ -15,7 +15,7 @@ RenderSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 10
   m_Fog: 0
-  m_FogColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+  m_FogColor: {r: 0, g: 0, b: 0, a: 1}
   m_FogMode: 3
   m_FogDensity: 0.01
   m_LinearFogStart: 0
@@ -26,7 +26,7 @@ RenderSettings:
   m_AmbientIntensity: 1
   m_AmbientMode: 0
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
-  m_SkyboxMaterial: {fileID: 10304, guid: 0000000000000000f000000000000000, type: 0}
+  m_SkyboxMaterial: {fileID: 2100000, guid: f6c23f6d2dc9bfe4a9abf3ae8d3c59cc, type: 2}
   m_HaloStrength: 0.5
   m_FlareStrength: 1
   m_FlareFadeSpeed: 3
@@ -412,8 +412,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4278190080
-  m_fontColor: {r: 0, g: 0, b: 0, a: 1}
+    rgba: 4278232575
+  m_fontColor: {r: 1, g: 0.6470588, b: 0, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -934,8 +934,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4278190080
-  m_fontColor: {r: 0, g: 0, b: 0, a: 1}
+    rgba: 4278232575
+  m_fontColor: {r: 1, g: 0.6470588, b: 0, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -1093,7 +1093,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: 2077a8f94de608d4baabf1bb99603a2d, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1135,7 +1135,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 30, y: 30, z: 30}
+  m_LocalScale: {x: 1000, y: 30, z: 1000}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 943716702}
@@ -1169,7 +1169,7 @@ RectTransform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 418895094}
   m_LocalRotation: {x: -0.034675114, y: -0.11313424, z: -0.0039507295, w: 0.99296665}
-  m_LocalPosition: {x: 0, y: 0, z: 14.6}
+  m_LocalPosition: {x: 0, y: 0, z: 9.89}
   m_LocalScale: {x: 5.6140695, y: 1.6842209, z: 0.56}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1178,7 +1178,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: -5, y: -20, z: 0}
   m_AnchorMin: {x: 0, y: 0.5}
   m_AnchorMax: {x: 0, y: 0.5}
-  m_AnchoredPosition: {x: -10, y: -3.5}
+  m_AnchoredPosition: {x: -5.83, y: -1.9699998}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!65 &418895096
@@ -1209,7 +1209,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 418895094}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -1273,7 +1273,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.UI.MainMenu3DButton
   hoverScaleMultiplier: 1.2
   scaleDuration: 0.2
-  useIdleFloat: 1
+  useIdleFloat: 0
   floatAmplitude: 0.12
   floatSpeed: 1.6
   maxTiltAngle: 15
@@ -1312,7 +1312,7 @@ GameObject:
   - component: {fileID: 645100375}
   - component: {fileID: 645100374}
   m_Layer: 0
-  m_Name: Mainmenu
+  m_Name: ApocalypseBuilding
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1326,7 +1326,7 @@ RectTransform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 645100369}
   m_LocalRotation: {x: -0.034675114, y: -0.11313424, z: -0.0039507295, w: 0.99296665}
-  m_LocalPosition: {x: 0, y: 0, z: 14.6}
+  m_LocalPosition: {x: 0, y: 0, z: 9.56}
   m_LocalScale: {x: 8.421105, y: 2.2456279, z: 0.56}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1335,7 +1335,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: -5, y: -12, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -8, y: 4.95}
+  m_AnchoredPosition: {x: -4.15, y: 3.63}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!23 &645100372
@@ -1345,7 +1345,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 645100369}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -1409,7 +1409,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.UI.MainMenu3DButton
   hoverScaleMultiplier: 1
   scaleDuration: 1
-  useIdleFloat: 1
+  useIdleFloat: 0
   floatAmplitude: 0.12
   floatSpeed: 1.6
   maxTiltAngle: 15
@@ -1573,7 +1573,7 @@ RectTransform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 724603553}
   m_LocalRotation: {x: -0.034675114, y: -0.11313424, z: -0.0039507295, w: 0.99296665}
-  m_LocalPosition: {x: 0, y: 0, z: 14.6}
+  m_LocalPosition: {x: 0, y: 0, z: 9.69}
   m_LocalScale: {x: 5.6140695, y: 1.6842209, z: 0.56}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1582,7 +1582,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: -5, y: -14, z: 0}
   m_AnchorMin: {x: 0, y: 0.5}
   m_AnchorMax: {x: 0, y: 0.5}
-  m_AnchoredPosition: {x: -10, y: 1.5}
+  m_AnchoredPosition: {x: -5.83, y: 1.88}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!65 &724603555
@@ -1613,7 +1613,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 724603553}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -1677,7 +1677,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.UI.MainMenu3DButton
   hoverScaleMultiplier: 1.2
   scaleDuration: 0.2
-  useIdleFloat: 1
+  useIdleFloat: 0
   floatAmplitude: 0.12
   floatSpeed: 1.6
   maxTiltAngle: 15
@@ -2159,12 +2159,18 @@ MonoBehaviour:
   buildingSystem: {fileID: 0}
   pillarData: {fileID: 11400000, guid: 8d1ff23b2954fd647acab440b9b3a416, type: 2}
   floorData: {fileID: 11400000, guid: 84aee6cf8e1e9ff4ea9bb0a754c40a30, type: 2}
+  wallData: {fileID: 11400000, guid: 0ef2cf2f88f20cd469104c976d302d5b, type: 2}
+  doorData: {fileID: 11400000, guid: bd42ba9e9b4a15b46ade9d1d96f1726b, type: 2}
+  buildWalls: 1
+  buildDoors: 1
+  maxDoors: 2
+  wallGapChance: 0.12
   materials:
   - {fileID: 11400000, guid: 829f48f1ccaf61443afdeda45981932d, type: 2}
   - {fileID: 11400000, guid: 24f50ab1c493b004587d89deb647c4bf, type: 2}
   - {fileID: 11400000, guid: 3bf865eadbe107d42802bd40ca801f84, type: 2}
   useSavedBuildsWhenAvailable: 1
-  savedBuildChance: 0.65
+  savedBuildChance: 0
   savedBuildStructures: []
   savedBuildMaterials: []
   savedBuildGadgets: []
@@ -2173,13 +2179,13 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 5f25a7f7856cf4b4aa5ff5f081ad48de, type: 2}
   - {fileID: 11400000, guid: 48f7c7d3298968b48adaebc85312cc2e, type: 2}
   - {fileID: 11400000, guid: a6bdbd91f8127a040b6b32277e8cce5a, type: 2}
-  minBudget: 5000
-  maxBudget: 50000
+  minBudget: 10000
+  maxBudget: 70000
   minFloors: 1
   maxFloors: 10
   minFootprint: 2
-  maxFootprint: 4
-  buildStyle: 0
+  maxFootprint: 8
+  buildStyle: 6
   complexity: 0.65
   notchChance: 0.18
   setbackStrength: 0.55
@@ -2754,15 +2760,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8e2b995de17f95a4da9f34ec70965fa5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.UI.MenuOrbitCamera
-  pivot: {x: 0, y: 5, z: 0}
+  pivot: {x: 5, y: 12, z: 0}
   distance: 24
   height: 10
   rotateSpeed: 8
   startYaw: 45
   autoFrame: 1
   reframeInterval: 0.5
-  framePadding: 1.7
+  framePadding: 3
   followLerp: 2
+  framingOffsetX: 9.5
+  framingOffsetY: 0
 --- !u!1 &1071929027
 GameObject:
   m_ObjectHideFlags: 0
@@ -3006,8 +3014,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4278190080
-  m_fontColor: {r: 0, g: 0, b: 0, a: 1}
+    rgba: 4278232575
+  m_fontColor: {r: 1, g: 0.6470588, b: 0, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -3207,7 +3215,7 @@ RectTransform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1190817082}
   m_LocalRotation: {x: -0.034675114, y: -0.11313424, z: -0.0039507295, w: 0.99296665}
-  m_LocalPosition: {x: 0, y: 0, z: 14.6}
+  m_LocalPosition: {x: 0, y: 0, z: 10.03}
   m_LocalScale: {x: 5.6140695, y: 1.6842209, z: 0.56}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -3216,7 +3224,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: -5, y: -23, z: 0}
   m_AnchorMin: {x: 0, y: 0.5}
   m_AnchorMax: {x: 0, y: 0.5}
-  m_AnchoredPosition: {x: -10, y: -6}
+  m_AnchoredPosition: {x: -5.865, y: -3.9599996}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!65 &1190817084
@@ -3247,7 +3255,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1190817082}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -3265,7 +3273,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: d884e4951482f114b935058cde88ae03, type: 2}
+  - {fileID: 2100000, guid: e60da4128eb78d14884c1dd571b2a095, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -3311,7 +3319,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.UI.MainMenu3DButton
   hoverScaleMultiplier: 1.2
   scaleDuration: 0.2
-  useIdleFloat: 1
+  useIdleFloat: 0
   floatAmplitude: 0.12
   floatSpeed: 1.6
   maxTiltAngle: 15
@@ -3607,8 +3615,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4278190080
-  m_fontColor: {r: 0, g: 0, b: 0, a: 1}
+    rgba: 4278232575
+  m_fontColor: {r: 1, g: 0.6470588, b: 0, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -3918,7 +3926,7 @@ RectTransform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1315626356}
   m_LocalRotation: {x: -0.034675114, y: -0.11313424, z: -0.0039507295, w: 0.99296665}
-  m_LocalPosition: {x: 0, y: 0, z: 14.6}
+  m_LocalPosition: {x: 0, y: 0, z: 9.79}
   m_LocalScale: {x: 5.6140695, y: 1.6842209, z: 0.56}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -3927,7 +3935,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: -5, y: -17, z: 0}
   m_AnchorMin: {x: 0, y: 0.5}
   m_AnchorMax: {x: 0, y: 0.5}
-  m_AnchoredPosition: {x: -10, y: -1}
+  m_AnchoredPosition: {x: -5.83, y: -0.05}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!65 &1315626358
@@ -3958,7 +3966,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1315626356}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -4022,7 +4030,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.UI.MainMenu3DButton
   hoverScaleMultiplier: 1.2
   scaleDuration: 0.2
-  useIdleFloat: 1
+  useIdleFloat: 0
   floatAmplitude: 0.12
   floatSpeed: 1.6
   maxTiltAngle: 15
@@ -4349,7 +4357,7 @@ RectTransform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1499807885}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0.11}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -4357,7 +4365,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 2.85, y: 0.373}
   m_SizeDelta: {x: 7, y: 2}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1499807887
@@ -4380,7 +4388,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: MAIN MENU
+  m_text: Apocalypse Building
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: aaa8ff8a45374114b98d22f875087434, type: 2}
   m_sharedMaterial: {fileID: -7016042574322230085, guid: aaa8ff8a45374114b98d22f875087434, type: 2}
@@ -4389,8 +4397,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4278190080
-  m_fontColor: {r: 0, g: 0, b: 0, a: 1}
+    rgba: 4278232575
+  m_fontColor: {r: 1, g: 0.6470588, b: 0, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -4446,7 +4454,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_margin: {x: -3.0476665, y: 0, z: 0, w: 0}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0

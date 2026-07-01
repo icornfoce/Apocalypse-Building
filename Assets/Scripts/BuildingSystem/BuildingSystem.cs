@@ -548,6 +548,15 @@ namespace Simulation.Building
         /// </summary>
         public bool TryAutoPlace(StructureData data, MaterialData material, Vector3 worldPos, float rotationY)
         {
+            return TryAutoPlace(data, material, worldPos, rotationY, worldPos);
+        }
+
+        /// <summary>
+        /// เหมือน TryAutoPlace แต่แยก "จุดยิงเรย์หาตัวรองรับ" (supportProbeXZ) ออกจากตำแหน่งวางจริง
+        /// ใช้กับกำแพงที่วางบน "ขอบช่อง" แต่ตัวรองรับ (พื้น/เสา) อยู่ "กลางช่อง" ด้านล่าง
+        /// </summary>
+        public bool TryAutoPlace(StructureData data, MaterialData material, Vector3 worldPos, float rotationY, Vector3 supportProbeXZ)
+        {
             if (data == null || data.prefab == null) return false;
 
             MaterialData mat = data.isGadget
@@ -561,7 +570,7 @@ namespace Simulation.Building
             // หา collider ตัวรองรับด้านล่าง (ground หรือชิ้นที่อยู่ใต้) — ไม่เจอ = ไม่วาง (กันลอยฟ้า 100%)
             UnityEngine.Physics.SyncTransforms();
             float pivotToBottom = GetPivotToBottomOffset(data);
-            Vector3 origin = new Vector3(worldPos.x, worldPos.y - pivotToBottom + 0.25f, worldPos.z);
+            Vector3 origin = new Vector3(supportProbeXZ.x, worldPos.y - pivotToBottom + 0.25f, supportProbeXZ.z);
             if (!UnityEngine.Physics.Raycast(origin, Vector3.down, out RaycastHit hit, 0.6f, groundLayer | structureLayer))
                 return false; // ไม่มีตัวรองรับด้านล่าง → ไม่วาง
             Collider support = hit.collider;
@@ -573,6 +582,51 @@ namespace Simulation.Building
             PlaceStructure(worldPos, rotationY, support);
             _selectedData = prevData;
             _selectedMaterial = prevMat;
+            return true;
+        }
+
+        /// <summary>
+        /// วางประตูแบบ auto-build โดยตรง (สร้างบานประตู + วงกบเอง ไม่ต้องมีกำแพงอยู่ก่อน)
+        /// ใช้ในเมนู/สร้างอัตโนมัติ: เว้นช่องกำแพงไว้แล้ววางประตูลงไปตรงช่องนั้น
+        /// supportProbeXZ = จุดหาตัวรองรับ (กลางช่อง) แยกจากตำแหน่งวาง (ขอบช่อง)
+        /// </summary>
+        public bool TryAutoPlaceDoor(StructureData data, MaterialData material, Vector3 worldPos, float rotationY, Vector3 supportProbeXZ)
+        {
+            if (data == null || data.prefab == null) return false;
+
+            MaterialData mat = material != null ? material : data.defaultMaterial;
+            float matPrice = mat != null ? mat.priceModifier : 0f;
+            float cost = GetEffectivePrice(data.basePrice + matPrice);
+            if (cost > _currentBudget) return false;
+
+            UnityEngine.Physics.SyncTransforms();
+            float pivotToBottom = GetPivotToBottomOffset(data);
+            Vector3 origin = new Vector3(supportProbeXZ.x, worldPos.y - pivotToBottom + 0.25f, supportProbeXZ.z);
+            if (!UnityEngine.Physics.Raycast(origin, Vector3.down, out RaycastHit hit, 0.6f, groundLayer | structureLayer))
+                return false;
+            Collider support = hit.collider;
+
+            float snappedRotation = Mathf.Round(rotationY / 90f) * 90f;
+            GameObject obj = Instantiate(data.prefab, worldPos, Quaternion.Euler(0f, snappedRotation, 0f));
+
+            if (data.doorReplacementPrefab != null)
+            {
+                GameObject frame = Instantiate(data.doorReplacementPrefab, worldPos, Quaternion.Euler(0f, snappedRotation, 0f));
+                frame.transform.SetParent(obj.transform);
+            }
+
+            SetLayerRecursively(obj, structureLayer);
+            obj.name = $"{data.prefab.name} {GetGridPositionString(worldPos)}";
+
+            StructureUnit unit = obj.GetComponent<StructureUnit>() ?? obj.AddComponent<StructureUnit>();
+            unit.Initialize(data, mat, snappedRotation);
+
+            _currentBudget -= cost;
+            _placedStructures.Add(unit);
+            AttachJoint(obj, support);
+            AttachSideJoints(obj);
+            IgnoreOverlappingCollisions(unit);
+            RecalculateMaxFloor();
             return true;
         }
 

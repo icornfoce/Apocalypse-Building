@@ -27,6 +27,21 @@ namespace Simulation.UI
         [Header("Structure Data")]
         [SerializeField] private StructureData pillarData;
         [SerializeField] private StructureData floorData;
+        [Tooltip("กำแพงรอบขอบตึก (เว้นว่าง = ไม่สร้างกำแพง)")]
+        [SerializeField] private StructureData wallData;
+        [Tooltip("ประตูทางเข้าชั้นล่าง (เว้นว่าง = ไม่สร้างประตู)")]
+        [SerializeField] private StructureData doorData;
+
+        [Header("Walls & Doors")]
+        [Tooltip("สร้างกำแพงรอบขอบแต่ละชั้น")]
+        [SerializeField] private bool buildWalls = true;
+        [Tooltip("สร้างประตูที่ชั้นล่าง")]
+        [SerializeField] private bool buildDoors = true;
+        [Tooltip("จำนวนประตูสูงสุดที่ชั้นล่าง")]
+        [SerializeField] private int maxDoors = 2;
+        [Range(0f, 1f)]
+        [Tooltip("โอกาสเว้นกำแพงเป็นช่อง (เหมือนหน้าต่าง) เพื่อไม่ให้ตันเป็นกล่อง")]
+        [SerializeField] private float wallGapChance = 0.12f;
 
         [Header("Materials")]
         [SerializeField] private MaterialData[] materials;
@@ -169,6 +184,9 @@ namespace Simulation.UI
         {
             List<List<Vector2Int>> plans = GenerateFloorPlans(floors, w, d, style);
 
+            // เลือกช่องประตูที่ชั้นล่างไว้ล่วงหน้า เพื่อจะได้ "เว้นกำแพง" ตรงนั้นแล้ววางประตูแทน
+            HashSet<(Vector2Int cell, int dir)> doorEdges = PickDoorEdges(plans[0], col0, row0, bs);
+
             for (int floor = 1; floor <= floors; floor++)
             {
                 bool placedAnyThisFloor = false;
@@ -199,9 +217,134 @@ namespace Simulation.UI
                 }
 
                 if (!placedAnyThisFloor) yield break;
+
+                // กำแพงรอบขอบชั้นนี้ (เว้นช่องประตูที่ชั้นล่าง)
+                if (buildWalls && wallData != null && wallData.prefab != null)
+                {
+                    yield return StartCoroutine(PlaceFloorWalls(bs, cells, col0, row0, floor, doorEdges));
+                }
             }
 
             yield return StartCoroutine(BuildRoofFeature(bs, floors + 1, col0, row0, plans[plans.Count - 1], style));
+
+            // วางประตูตรงช่องที่เว้นไว้ (ชั้นล่าง)
+            if (buildDoors && doorData != null && doorData.prefab != null)
+            {
+                yield return StartCoroutine(PlaceDoors(bs, doorEdges, col0, row0));
+            }
+        }
+
+        // ────────────────────────────────────────────────────────────────
+        // Walls & Doors helpers
+        // ────────────────────────────────────────────────────────────────
+
+        private static readonly Vector2Int[] DirOffsets =
+        {
+            new Vector2Int(-1, 0), // 0 = ซ้าย (-X)
+            new Vector2Int(1, 0),  // 1 = ขวา (+X)
+            new Vector2Int(0, -1), // 2 = ล่าง (-Z)
+            new Vector2Int(0, 1)   // 3 = บน (+Z)
+        };
+
+        private float DirToRotation(int dir)
+        {
+            switch (dir)
+            {
+                case 0: return 0f;    // ซ้าย
+                case 1: return 180f;  // ขวา
+                case 2: return 270f;  // ล่าง
+                default: return 90f;  // บน
+            }
+        }
+
+        /// <summary>ตำแหน่งวางบนขอบช่อง + จุดหาตัวรองรับ (กลางช่อง)</summary>
+        private void GetEdgePlacement(BuildingSystem bs, int col0, int row0, Vector2Int cell, int dir, int floor, StructureData data, out Vector3 pos, out Vector3 probe)
+        {
+            Vector3 center = bs.GridCellToWorld(col0 + cell.x, row0 + cell.y, floor, data);
+            float half = bs.GetGridSize * 0.5f;
+            Vector3 off;
+            switch (dir)
+            {
+                case 0: off = new Vector3(-half, 0f, 0f); break;
+                case 1: off = new Vector3(half, 0f, 0f); break;
+                case 2: off = new Vector3(0f, 0f, -half); break;
+                default: off = new Vector3(0f, 0f, half); break;
+            }
+            pos = center + off;
+            probe = center; // กลางช่อง = มีพื้น/เสารองรับด้านล่างแน่นอน
+        }
+
+        private IEnumerator PlaceFloorWalls(BuildingSystem bs, List<Vector2Int> cells, int col0, int row0, int floor, HashSet<(Vector2Int cell, int dir)> doorEdges)
+        {
+            HashSet<Vector2Int> set = new HashSet<Vector2Int>(cells);
+
+            foreach (var cell in cells)
+            {
+                for (int dir = 0; dir < 4; dir++)
+                {
+                    // ขอบด้านในที่ติดกับช่องอื่น → ไม่ต้องมีกำแพง
+                    if (set.Contains(cell + DirOffsets[dir])) continue;
+                    // เว้นช่องประตู (เฉพาะชั้นล่าง)
+                    if (floor == 1 && doorEdges.Contains((cell, dir))) continue;
+                    // เว้นช่องหน้าต่างแบบสุ่มเล็กน้อย
+                    if (wallGapChance > 0f && Random.value < wallGapChance) continue;
+
+                    GetEdgePlacement(bs, col0, row0, cell, dir, floor, wallData, out Vector3 pos, out Vector3 probe);
+                    MaterialData mat = PickMaterialWithinBudget(bs, wallData);
+                    if (bs.TryAutoPlace(wallData, mat, pos, DirToRotation(dir), probe))
+                    {
+                        if (placeStepDelay > 0f) yield return new WaitForSeconds(placeStepDelay);
+                    }
+                }
+            }
+        }
+
+        private HashSet<(Vector2Int cell, int dir)> PickDoorEdges(List<Vector2Int> floor1Cells, int col0, int row0, BuildingSystem bs)
+        {
+            var result = new HashSet<(Vector2Int cell, int dir)>();
+            if (!buildDoors || doorData == null || doorData.prefab == null || maxDoors <= 0) return result;
+
+            HashSet<Vector2Int> set = new HashSet<Vector2Int>(floor1Cells);
+
+            // รวบรวมขอบที่โล่ง (perimeter) พร้อมพิกัด z ไว้เลือกด้าน "หน้า" (z น้อยสุด)
+            List<(Vector2Int cell, int dir, float z)> exposed = new List<(Vector2Int, int, float)>();
+            foreach (var cell in floor1Cells)
+            {
+                for (int dir = 0; dir < 4; dir++)
+                {
+                    if (set.Contains(cell + DirOffsets[dir])) continue;
+                    GetEdgePlacement(bs, col0, row0, cell, dir, 1, doorData, out Vector3 pos, out _);
+                    exposed.Add((cell, dir, pos.z));
+                }
+            }
+
+            if (exposed.Count == 0) return result;
+
+            exposed.Sort((a, b) => a.z.CompareTo(b.z)); // ด้านหน้า (z น้อย) ก่อน
+
+            HashSet<Vector2Int> usedCells = new HashSet<Vector2Int>();
+            foreach (var e in exposed)
+            {
+                if (result.Count >= maxDoors) break;
+                if (usedCells.Contains(e.cell)) continue; // ไม่วางประตูซ้อนช่องเดียว
+                result.Add((e.cell, e.dir));
+                usedCells.Add(e.cell);
+            }
+
+            return result;
+        }
+
+        private IEnumerator PlaceDoors(BuildingSystem bs, HashSet<(Vector2Int cell, int dir)> doorEdges, int col0, int row0)
+        {
+            foreach (var edge in doorEdges)
+            {
+                GetEdgePlacement(bs, col0, row0, edge.cell, edge.dir, 1, doorData, out Vector3 pos, out Vector3 probe);
+                MaterialData mat = doorData.defaultMaterial;
+                if (bs.TryAutoPlaceDoor(doorData, mat, pos, DirToRotation(edge.dir), probe))
+                {
+                    if (placeStepDelay > 0f) yield return new WaitForSeconds(placeStepDelay);
+                }
+            }
         }
 
         private MainMenuBuildStyle ResolveBuildStyle()

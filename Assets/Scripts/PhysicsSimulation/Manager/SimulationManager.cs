@@ -65,12 +65,25 @@ namespace Simulation.Physics
         private void OnDestroy()
         {
             if (Instance == this) Instance = null;
+            Simulation.UI.GameSettings.OnSettingsChanged -= ApplyGridVisibilitySetting;
         }
 
         private void Start()
         {
             // แช่แข็งฟิสิกส์เริ่มต้น (ไม่ให้ชิ้นส่วนที่อยู่ในฉากแต่แรกร่วงลงมา)
             FreezeAllStructures();
+
+            // โหลดและสมัครรับข้อมูลเพื่ออัปเดต Grid Visibility จาก GameSettings
+            ApplyGridVisibilitySetting();
+            Simulation.UI.GameSettings.OnSettingsChanged += ApplyGridVisibilitySetting;
+        }
+
+        private void ApplyGridVisibilitySetting()
+        {
+            if (!isSimulating)
+            {
+                SetGridVisibility(Simulation.UI.GameSettings.LoadShowNodeBuildingGrid());
+            }
         }
 
         // ────────────────────────────────────────────────────────────────
@@ -216,7 +229,7 @@ namespace Simulation.Physics
             RestoreSnapshots();
 
             // แสดง Grid กลับมาเมื่อหยุด
-            SetGridVisibility(true);
+            SetGridVisibility(Simulation.UI.GameSettings.LoadShowNodeBuildingGrid());
 
             Debug.Log("<color=red>■ Stop Simulation</color> - Rewound to pre-simulation state.");
         }

@@ -325,7 +325,10 @@ namespace Simulation.UI
 
             // เล่นเสียงเมื่อเริ่มภารกิจสำเร็จ (ผ่านเงื่อนไขแล้ว)
             if (startSuccessSound != null && _sfxSource != null)
-                _sfxSource.PlayOneShot(startSuccessSound, sfxVolume);
+            {
+                float vol = sfxVolume * Simulation.UI.GameSettings.LoadUIVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
+                _sfxSource.PlayOneShot(startSuccessSound, vol);
+            }
         }
 
         private void HandleMissionStopped()
@@ -389,7 +392,10 @@ namespace Simulation.UI
 
                 // เล่นเสียงเฉพาะของดาวดวงนี้
                 if (entry.sound != null && _sfxSource != null)
-                    _sfxSource.PlayOneShot(entry.sound, entry.volume);
+                {
+                    float vol = entry.volume * Simulation.UI.GameSettings.LoadUIVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
+                    _sfxSource.PlayOneShot(entry.sound, vol);
+                }
             }
         }
 
@@ -405,7 +411,10 @@ namespace Simulation.UI
 
             // เล่นเสียงเมื่อไม่ผ่านเงื่อนไข
             if (startFailSound != null && _sfxSource != null)
-                _sfxSource.PlayOneShot(startFailSound, sfxVolume);
+            {
+                float vol = sfxVolume * Simulation.UI.GameSettings.LoadUIVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
+                _sfxSource.PlayOneShot(startFailSound, vol);
+            }
         }
 
         private void HideError()

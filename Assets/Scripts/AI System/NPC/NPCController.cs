@@ -711,7 +711,8 @@ namespace Simulation.NPC
                         // SFX ยิงปืน
                         if (_data.skillEffectSFX != null)
                         {
-                            AudioSource.PlayClipAtPoint(_data.skillEffectSFX, transform.position);
+                            float vol = Simulation.UI.GameSettings.LoadSFXVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
+                            AudioSource.PlayClipAtPoint(_data.skillEffectSFX, transform.position, vol);
                         }
 
                         break; // ยิงทีละตัว
@@ -808,7 +809,8 @@ namespace Simulation.NPC
             // SFX
             if (_data.skillActivateSFX != null)
             {
-                AudioSource.PlayClipAtPoint(_data.skillActivateSFX, transform.position);
+                float vol = Simulation.UI.GameSettings.LoadSFXVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
+                AudioSource.PlayClipAtPoint(_data.skillActivateSFX, transform.position, vol);
             }
 
             // Animation
@@ -901,7 +903,10 @@ namespace Simulation.NPC
 
             // SFX
             if (_data != null && _data.deathSFX != null)
-                AudioSource.PlayClipAtPoint(_data.deathSFX, transform.position);
+            {
+                float vol = Simulation.UI.GameSettings.LoadSFXVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
+                AudioSource.PlayClipAtPoint(_data.deathSFX, transform.position, vol);
+            }
 
             // Animation
             if (_animator != null) _animator.SetTrigger("Die");

@@ -116,7 +116,8 @@ namespace Simulation.UI
         {
             if (buttonClickSound != null && UnityEngine.Camera.main != null)
             {
-                AudioSource.PlayClipAtPoint(buttonClickSound, UnityEngine.Camera.main.transform.position);
+                float vol = Simulation.UI.GameSettings.LoadUIVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
+                AudioSource.PlayClipAtPoint(buttonClickSound, UnityEngine.Camera.main.transform.position, vol);
             }
         }
 
@@ -501,6 +502,7 @@ namespace Simulation.UI
             {
                 _isGridVisible = !Simulation.Physics.SimulationManager.Instance.IsGridVisible;
                 Simulation.Physics.SimulationManager.Instance.SetGridVisibility(_isGridVisible);
+                Simulation.UI.GameSettings.SaveShowNodeBuildingGrid(_isGridVisible);
             }
         }
 

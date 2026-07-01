@@ -406,14 +406,16 @@ namespace Simulation.Building
                 if (generalUndoSound != null)
                 {
                     Vector3 playPos = mainCamera != null ? mainCamera.transform.position : Vector3.zero;
-                    AudioSource.PlayClipAtPoint(generalUndoSound, playPos);
+                    float vol = Simulation.UI.GameSettings.LoadUIVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
+                    AudioSource.PlayClipAtPoint(generalUndoSound, playPos, vol);
                 }
                 RecalculateMaxFloor();
             }
             else if (generalErrorSound != null)
             {
                 Vector3 playPos = mainCamera != null ? mainCamera.transform.position : Vector3.zero;
-                AudioSource.PlayClipAtPoint(generalErrorSound, playPos);
+                float vol = Simulation.UI.GameSettings.LoadUIVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
+                AudioSource.PlayClipAtPoint(generalErrorSound, playPos, vol);
             }
         }
 
@@ -434,14 +436,16 @@ namespace Simulation.Building
                 if (generalRedoSound != null)
                 {
                     Vector3 playPos = mainCamera != null ? mainCamera.transform.position : Vector3.zero;
-                    AudioSource.PlayClipAtPoint(generalRedoSound, playPos);
+                    float vol = Simulation.UI.GameSettings.LoadUIVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
+                    AudioSource.PlayClipAtPoint(generalRedoSound, playPos, vol);
                 }
                 RecalculateMaxFloor();
             }
             else if (generalErrorSound != null)
             {
                 Vector3 playPos = mainCamera != null ? mainCamera.transform.position : Vector3.zero;
-                AudioSource.PlayClipAtPoint(generalErrorSound, playPos);
+                float vol = Simulation.UI.GameSettings.LoadUIVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
+                AudioSource.PlayClipAtPoint(generalErrorSound, playPos, vol);
             }
         }
 
@@ -1835,7 +1839,10 @@ namespace Simulation.Building
             _redoStack.Clear();
 
             if (generalSellSound != null && mainCamera != null)
-                AudioSource.PlayClipAtPoint(generalSellSound, mainCamera.transform.position);
+            {
+                float vol = Simulation.UI.GameSettings.LoadBlockVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
+                AudioSource.PlayClipAtPoint(generalSellSound, mainCamera.transform.position, vol);
+            }
 
             RecalculateMaxFloor();
             Debug.Log("<color=orange>🗑 Deleted ALL structures</color>");
@@ -1920,12 +1927,17 @@ namespace Simulation.Building
 
                     if (mat != null)
                     {
-                        if (mat.placeSound != null) AudioSource.PlayClipAtPoint(mat.placeSound, position);
+                        if (mat.placeSound != null)
+                        {
+                            float vol = Simulation.UI.GameSettings.LoadBlockVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
+                            AudioSource.PlayClipAtPoint(mat.placeSound, position, vol);
+                        }
                         if (mat.placeVFX != null) Instantiate(mat.placeVFX, position, Quaternion.identity);
                     }
                     else if (generalPlaceSound != null)
                     {
-                        AudioSource.PlayClipAtPoint(generalPlaceSound, position);
+                        float vol = Simulation.UI.GameSettings.LoadBlockVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
+                        AudioSource.PlayClipAtPoint(generalPlaceSound, position, vol);
                     }
                 },
                 undo: () => {
@@ -2091,9 +2103,15 @@ namespace Simulation.Building
                     IgnoreOverlappingCollisions(unit);
 
                     if (unit.CurrentMaterial != null && unit.CurrentMaterial.placeSound != null) 
-                        AudioSource.PlayClipAtPoint(unit.CurrentMaterial.placeSound, position);
+                    {
+                        float vol = Simulation.UI.GameSettings.LoadBlockVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
+                        AudioSource.PlayClipAtPoint(unit.CurrentMaterial.placeSound, position, vol);
+                    }
                     else if (generalPlaceSound != null)
-                        AudioSource.PlayClipAtPoint(generalPlaceSound, position);
+                    {
+                        float vol = Simulation.UI.GameSettings.LoadBlockVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
+                        AudioSource.PlayClipAtPoint(generalPlaceSound, position, vol);
+                    }
                 },
                 undo: () => {
                     unit.transform.position = oldPos;
@@ -2684,7 +2702,11 @@ namespace Simulation.Building
                     
                     unit.gameObject.SetActive(false);
                     
-                    if (generalSellSound != null) AudioSource.PlayClipAtPoint(generalSellSound, unit.transform.position);
+                    if (generalSellSound != null)
+                    {
+                        float vol = Simulation.UI.GameSettings.LoadBlockVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
+                        AudioSource.PlayClipAtPoint(generalSellSound, unit.transform.position, vol);
+                    }
                     if (generalSellVFX != null) Instantiate(generalSellVFX, unit.transform.position, Quaternion.identity);
                 },
                 undo: () => {
@@ -2727,9 +2749,15 @@ namespace Simulation.Building
                     }
 
                     if (newMaterial.placeSound != null) 
-                        AudioSource.PlayClipAtPoint(newMaterial.placeSound, unit.transform.position);
+                    {
+                        float vol = Simulation.UI.GameSettings.LoadBlockVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
+                        AudioSource.PlayClipAtPoint(newMaterial.placeSound, unit.transform.position, vol);
+                    }
                     else if (generalPaintSound != null)
-                        AudioSource.PlayClipAtPoint(generalPaintSound, unit.transform.position);
+                    {
+                        float vol = Simulation.UI.GameSettings.LoadBlockVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
+                        AudioSource.PlayClipAtPoint(generalPaintSound, unit.transform.position, vol);
+                    }
                         
                     if (newMaterial.placeVFX != null) Instantiate(newMaterial.placeVFX, unit.transform.position, Quaternion.identity);
                 },

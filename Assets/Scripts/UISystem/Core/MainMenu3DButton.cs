@@ -120,6 +120,10 @@ namespace Simulation.UI
         private void OnMouseDown()
         {
             transform.DOPunchScale(Vector3.one * -0.12f, 0.18f, 10, 1f);
+            if (AudioSystem.ClickSound.Instance != null)
+            {
+                AudioSystem.ClickSound.Instance.PlayButtonClickSound();
+            }
             onClick?.Invoke();
         }
 

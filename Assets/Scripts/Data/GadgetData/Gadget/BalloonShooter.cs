@@ -258,9 +258,10 @@ namespace Simulation.Building
             }
 
             // 2. Play Sound
+            float vol = Simulation.UI.GameSettings.LoadSFXVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
             if (shootSound != null)
             {
-                AudioSource.PlayClipAtPoint(shootSound, startPos);
+                AudioSource.PlayClipAtPoint(shootSound, startPos, vol);
             }
             else
             {
@@ -269,7 +270,7 @@ namespace Simulation.Building
                 tempGO.transform.position = startPos;
                 var source = tempGO.AddComponent<AudioSource>();
                 source.spatialBlend = 1.0f;
-                source.volume = 0.5f;
+                source.volume = 0.5f * vol;
                 source.PlayOneShot(CreateDefaultShootClip());
                 Destroy(tempGO, 1.0f);
             }

@@ -272,7 +272,8 @@ namespace Simulation.NPC
             // SFX Selection
             if (npc.Data != null && npc.Data.selectionSFX != null)
             {
-                AudioSource.PlayClipAtPoint(npc.Data.selectionSFX, npc.transform.position);
+                float vol = Simulation.UI.GameSettings.LoadSFXVolume() * Simulation.UI.GameSettings.LoadMasterVolume();
+                AudioSource.PlayClipAtPoint(npc.Data.selectionSFX, npc.transform.position, vol);
             }
 
             OnNPCSelected?.Invoke(npc);

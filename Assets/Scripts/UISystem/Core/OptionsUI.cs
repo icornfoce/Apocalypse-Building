@@ -213,7 +213,7 @@ namespace Simulation.UI
         /// </summary>
         private void AutoCreateAllResetButtons()
         {
-            // ── General: ปุ่ม Reset แต่ละรายการ ──
+            // ── General: ปุ่ม Reset ทั้งหมดทุกรายการ ──
             CreateResetButtonForControl(languageDropdown, "ResetLanguage", OnResetLanguageClicked);
             CreateResetButtonForControl(resolutionDropdown, "ResetResolution", OnResetResolutionClicked);
             CreateResetButtonForControl(vsyncToggle, "ResetVSync", OnResetVSyncClicked);
@@ -238,7 +238,7 @@ namespace Simulation.UI
                 CreateResetAllButton(generalTab.panelObject, "ResetEverythingFromGeneral", "⟲ Reset All Settings (ทุกหมวด)", OnResetAllSettingsClicked);
             }
 
-            // ── Sound: ปุ่ม Reset แต่ละรายการ ──
+            // ── Sound: ปุ่ม Reset ทั้งหมดทุกรายการ ──
             CreateResetButtonForControl(masterVolumeSlider, "ResetMaster", OnResetMasterVolumeClicked);
             CreateResetButtonForControl(musicVolumeSlider, "ResetMusic", OnResetMusicVolumeClicked);
             CreateResetButtonForControl(ambienceVolumeSlider, "ResetAmbience", OnResetAmbienceVolumeClicked);

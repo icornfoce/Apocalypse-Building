@@ -111,13 +111,16 @@ namespace Simulation.NPC
             _agent.height = 1.8f;
             _agent.obstacleAvoidanceType = ObstacleAvoidanceType.LowQualityObstacleAvoidance;
 
-            // ตรวจสอบ Collider ให้ไม่เป็น Trigger (ซอมบี้ต้องตรวจระยะได้)
-            // และย่อรัศมีให้พอดีกับ NavMesh เพื่อไม่ให้ลำตัวโผล่ทะลุ/ดันกำแพง
-            CapsuleCollider capsule = GetComponent<CapsuleCollider>();
-            if (capsule != null)
+            // ตรวจสอบ Collider ให้เป็น Trigger (เพื่อตัดแรงฟิสิกส์ทั้งหมด ไม่ให้ดันกำแพง/ประตูพัง)
+            // และย่อรัศมีให้พอดีกับ NavMesh
+            CapsuleCollider[] capsules = GetComponentsInChildren<CapsuleCollider>(true);
+            foreach (var cap in capsules)
             {
-                capsule.isTrigger = false;
-                capsule.radius = NavBodyRadius;
+                if (cap != null)
+                {
+                    cap.isTrigger = true;
+                    cap.radius = NavBodyRadius;
+                }
             }
 
             // ContinuousSpeculative กันการ "พุ่งทะลุ" กำแพง/บานประตูบางๆ (Discrete เดิมทำให้ลอดผ่านได้)
@@ -177,7 +180,7 @@ namespace Simulation.NPC
             float rayDist = 0.8f;
             bool hasFloor = UnityEngine.Physics.Raycast(
                 transform.position + Vector3.up * 0.1f, Vector3.down,
-                out RaycastHit floorHit, rayDist, floorMask, QueryTriggerInteraction.Ignore
+                out RaycastHit floorHit, rayDist, floorMask, QueryTriggerInteraction.Collide
             );
 
             if (_agent != null && _agent.enabled && _agent.isOnNavMesh && hasFloor)
@@ -233,7 +236,20 @@ namespace Simulation.NPC
                 StopFleeing();
                 _agent.enabled = false;
                 if (_rb != null) _rb.isKinematic = false;
+            }
 
+            // ป้องกันโครงสร้างข้างๆ พังจากการเบียดชนของตัวละคร
+            var nearbyStructures = UnityEngine.Physics.OverlapSphere(transform.position, 1.2f, LayerMask.GetMask("Structure"));
+            foreach (var hitCol in nearbyStructures)
+            {
+                if (hitCol != null)
+                {
+                    var stress = hitCol.GetComponentInParent<StructuralStress>();
+                    if (stress != null)
+                    {
+                        stress.NotifyCharacterContact();
+                    }
+                }
             }
 
             // Animation: เดิน
@@ -809,19 +825,18 @@ namespace Simulation.NPC
         /// <summary>ความเร็วขั้นต่ำที่ถือว่าวัตถุ "กำลังตก/ปลิว" มาทับ (ต่ำกว่านี้ = ของตั้งนิ่ง)</summary>
         private const float FallingDebrisSpeed = 2.5f;
 
-        private void OnCollisionEnter(Collision collision)
+        private void OnTriggerEnter(Collider other)
         {
             if (_isDead) return;
 
-            // ตอบสนองเฉพาะของที่ตก/ปลิวมาทับจริง (เพดานถล่ม ฯลฯ) — ไม่ใช่ตอนเดินไปชนโครงสร้างที่ตั้งนิ่ง
-            // เดิมใช้ relativeVelocity (รวมความเร็วเดินของเราเอง) เลยเผลอ "ดัน" โครงสร้างพังตอนเดิน
-            Rigidbody other = collision.rigidbody;
-            if (other == null || other.isKinematic) return;
-            float fallSpeed = other.linearVelocity.magnitude;
+            // ตอบสนองเฉพาะของที่ตก/ปลิวมาทับจริง (เพดานถล่ม ฯลฯ)
+            Rigidbody otherRb = other.attachedRigidbody;
+            if (otherRb == null || otherRb.isKinematic) return;
+            float fallSpeed = otherRb.linearVelocity.magnitude;
             if (fallSpeed < FallingDebrisSpeed) return;
 
-            float massFactor = Mathf.Clamp(other.mass, 1f, 500f);
-            ApplyBounce(other, fallSpeed);
+            float massFactor = Mathf.Clamp(otherRb.mass, 1f, 500f);
+            ApplyBounce(otherRb, fallSpeed);
             TakeDamage(fallSpeed * massFactor * 2f);
         }
 

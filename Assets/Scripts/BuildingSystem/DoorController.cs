@@ -109,17 +109,23 @@ namespace Simulation.Building
                 _stress.NotifyCharacterContact();
             }
 
-            // ── เปิด = ทำบานประตูเป็น trigger ให้คนเดินทะลุได้ (ไม่ชน = ไม่มีแรงดัน = ประตูไม่พัง),
-            //    ปิด = บานแข็งตามเดิม (ยังบล็อกซอมบี้อยู่) ──
-            if (_leafColliders != null)
-            {
-                foreach (var c in _leafColliders)
-                    if (c != null) c.isTrigger = _shouldBeOpen;
-            }
-
             // หมุนประตูอย่างนุ่มนวล
             Quaternion targetRot = _shouldBeOpen ? _openRotation : _closedRotation;
             doorPivot.localRotation = Quaternion.Slerp(doorPivot.localRotation, targetRot, Time.deltaTime * smoothSpeed);
+
+            // ── เปิด = ทำบานประตูเป็น trigger ให้คนเดินทะลุได้ (ไม่ชน = ไม่มีแรงดัน = ประตูไม่พัง),
+            //    ปิด = บานแข็งตามเดิมเมื่อปิดสนิทแล้วเท่านั้น (ยังบล็อกซอมบี้อยู่) ──
+            bool isFullyClosed = Quaternion.Angle(doorPivot.localRotation, _closedRotation) < 5f;
+            if (_leafColliders != null)
+            {
+                foreach (var c in _leafColliders)
+                {
+                    if (c != null)
+                    {
+                        c.isTrigger = _shouldBeOpen || !isFullyClosed;
+                    }
+                }
+            }
         }
 
         private void OnTriggerEnter(Collider other)

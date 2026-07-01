@@ -16,7 +16,7 @@ MonoBehaviour:
   description: 
   requiredFloors: 0
   requiredAreaPerFloor: 0
-  requiredPopulation: 6
+  requiredPopulation: 1
   gridColumns: 10
   gridRows: 10
   startingBudget: 99999

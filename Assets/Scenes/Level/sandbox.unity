@@ -167,7 +167,6 @@ MonoBehaviour:
   occlusionLayer:
     serializedVersion: 2
     m_Bits: 64
-  occludedAlpha: 0.15
   occlusionRadius: 0.5
   fadeSmoothSpeed: 10
 --- !u!114 &20708209
@@ -783,7 +782,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7961139701942660142, guid: f4820e8180ffdac4286363bf67667b88, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8509039451724960451, guid: f4820e8180ffdac4286363bf67667b88, type: 3}
       propertyPath: m_IsActive
@@ -1581,6 +1580,12 @@ MonoBehaviour:
   buildingSystem: {fileID: 0}
   pillarData: {fileID: 11400000, guid: 8d1ff23b2954fd647acab440b9b3a416, type: 2}
   floorData: {fileID: 11400000, guid: 84aee6cf8e1e9ff4ea9bb0a754c40a30, type: 2}
+  wallData: {fileID: 0}
+  doorData: {fileID: 0}
+  buildWalls: 1
+  buildDoors: 1
+  maxDoors: 2
+  wallGapChance: 0.12
   materials:
   - {fileID: 11400000, guid: 829f48f1ccaf61443afdeda45981932d, type: 2}
   - {fileID: 11400000, guid: 24f50ab1c493b004587d89deb647c4bf, type: 2}

@@ -32001,7 +32001,6 @@ MonoBehaviour:
   occlusionLayer:
     serializedVersion: 2
     m_Bits: 64
-  occludedAlpha: 0.15
   occlusionRadius: 0.5
   fadeSmoothSpeed: 10
 --- !u!114 &948665666
@@ -56937,7 +56936,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 64425997220536228, guid: d7fd0f034fb608643a24ead27702c3a3, type: 3}
       propertyPath: m_Enabled
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -65738,7 +65737,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 10, y: 2.220446e-16, z: 10}
+  m_Size: {x: 20.21, y: 2.220446e-16, z: 10.35}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1001 &1899107936
 PrefabInstance:

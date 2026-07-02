@@ -192,27 +192,28 @@ namespace Simulation.UI
 
             if (MissionManager.Instance.IsMissionActive)
             {
-                if (timerText == null) return;
-
-                // อัปเดตเวลาเฉพาะตอนค่าที่แสดง (ทศนิยม 1 ตำแหน่ง) เปลี่ยนจริง
-                float remaining = MissionManager.Instance.SimulationTimeRemaining;
-                int quant = Mathf.RoundToInt(remaining * 10f);
-                if (quant != _lastTimerQuant)
+                if (timerText != null)
                 {
-                    _lastTimerQuant = quant;
-                    timerText.text = $"Time: {remaining:F1}s";
+                    // อัปเดตเวลาเฉพาะตอนค่าที่แสดง (ทศนิยม 1 ตำแหน่ง) เปลี่ยนจริง
+                    float remaining = MissionManager.Instance.SimulationTimeRemaining;
+                    int quant = Mathf.RoundToInt(remaining * 10f);
+                    if (quant != _lastTimerQuant)
+                    {
+                        _lastTimerQuant = quant;
+                        timerText.text = $"Time: {remaining:F1}s";
+                    }
                 }
             }
             else
             {
                 _lastTimerQuant = int.MinValue; // รีเซ็ตให้รอบจำลองถัดไปอัปเดตเวลาแน่นอน
+            }
 
-                // อัปเดตสถานะเงื่อนไข (แบบ Realtime ก่อนเริ่ม) โดยเช็คเป็นระยะแทนทุกเฟรม
-                if (Time.time - _lastStatsCheckTime >= StatsUpdateInterval)
-                {
-                    _lastStatsCheckTime = Time.time;
-                    UpdateRequirementStatus();
-                }
+            // อัปเดตสถานะเงื่อนไข (แบบ Realtime) โดยเช็คเป็นระยะแทนทุกเฟรม
+            if (Time.time - _lastStatsCheckTime >= StatsUpdateInterval)
+            {
+                _lastStatsCheckTime = Time.time;
+                UpdateRequirementStatus();
             }
         }
 

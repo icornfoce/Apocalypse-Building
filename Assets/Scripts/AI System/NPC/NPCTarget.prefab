@@ -45,7 +45,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a997a961432fa774fbf5bee6dd415c8a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.Character.PersonTarget
-  alpha: 0.85
   countsTowardsPopulation: 1
   floatSpeed: 2
   floatAmplitude: 0.06
@@ -65,7 +64,7 @@ CapsuleCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
@@ -84,6 +83,7 @@ GameObject:
   - component: {fileID: 5602886886649065173}
   - component: {fileID: 4498005870629621787}
   - component: {fileID: 91747408667729473}
+  - component: {fileID: 2964777328570192159}
   m_Layer: 0
   m_Name: NPCTarget
   m_TagString: Untagged
@@ -164,3 +164,24 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!65 &2964777328570192159
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5011119252033980853}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1.0000001, y: 50, z: 1.0000002}
+  m_Center: {x: 0.000000059604645, y: 25, z: -0.00000008940697}

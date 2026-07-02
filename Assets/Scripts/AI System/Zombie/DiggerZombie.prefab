@@ -1645,7 +1645,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cc4520d06d582cc4c9b5a7f6d74e3524, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Simulation.Mission.DiggerZombieAI
-  moveSpeed: 4.5
+  moveSpeed: 1.5
   attackDamage: 10
   attackInterval: 1.5
   attackRange: 1.5

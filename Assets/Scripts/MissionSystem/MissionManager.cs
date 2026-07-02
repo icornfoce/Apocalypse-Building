@@ -418,7 +418,8 @@ namespace Simulation.Mission
         /// </summary>
         public (int floors, int area, int people) GetCurrentStats()
         {
-            return (CountFloors(), CountTotalArea(), CountPlacedPeople());
+            int peopleCount = isMissionActive ? CountAlivePeople() : CountPlacedPeople();
+            return (CountFloors(), CountTotalArea(), peopleCount);
         }
 
         /// <summary>
@@ -770,6 +771,30 @@ namespace Simulation.Mission
             foreach (var t in targets)
             {
                 if (t == null || t.gameObject.name.Contains("Ghost")) continue;
+
+                // If not active in hierarchy, check if it is due to occupation (in simulation) or deletion (in edit mode)
+                if (!t.gameObject.activeInHierarchy)
+                {
+                    if (!isMissionActive)
+                    {
+                        // In edit mode, if it is inactive, it has been sold/deleted. Skip.
+                        continue;
+                    }
+                    else
+                    {
+                        // In simulation mode, check if it was sold/deleted.
+                        StructureUnit unit = t.GetComponent<StructureUnit>();
+                        if (unit == null) unit = t.GetComponentInParent<StructureUnit>();
+                        if (unit != null && BuildingSystem.Instance != null)
+                        {
+                            if (!BuildingSystem.Instance.IsStructurePlaced(unit))
+                            {
+                                continue;
+                            }
+                        }
+                    }
+                }
+
                 if (t.countsTowardsPopulation) count++;
             }
             return count;

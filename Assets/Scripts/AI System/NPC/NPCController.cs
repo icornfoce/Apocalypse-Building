@@ -47,6 +47,17 @@ namespace Simulation.NPC
         [Tooltip("VFX ที่จะขึ้นบนหัวตอนตกใจหนี")]
         public GameObject panicVFXPrefab;
 
+        [Header("Stamina Settings")]
+        [Tooltip("ค่า Stamina สูงสุด")]
+        [SerializeField] private float _maxStamina = 100f;
+        [Tooltip("อัตราการลดของ Stamina ต่อวินาทีขณะวิ่งหนี")]
+        [SerializeField] private float _staminaDrainRate = 20f;
+        [Tooltip("อัตราการฟื้นฟูของ Stamina ต่อวินาทีเมื่อไม่วิ่งหนี")]
+        [SerializeField] private float _staminaRecoveryRate = 10f;
+
+        [Header("Stamina State")]
+        [SerializeField] private float _currentStamina = 100f;
+
         [Header("Crush Damage")]
         [Tooltip("ความแรงจากการชนขั้นต่ำที่จะทำให้ลดเลือด")]
         public float damageImpactThreshold = 3f;
@@ -95,6 +106,9 @@ namespace Simulation.NPC
         public float CurrentHealth => _currentHealth;
         public float HealthRatio => _data != null && _data.maxHealth > 0 ? Mathf.Clamp01(_currentHealth / _data.maxHealth) : 0f;
         public bool IsFleeing => _panicTimer > 0;
+        public float CurrentStamina => _currentStamina;
+        public float MaxStamina => _maxStamina;
+        public float StaminaRatio => _maxStamina > 0f ? Mathf.Clamp01(_currentStamina / _maxStamina) : 0f;
 
         // ────────────────────────────────────────────────────────────────
         // Initialization
@@ -104,6 +118,7 @@ namespace Simulation.NPC
         {
             _data = data;
             _currentHealth = data.maxHealth;
+            _currentStamina = _maxStamina;
 
             _rb = GetComponent<Rigidbody>();
             if (_rb == null) _rb = gameObject.AddComponent<Rigidbody>();
@@ -195,6 +210,18 @@ namespace Simulation.NPC
 
             if (_agent != null && _agent.enabled && _agent.isOnNavMesh && hasFloor)
             {
+                // Update Stamina
+                if (IsFleeing)
+                {
+                    _currentStamina -= _staminaDrainRate * Time.deltaTime;
+                    if (_currentStamina < 0f) _currentStamina = 0f;
+                }
+                else
+                {
+                    _currentStamina += _staminaRecoveryRate * Time.deltaTime;
+                    if (_currentStamina > _maxStamina) _currentStamina = _maxStamina;
+                }
+
                 if (_hasManualDestination && !_agent.pathPending)
                 {
                     if (_agent.remainingDistance <= _agent.stoppingDistance)
@@ -223,21 +250,28 @@ namespace Simulation.NPC
                 // ── ระบบตรวจจับซอมบี้และวิ่งหนี ──
                 HandleFleeBehavior();
 
+                // คำนวณความเร็ว
+                float baseSpeed = _data != null ? _data.moveSpeed : 2f;
+                float targetSpeed = baseSpeed;
+
+                if (IsFleeing && _currentStamina > 0f)
+                {
+                    targetSpeed = fleeSpeed;
+                }
+
+                // สัดส่วนเลือด: ลดลงตามเปอร์เซ็นต์เลือด (ต่ำสุด 40% ของความเร็วปกติที่เลือดใกล้ 0)
+                float healthFactor = Mathf.Lerp(0.4f, 1.0f, HealthRatio);
+                _agent.speed = targetSpeed * healthFactor;
+
                 if (IsFleeing && !_hasManualDestination)
                 {
                     _agent.isStopped = false;
-                    _agent.speed = fleeSpeed;
 
                     Vector3 fleePos = transform.position + _fleeDirection * 5f;
                     if (NavMesh.SamplePosition(fleePos, out NavMeshHit hit, 3f, NavMesh.AllAreas))
                     {
                         _agent.SetDestination(hit.position);
                     }
-                }
-                else
-                {
-                    // คืนค่า speed ปกติเมื่อไม่หนี (หรือตอนที่มี manual destination)
-                    if (_data != null) _agent.speed = _data.moveSpeed;
                 }
             }
             else if (_agent != null && _agent.enabled && (!_agent.isOnNavMesh || !hasFloor))

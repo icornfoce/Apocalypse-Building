@@ -319,7 +319,7 @@ namespace Simulation.UI
             tmpText.fontSize = resetButtonFontSize;
             tmpText.color = resetButtonTextColor;
             tmpText.alignment = TextAlignmentOptions.Center;
-            tmpText.enableWordWrapping = false;
+            tmpText.textWrappingMode = TextWrappingModes.NoWrap;
             tmpText.overflowMode = TextOverflowModes.Overflow;
 
             RectTransform textRect = textObj.GetComponent<RectTransform>();
@@ -396,7 +396,7 @@ namespace Simulation.UI
             tmpText.fontSize = 18f;
             tmpText.color = Color.white;
             tmpText.alignment = TextAlignmentOptions.Center;
-            tmpText.enableWordWrapping = false;
+            tmpText.textWrappingMode = TextWrappingModes.NoWrap;
             tmpText.fontStyle = FontStyles.Bold;
 
             RectTransform textRect = textObj.GetComponent<RectTransform>();

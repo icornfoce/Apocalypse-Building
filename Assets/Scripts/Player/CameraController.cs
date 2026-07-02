@@ -46,8 +46,6 @@ namespace Simulation.Camera
         [Header("Occlusion Transparency")]
         [Tooltip("Layer ที่จะตรวจหาของบัง (ตั้งให้ตรงกับ Structure Layer)")]
         [SerializeField] private LayerMask occlusionLayer;
-        [Tooltip("ค่า alpha ของของที่บัง (0 = หายไปหมด, 1 = ไม่โปร่งใส)")]
-        [SerializeField] [Range(0f, 1f)] private float occludedAlpha = 0.05f;
         [Tooltip("รัศมีของ SphereCast สำหรับตรวจจับของบัง (ยิ่งกว้าง จับได้มาก)")]
         [SerializeField] private float occlusionRadius = 1.5f;
         [Tooltip("ความเร็ว fade เข้า/ออก")]
